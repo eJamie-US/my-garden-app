@@ -102,6 +102,71 @@ describe('generateCareItems: weather adjustments', () => {
     expect(rainWater.frequency.every).toBeGreaterThanOrEqual(baselineWater.frequency.every);
   });
 
+  // Regression coverage for rainCovered: a sheltered plant never actually
+  // receives ambient rain, so crediting it with a soaking week (and
+  // stretching out its watering interval) would under-water it for real.
+  it('ignores recent rain for a rain-covered plant', () => {
+    const wet = weatherWith({
+      past: Array.from({ length: 7 }, (_, i) => ({
+        date: `2025-12-2${i}`,
+        tempMax: 18,
+        tempMin: 10,
+        precipitation: 10,
+        weatherCode: 61,
+        condition: 'Rain',
+        icon: '',
+      })),
+    });
+    const uncovered = generateCareItems({ name: 'Tomato' }, wet);
+    const covered = generateCareItems({ name: 'Tomato', rainCovered: true }, wet);
+
+    const uncoveredWater = uncovered.items.find((i) => i.title === 'Water')!;
+    const coveredWater = covered.items.find((i) => i.title === 'Water')!;
+    // The uncovered plant's interval stretched out from the rain; the
+    // covered one stays at (or below, if it's also a hot week) baseline.
+    expect(coveredWater.frequency.every).toBeLessThan(uncoveredWater.frequency.every);
+  });
+
+  it('ignores forecast rain for a rain-covered plant', () => {
+    const rainAhead = weatherWith({
+      upcoming: Array.from({ length: 7 }, (_, i) => ({
+        date: `2026-01-0${i + 1}`,
+        tempMax: 20,
+        tempMin: 10,
+        precipitation: 5,
+        weatherCode: 61,
+        condition: 'Rain',
+        icon: '',
+      })),
+    });
+    const uncovered = generateCareItems({ name: 'Tomato' }, rainAhead);
+    const covered = generateCareItems({ name: 'Tomato', rainCovered: true }, rainAhead);
+
+    const uncoveredWater = uncovered.items.find((i) => i.title === 'Water')!;
+    const coveredWater = covered.items.find((i) => i.title === 'Water')!;
+    expect(coveredWater.frequency.every).toBeLessThan(uncoveredWater.frequency.every);
+  });
+
+  it('still shortens the watering interval for a rain-covered plant in a hot stretch', () => {
+    const hot = weatherWith({
+      upcoming: Array.from({ length: 7 }, (_, i) => ({
+        date: `2026-01-0${i + 1}`,
+        tempMax: 32,
+        tempMin: 20,
+        precipitation: 0,
+        weatherCode: 0,
+        condition: 'Hot',
+        icon: '',
+      })),
+    });
+    const baseline = generateCareItems({ name: 'Tomato', rainCovered: true });
+    const inHeat = generateCareItems({ name: 'Tomato', rainCovered: true }, hot);
+
+    const baselineWater = baseline.items.find((i) => i.title === 'Water')!;
+    const heatWater = inHeat.items.find((i) => i.title === 'Water')!;
+    expect(heatWater.frequency.every).toBeLessThan(baselineWater.frequency.every);
+  });
+
   it('adds a frost-protection item for frost-tender plants when frost is ahead', () => {
     const frosty = weatherWith({
       upcoming: [

@@ -64,6 +64,7 @@ export const PlantForm = ({
     species: plant?.species ?? '',
     wateringSchedule: plant?.wateringSchedule ?? ('weekly' as 'daily' | 'weekly' | 'biweekly' | 'monthly'),
     sunRequirement: plant?.sunRequirement ?? ('partial-shade' as 'full-sun' | 'partial-shade' | 'full-shade'),
+    rainCovered: plant?.rainCovered ?? false,
     plantedDate: (plant?.plantedDate ?? new Date().toISOString()).split('T')[0],
     notes: plant?.notes ?? '',
   });
@@ -98,6 +99,7 @@ export const PlantForm = ({
         commonName: merged.commonName,
         species: merged.species,
         sunRequirement: merged.sunRequirement,
+        rainCovered: merged.rainCovered,
       },
       weather,
     );
@@ -307,6 +309,19 @@ export const PlantForm = ({
           <option value="full-shade">Full shade</option>
         </select>
       </div>
+
+      <label className="flex items-center gap-2 text-sm text-gray-700">
+        <input
+          type="checkbox"
+          checked={formData.rainCovered}
+          onChange={(e) => {
+            setFormData((prev) => ({ ...prev, rainCovered: e.target.checked }));
+            regenerateCare({ rainCovered: e.target.checked });
+          }}
+          className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+        />
+        Sheltered from rain (eave, patio roof, greenhouse)
+      </label>
 
       {careItems.length > 0 ? (
         <CareItemsEditor

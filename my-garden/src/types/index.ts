@@ -15,6 +15,9 @@ export interface Plant {
   notes?: string;
   wateringSchedule?: 'daily' | 'weekly' | 'biweekly' | 'monthly';
   sunRequirement?: 'full-sun' | 'partial-shade' | 'full-shade';
+  /** Sheltered from rain (an eave, a patio roof, grown indoors/greenhouse) —
+   *  so care generation doesn't credit it with rainfall it never gets. */
+  rainCovered?: boolean;
   /** Hydrated by careItemsService.getForPlant(); not stored on the plants row. */
   careItems?: CareItem[];
   createdAt: string;

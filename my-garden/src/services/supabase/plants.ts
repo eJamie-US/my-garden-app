@@ -18,6 +18,7 @@ interface PlantRow {
   notes: string | null;
   watering_schedule: Plant['wateringSchedule'] | null;
   sun_requirement: Plant['sunRequirement'] | null;
+  rain_covered: boolean | null;
   created_at: string;
   updated_at: string;
 }
@@ -44,6 +45,7 @@ function toPlant(row: PlantRow): Plant {
     notes: row.notes ?? undefined,
     wateringSchedule: row.watering_schedule ?? 'weekly',
     sunRequirement: row.sun_requirement ?? 'partial-shade',
+    rainCovered: row.rain_covered ?? false,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -64,6 +66,7 @@ function toRow(plant: Partial<Plant>) {
   if (plant.notes !== undefined) row.notes = plant.notes ?? null;
   if (plant.wateringSchedule !== undefined) row.watering_schedule = plant.wateringSchedule;
   if (plant.sunRequirement !== undefined) row.sun_requirement = plant.sunRequirement;
+  if (plant.rainCovered !== undefined) row.rain_covered = plant.rainCovered;
   return row;
 }
 

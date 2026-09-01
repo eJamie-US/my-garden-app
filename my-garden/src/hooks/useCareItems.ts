@@ -127,7 +127,13 @@ export const useCareItems = create<CareItemsState>((set, get) => ({
       await Promise.all(
         plants.map(async (plant) => {
           const generated = generateCareItems(
-            { name: plant.name, commonName: plant.commonName, species: plant.species, sunRequirement: plant.sunRequirement },
+            {
+              name: plant.name,
+              commonName: plant.commonName,
+              species: plant.species,
+              sunRequirement: plant.sunRequirement,
+              rainCovered: plant.rainCovered,
+            },
             weather,
           ).items;
 

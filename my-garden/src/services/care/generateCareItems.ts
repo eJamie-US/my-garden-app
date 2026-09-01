@@ -211,13 +211,29 @@ function readWeather(weather?: WeatherData | null): WeatherRead {
   };
 }
 
-/** Nudges the baseline watering interval by what the sky has been doing. */
-function adjustWaterDays(baseDays: number, read: WeatherRead, sun?: Plant['sunRequirement']) {
+/**
+ * Nudges the baseline watering interval by what the sky has been doing.
+ * `covered` (sheltered from rain — an eave, a patio roof, grown under
+ * glass) skips every rain-derived branch: a covered plant never actually
+ * gets whatever fell or is forecast, so crediting it with that rain would
+ * under-water it. Heat still dries covered soil out just the same, so
+ * hotDaysAhead still applies.
+ */
+function adjustWaterDays(
+  baseDays: number,
+  read: WeatherRead,
+  sun?: Plant['sunRequirement'],
+  covered?: boolean,
+) {
   let days = baseDays;
   const why: string[] = [];
 
   if (read.available) {
-    if (read.recentRainMm >= 25) {
+    if (covered) {
+      if (read.recentRainMm >= 10 || read.rainAheadMm >= 20) {
+        why.push("covered, so rain doesn't reach it — watering on its usual schedule regardless");
+      }
+    } else if (read.recentRainMm >= 25) {
       days = Math.round(days * 1.75);
       why.push(`${Math.round(read.recentRainMm)}mm of rain in the last week`);
     } else if (read.recentRainMm >= 10) {
@@ -232,7 +248,7 @@ function adjustWaterDays(baseDays: number, read: WeatherRead, sun?: Plant['sunRe
       days = Math.max(1, Math.round(days * 0.7));
       why.push(`${read.hotDaysAhead} hot days coming`);
     }
-    if (read.rainAheadMm >= 20) {
+    if (!covered && read.rainAheadMm >= 20) {
       days = Math.round(days * 1.25);
       why.push('rain in the forecast');
     }
@@ -260,7 +276,7 @@ export interface GenerateResult {
 }
 
 export function generateCareItems(
-  plant: Pick<Plant, 'species' | 'commonName' | 'name' | 'sunRequirement'>,
+  plant: Pick<Plant, 'species' | 'commonName' | 'name' | 'sunRequirement' | 'rainCovered'>,
   weather?: WeatherData | null,
 ): GenerateResult {
   const profile = profileFor(plant);
@@ -270,7 +286,7 @@ export function generateCareItems(
   // Every item below starts due today — see the file header note.
   const dueNow = today();
 
-  const { days, why } = adjustWaterDays(profile.waterDays, read, plant.sunRequirement);
+  const { days, why } = adjustWaterDays(profile.waterDays, read, plant.sunRequirement, plant.rainCovered);
   const waterFreq = toFrequency(days);
 
   items.push({

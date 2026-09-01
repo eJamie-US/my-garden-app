@@ -40,6 +40,7 @@ export default function App() {
   const [profile, setProfile] = useState<Profile>({});
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [selectedPlant, setSelectedPlant] = useState<Plant | null>(null);
+  const [editingPlant, setEditingPlant] = useState<Plant | null>(null);
   // Shared between Due Today and the yard map so picking "Water" narrows
   // both the list and the badges at once, not just one of them.
   const [kindFilter, setKindFilter] = useState<Set<CareItem['kind']>>(new Set());
@@ -113,6 +114,13 @@ export default function App() {
     const fresh = plants.find((p) => p.id === selectedPlant.id);
     if (fresh && fresh !== selectedPlant) setSelectedPlant(fresh);
   }, [plants, selectedPlant]);
+
+  // Same, for the plant-details edit form.
+  useEffect(() => {
+    if (!editingPlant) return;
+    const fresh = plants.find((p) => p.id === editingPlant.id);
+    if (fresh && fresh !== editingPlant) setEditingPlant(fresh);
+  }, [plants, editingPlant]);
 
   // Re-generate every plant's care plan from the current weather snapshot
   // once per user per app-open (not on every render/refetch) so due dates,
@@ -274,7 +282,45 @@ export default function App() {
           onClose={() => setSelectedPlant(null)}
           onPhotoUploaded={() => fetchPlants(user.id)}
           onDeletePlant={deletePlant}
+          onEditDetails={(p) => {
+            setSelectedPlant(null);
+            setEditingPlant(p);
+          }}
         />
+      )}
+
+      {/* Edit plant details modal — same form as Add Plant, in its edit mode. */}
+      {editingPlant && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 sm:items-center">
+          <div className="flex max-h-[90vh] w-full max-w-md flex-col rounded-lg bg-white shadow-xl">
+            <div className="flex shrink-0 items-center justify-between border-b p-4">
+              <h3 className="text-lg font-bold">Edit {editingPlant.name}</h3>
+
+              <button
+                type="button"
+                onClick={() => setEditingPlant(null)}
+                className="text-xl text-gray-500 hover:text-gray-700"
+                aria-label="Close edit plant form"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto p-4">
+              <PlantForm
+                plant={editingPlant}
+                location={editingPlant.location}
+                existingCareItems={careItems.filter((i) => i.plantId === editingPlant.id)}
+                weather={weather}
+                onSuccess={() => {
+                  setEditingPlant(null);
+                  fetchPlants(user.id);
+                  fetchCareItems(user.id);
+                }}
+              />
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Add plant modal */}

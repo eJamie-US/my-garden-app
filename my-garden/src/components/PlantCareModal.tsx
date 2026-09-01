@@ -7,7 +7,7 @@
 // plant itself happens by dragging its marker on the canvas, not from here.
 
 import { useMemo, useState } from 'react';
-import { Check, Loader2, Move, Pencil, Trash2, X } from 'lucide-react';
+import { Check, Loader2, Move, Pencil, Sun, Trash2, Umbrella, X } from 'lucide-react';
 import type { CareItem, DraftCareItem, Plant, WeatherData } from '../types';
 import { useCareItems } from '../hooks/useCareItems';
 import { careItemsService } from '../services/supabase/careItems';
@@ -17,6 +17,12 @@ import { KIND_ICONS, daysUntil, dueLabel, dueBadgeClass, ingredientSummary } fro
 import { CareItemsEditor } from './CareItemsEditor';
 import { PhotoTimeline } from './PhotoTimeline';
 import { PlantPhotoCapture, type PhotoCaptureValue } from './PlantPhotoCapture';
+
+const SUN_LABEL: Record<NonNullable<Plant['sunRequirement']>, string> = {
+  'full-sun': 'Full sun',
+  'partial-shade': 'Partial shade',
+  'full-shade': 'Full shade',
+};
 
 function byDueDate(a: CareItem, b: CareItem) {
   const da = daysUntil(a.nextDueDate);
@@ -41,6 +47,10 @@ interface PlantCareModalProps {
    *  Rethrows on failure so the confirm button can show what went wrong
    *  instead of closing as if it had worked. */
   onDeletePlant?: (plantId: string, userId: string) => Promise<void>;
+  /** Opens the full edit form (name, species, sun/rain exposure, watering
+   *  schedule, notes) — everything about the plant except its care items,
+   *  which stay editable right here. */
+  onEditDetails?: (plant: Plant) => void;
 }
 
 export function PlantCareModal({
@@ -50,6 +60,7 @@ export function PlantCareModal({
   onClose,
   onPhotoUploaded,
   onDeletePlant,
+  onEditDetails,
 }: PlantCareModalProps) {
   const allCareItems = useCareItems((s) => s.items);
   const careLoading = useCareItems((s) => s.loading);
@@ -109,6 +120,7 @@ export function PlantCareModal({
         commonName: plant.commonName,
         species: plant.species,
         sunRequirement: plant.sunRequirement,
+        rainCovered: plant.rainCovered,
       },
       weather,
     );
@@ -207,16 +219,40 @@ export function PlantCareModal({
                   {[plant.commonName, plant.species].filter(Boolean).join(' · ')}
                 </p>
               )}
+              <p className="flex items-center gap-1 text-[11px] text-gray-400">
+                <Sun size={11} className="shrink-0" />
+                {SUN_LABEL[plant.sunRequirement ?? 'partial-shade']}
+                {plant.rainCovered && (
+                  <>
+                    <span aria-hidden>·</span>
+                    <Umbrella size={11} className="shrink-0" />
+                    Covered
+                  </>
+                )}
+              </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="shrink-0 text-gray-500 hover:text-gray-700"
-            aria-label="Close care items"
-          >
-            <X size={20} />
-          </button>
+          <div className="flex shrink-0 items-start gap-2">
+            {onEditDetails && (
+              <button
+                type="button"
+                onClick={() => onEditDetails(plant)}
+                className="text-gray-400 hover:text-emerald-600"
+                aria-label="Edit plant details"
+                title="Edit plant details"
+              >
+                <Pencil size={16} />
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-gray-500 hover:text-gray-700"
+              aria-label="Close care items"
+            >
+              <X size={20} />
+            </button>
+          </div>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-4">
