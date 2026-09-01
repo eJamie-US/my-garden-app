@@ -1,8 +1,9 @@
 // src/components/YardObstaclesSettings.tsx
-// Mark roughly where buildings, covered porches, trees and fences sit in
-// the yard photo — click a spot, pick a type and a rough height. Feeds the
-// sun/shade exposure estimate (see utils/sunExposure.ts); position only
-// needs to be approximate, same as everything else that estimate does.
+// Mark roughly where buildings, covered porches, shade sails, trees and
+// fences sit in the yard photo — click a spot, pick a type and a rough
+// height. Feeds the sun/shade exposure estimate (see utils/sunExposure.ts);
+// position only needs to be approximate, same as everything else that
+// estimate does.
 
 import { useState } from 'react';
 import { Loader2, Trash2, X } from 'lucide-react';
@@ -12,6 +13,7 @@ import type { ObstacleHeightTier, YardObstacle, YardObstacleType } from '../type
 const TYPE_OPTIONS: { value: YardObstacleType; label: string; icon: string }[] = [
   { value: 'building', label: 'Building', icon: '🏠' },
   { value: 'covered-porch', label: 'Covered porch/roof', icon: '⛺' },
+  { value: 'shade-sail', label: 'Sun tarp / shade sail', icon: '⛱️' },
   { value: 'tree', label: 'Tree', icon: '🌳' },
   { value: 'fence', label: 'Fence', icon: '🚧' },
 ];
@@ -25,8 +27,18 @@ const TIER_OPTIONS: { value: ObstacleHeightTier; label: string }[] = [
 const ICON_BY_TYPE: Record<YardObstacleType, string> = {
   building: '🏠',
   'covered-porch': '⛺',
+  'shade-sail': '⛱️',
   tree: '🌳',
   fence: '🚧',
+};
+
+/** Types that are nearly always one particular height tier — a starting
+ *  point the user can still override before saving. */
+const SUGGESTED_TIER: Partial<Record<YardObstacleType, ObstacleHeightTier>> = {
+  'covered-porch': 'medium',
+  // Strung overhead but usually lower than a roofline — closer to a fence
+  // than a building in practice.
+  'shade-sail': 'low',
 };
 
 interface YardObstaclesSettingsProps {
@@ -56,9 +68,7 @@ export function YardObstaclesSettings({
     const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
     const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
     setPending({ x, y });
-    // 'covered-porch' is nearly always closer to 'medium' than 'tall' — a
-    // reasonable default, still overridable before adding.
-    setHeightTier(type === 'covered-porch' ? 'medium' : heightTier);
+    setHeightTier(SUGGESTED_TIER[type] ?? heightTier);
     setError('');
   };
 

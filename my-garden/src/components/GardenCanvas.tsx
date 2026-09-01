@@ -352,18 +352,24 @@ export function GardenCanvas({
               mockup preview (checkerboard baked into the pixels, not a
               real alpha channel) — the transparent version was rebuilt
               from it, so a CSS drop-shadow here is what grounds it on the
-              banner instead of a shadow baked into the art. Deliberately
-              taller than the 100px banner and bottom-anchored with a small
-              downward nudge, so it spills slightly over both edges instead
-              of being confined to the strip — the lettering reads as
-              "sitting" on the banner rather than shrunk to fit inside it.
+              banner instead of a shadow baked into the art.
+
+              The letters' own baseline sits well above the PNG's bottom
+              edge (there's a deep transparent margin below the "y"/"G"
+              descender loops), so sizing and nudging by the image's outer
+              box alone put the whole word too high — this pushes it down
+              by the measured baseline-to-image-bottom offset (~25% of the
+              image's height) so the baseline itself lands on the banner's
+              bottom edge, with only the descender loops (~7% of height)
+              spilling past it. The extra height beyond the 100px banner is
+              what keeps the top of the lettering poking above it too.
               Smaller below the `sm` breakpoint: at that width the banner
               itself is only as wide as the screen, and the full-size title
               runs into accountSlot's chip in the corner. */}
           <img
             src="/my-garden-title.png"
             alt="My Garden"
-            className="relative h-[72px] w-auto max-w-[85%] translate-y-1 select-none sm:h-[124px] sm:max-w-[90%] sm:translate-y-2"
+            className="relative h-[90px] w-auto max-w-[85%] translate-y-[22px] select-none sm:h-[154px] sm:max-w-[90%] sm:translate-y-[38px]"
             style={{
               filter: 'drop-shadow(0 3px 5px rgba(40, 25, 5, 0.55)) drop-shadow(0 1px 2px rgba(40, 25, 5, 0.4))',
             }}

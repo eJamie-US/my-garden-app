@@ -29,7 +29,7 @@ export interface Plant {
 
 /* ---------- Yard obstacles (sun/shade exposure estimate) ---------- */
 
-export type YardObstacleType = 'building' | 'covered-porch' | 'tree' | 'fence';
+export type YardObstacleType = 'building' | 'covered-porch' | 'shade-sail' | 'tree' | 'fence';
 
 /**
  * Qualitative, not metric — the yard photo has no known real-world scale
