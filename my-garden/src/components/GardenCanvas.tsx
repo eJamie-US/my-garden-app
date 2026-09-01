@@ -7,6 +7,8 @@ type GardenCanvasProps = {
   plants: Plant[];
   /** Powers the due-badges above each marker. */
   careItems: CareItem[];
+  /** Only badge items of these kinds — empty/omitted shows every kind. */
+  kindFilter?: Set<CareItem['kind']>;
   /** Empty-spot click: starts the add-plant flow. A click near existing
    *  plant(s) instead reports them, so the caller can offer a chooser. */
   onYardClick: (x: number, y: number, existing: Plant[]) => void;
@@ -162,6 +164,7 @@ export function GardenCanvas({
   yardImageUrl,
   plants,
   careItems,
+  kindFilter,
   onYardClick,
   onSelectPlant,
   onMovePlant,
@@ -226,6 +229,7 @@ export function GardenCanvas({
   const dueByPlant = useMemo(() => {
     const map = new Map<string, CareItem[]>();
     for (const item of careItems) {
+      if (kindFilter && kindFilter.size > 0 && !kindFilter.has(item.kind)) continue;
       const days = daysUntil(item.nextDueDate);
       // No due date counts as due now, same as Due Today — an item that lost
       // its date (e.g. cleared in the editor) shouldn't silently drop off
@@ -239,7 +243,7 @@ export function GardenCanvas({
       list.sort((a, b) => (daysUntil(a.nextDueDate) ?? 0) - (daysUntil(b.nextDueDate) ?? 0));
     }
     return map;
-  }, [careItems]);
+  }, [careItems, kindFilter]);
 
   async function commitMove(plant: Plant, finalPos: Point) {
     setOptimisticPositions((prev) => new Map(prev).set(plant.id, finalPos));
@@ -327,7 +331,7 @@ export function GardenCanvas({
           raised stacking context, so accountSlot's dropdown (which is
           taller than the 100px banner) can extend below it instead of being
           cut off. */}
-      <section className="relative z-30 mx-auto h-[170px] w-full max-w-[1600px]">
+      <section className="relative z-30 mx-auto h-[100px] w-full max-w-[1600px]">
         <div className="absolute inset-0 overflow-hidden">
           <img
             src="/garden-banner.png"
@@ -336,17 +340,20 @@ export function GardenCanvas({
           />
 
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="absolute h-24 w-64 rounded-full bg-yellow-200/25 blur-3xl" />
+            <div className="absolute h-16 w-56 rounded-full bg-yellow-200/25 blur-3xl" />
 
             {/* The user's own gold-lettering artwork. It shipped as a flat
                 mockup preview (checkerboard baked into the pixels, not a
                 real alpha channel) — the transparent version was rebuilt
                 from it, so a CSS drop-shadow here is what grounds it on the
-                banner instead of a shadow baked into the art. */}
+                banner instead of a shadow baked into the art. Sized by
+                height, not width — the banner is a fixed 100px tall, so the
+                title has to fit that instead of stretching to a share of a
+                (variable-width) container and risking getting clipped. */}
             <img
               src="/my-garden-title.png"
               alt="My Garden"
-              className="relative h-auto w-[62%] max-w-[380px] select-none"
+              className="relative h-[76px] w-auto max-w-[90%] select-none"
               style={{
                 filter: 'drop-shadow(0 3px 5px rgba(40, 25, 5, 0.55)) drop-shadow(0 1px 2px rgba(40, 25, 5, 0.4))',
               }}

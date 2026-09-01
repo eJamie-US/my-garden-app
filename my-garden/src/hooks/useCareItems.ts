@@ -10,6 +10,8 @@ interface CareItemsState {
   error: string | null;
   fetchForUser: (userId: string) => Promise<void>;
   completeItem: (item: CareItem) => Promise<void>;
+  /** Completes a batch in one go — e.g. "mark all water done" from a kind filter. */
+  completeMany: (items: CareItem[]) => Promise<void>;
   refreshFromWeather: (plants: Plant[], weather: WeatherData | null | undefined, userId: string) => Promise<void>;
 }
 
@@ -80,6 +82,34 @@ export const useCareItems = create<CareItemsState>((set, get) => ({
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Could not save that' });
       throw err;
+    }
+  },
+
+  // Fires all the completions in parallel, then reconciles from whichever
+  // resolved — same "still show what actually saved" approach as a single
+  // completeItem, just batched for a "mark all done" action.
+  completeMany: async (items: CareItem[]) => {
+    if (!items.length) return;
+    const settled = await Promise.allSettled(items.map((item) => careItemsService.complete(item)));
+    const updatedById = new Map<string, CareItem>();
+    let failures = 0;
+    settled.forEach((result, i) => {
+      if (result.status === 'fulfilled') updatedById.set(items[i].id, result.value);
+      else failures++;
+    });
+    if (updatedById.size) {
+      set({ items: get().items.map((i) => updatedById.get(i.id) ?? i) });
+    }
+    if (failures) {
+      // Thrown with the same text that's set on the store, so a caller that
+      // displays err.message (same pattern as completeItem) shows the real
+      // reason instead of a generic marker string.
+      const message =
+        failures === items.length
+          ? 'Could not save any of those'
+          : `${failures} of ${items.length} didn't save — try again`;
+      set({ error: message });
+      throw new Error(message);
     }
   },
 

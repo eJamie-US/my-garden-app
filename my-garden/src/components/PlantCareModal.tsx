@@ -7,7 +7,7 @@
 // plant itself happens by dragging its marker on the canvas, not from here.
 
 import { useMemo, useState } from 'react';
-import { Check, Loader2, Move, Pencil, X } from 'lucide-react';
+import { Check, Loader2, Move, Pencil, Trash2, X } from 'lucide-react';
 import type { CareItem, DraftCareItem, Plant, WeatherData } from '../types';
 import { useCareItems } from '../hooks/useCareItems';
 import { careItemsService } from '../services/supabase/careItems';
@@ -37,9 +37,20 @@ interface PlantCareModalProps {
   /** Fired after a new photo is saved, so the caller can refetch plants and
    *  pick up the new marker icon / current photo. */
   onPhotoUploaded?: () => void;
+  /** Removes the plant (and, via DB cascade, its care items and photos).
+   *  Rethrows on failure so the confirm button can show what went wrong
+   *  instead of closing as if it had worked. */
+  onDeletePlant?: (plantId: string) => Promise<void>;
 }
 
-export function PlantCareModal({ plant, userId, weather, onClose, onPhotoUploaded }: PlantCareModalProps) {
+export function PlantCareModal({
+  plant,
+  userId,
+  weather,
+  onClose,
+  onPhotoUploaded,
+  onDeletePlant,
+}: PlantCareModalProps) {
   const allCareItems = useCareItems((s) => s.items);
   const careLoading = useCareItems((s) => s.loading);
   const completeItem = useCareItems((s) => s.completeItem);
@@ -62,6 +73,10 @@ export function PlantCareModal({ plant, userId, weather, onClose, onPhotoUploade
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoRefreshKey, setPhotoRefreshKey] = useState(0);
   const [photoError, setPhotoError] = useState('');
+
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   const complete = async (item: CareItem) => {
     setCompleting(item.id);
@@ -152,6 +167,20 @@ export function PlantCareModal({ plant, userId, weather, onClose, onPhotoUploade
       setPhotoError(err instanceof Error ? err.message : 'Could not save that photo');
     } finally {
       setUploadingPhoto(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!onDeletePlant) return;
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      await onDeletePlant(plant.id);
+      onClose();
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Could not delete that plant');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -342,9 +371,48 @@ export function PlantCareModal({ plant, userId, weather, onClose, onPhotoUploade
           )}
         </div>
 
-        <div className="flex shrink-0 items-center gap-1.5 border-t p-3 text-xs text-gray-400">
-          <Move size={12} />
-          Tip: drag its marker on the yard to move {plant.name}.
+        <div className="shrink-0 space-y-2 border-t p-3">
+          <div className="flex items-center gap-1.5 text-xs text-gray-400">
+            <Move size={12} />
+            Tip: drag its marker on the yard to move {plant.name} — even out of a
+            crowded spot with other plants.
+          </div>
+
+          {deleteError && <p className="text-xs text-red-600">{deleteError}</p>}
+
+          {onDeletePlant &&
+            (confirmingDelete ? (
+              <div className="flex flex-wrap items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-2.5 py-2">
+                <span className="min-w-0 flex-1 text-xs font-semibold text-red-800">
+                  Delete {plant.name}? This removes its photos and care plan too — can't be undone.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setConfirmingDelete(false)}
+                  disabled={deleting}
+                  className="shrink-0 rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="flex shrink-0 items-center gap-1 rounded-md bg-red-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-red-700 disabled:bg-gray-400"
+                >
+                  {deleting ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                  Delete
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmingDelete(true)}
+                className="flex items-center gap-1 text-xs font-semibold text-gray-400 hover:text-red-600"
+              >
+                <Trash2 size={12} /> Delete plant
+              </button>
+            ))}
         </div>
       </div>
     </div>

@@ -15,11 +15,11 @@ import {
   userSettingsService,
   type GardenLocation,
 } from './services/supabase/userSettings';
-import type { Plant, WeatherData } from './types';
+import type { CareItem, Plant, WeatherData } from './types';
 
 export default function App() {
   const { user, loading, checkAuth, logout } = useAuth();
-  const { plants, fetchPlants, updatePlant } = usePlants();
+  const { plants, fetchPlants, updatePlant, deletePlant } = usePlants();
   const careItems = useCareItems((s) => s.items);
   const fetchCareItems = useCareItems((s) => s.fetchForUser);
   const refreshFromWeather = useCareItems((s) => s.refreshFromWeather);
@@ -29,6 +29,9 @@ export default function App() {
   const [garden, setGarden] = useState<GardenLocation | null>(null);
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [selectedPlant, setSelectedPlant] = useState<Plant | null>(null);
+  // Shared between Due Today and the yard map so picking "Water" narrows
+  // both the list and the badges at once, not just one of them.
+  const [kindFilter, setKindFilter] = useState<Set<CareItem['kind']>>(new Set());
 
   const [selectedLocation, setSelectedLocation] = useState<{
     x: number;
@@ -148,6 +151,8 @@ export default function App() {
           onOpenPlant={(plantId) =>
             setSelectedPlant(plants.find((p) => p.id === plantId) ?? null)
           }
+          kindFilter={kindFilter}
+          onKindFilterChange={setKindFilter}
         />
       )}
 
@@ -155,6 +160,7 @@ export default function App() {
       <GardenCanvas
         plants={plants}
         careItems={careItems}
+        kindFilter={kindFilter}
         yardImageUrl="/default-yard.png"
         onYardClick={handleCanvasClick}
         onSelectPlant={setSelectedPlant}
@@ -200,6 +206,7 @@ export default function App() {
           weather={weather}
           onClose={() => setSelectedPlant(null)}
           onPhotoUploaded={() => fetchPlants(user.id)}
+          onDeletePlant={deletePlant}
         />
       )}
 

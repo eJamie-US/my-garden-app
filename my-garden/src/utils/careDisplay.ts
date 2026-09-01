@@ -9,6 +9,11 @@ export const KIND_ICONS: Record<CareItem['kind'], string> = {
   water: '💧', feed: '🌱', prune: '✂️', mulch: '🍂', protect: '🧣', inspect: '🔍', other: '📋',
 };
 
+export const KIND_LABELS: Record<CareItem['kind'], string> = {
+  water: 'Water', feed: 'Feed', prune: 'Prune', mulch: 'Mulch',
+  protect: 'Protect', inspect: 'Inspect', other: 'Other',
+};
+
 export const today = () => new Date().toISOString().slice(0, 10);
 
 /** null = no due date set at all ("not scheduled"), distinct from 0 ("due today"). */

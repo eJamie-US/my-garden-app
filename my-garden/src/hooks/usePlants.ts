@@ -85,6 +85,9 @@ export const usePlants = create<PlantStore>((set, get) => ({
     });
   },
 
+  // Rethrows, like updatePlant — the caller (the delete-confirm button)
+  // needs to know a delete actually failed instead of quietly closing as
+  // if the plant were gone.
   deletePlant: async (id) => {
     set({ loading: true, error: null });
     try {
@@ -95,10 +98,9 @@ export const usePlants = create<PlantStore>((set, get) => ({
         loading: false,
       }));
     } catch (err) {
-      set({
-        error: err instanceof Error ? err.message : 'Failed to delete plant',
-        loading: false,
-      });
+      const message = err instanceof Error ? err.message : 'Failed to delete plant';
+      set({ error: message, loading: false });
+      throw err instanceof Error ? err : new Error(message);
     }
   },
 
