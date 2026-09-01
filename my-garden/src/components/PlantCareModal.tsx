@@ -40,7 +40,7 @@ interface PlantCareModalProps {
   /** Removes the plant (and, via DB cascade, its care items and photos).
    *  Rethrows on failure so the confirm button can show what went wrong
    *  instead of closing as if it had worked. */
-  onDeletePlant?: (plantId: string) => Promise<void>;
+  onDeletePlant?: (plantId: string, userId: string) => Promise<void>;
 }
 
 export function PlantCareModal({
@@ -175,7 +175,7 @@ export function PlantCareModal({
     setDeleting(true);
     setDeleteError('');
     try {
-      await onDeletePlant(plant.id);
+      await onDeletePlant(plant.id, plant.userId);
       onClose();
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : 'Could not delete that plant');

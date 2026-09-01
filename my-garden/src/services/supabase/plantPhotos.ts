@@ -4,6 +4,13 @@ import { supabase } from '../../lib/supabase';
 import type { PlantPhoto } from '../../types';
 import { plantsService } from './plants';
 
+/** getPublicUrl() shapes URLs as `{project}/storage/v1/object/public/{bucket}/{path}` — pull the path back out of one. */
+function storagePathFromPublicUrl(url: string): string | null {
+  const marker = '/object/public/plant-photos/';
+  const i = url.indexOf(marker);
+  return i === -1 ? null : decodeURIComponent(url.slice(i + marker.length));
+}
+
 interface PlantPhotoRow {
   id: string;
   plant_id: string;
@@ -131,8 +138,23 @@ export const plantPhotosService = {
     return toPlantPhoto(data as PlantPhotoRow);
   },
 
-  async deletePhoto(id: string): Promise<void> {
-    const { error } = await supabase.from('plant_photos').delete().eq('id', id);
+  /** Takes the photo (not just its id) so it can clean up the storage
+   *  files the row points to — the DB row alone doesn't carry enough to
+   *  find them afterwards. Best-effort on storage, same reasoning as
+   *  plantsService.deletePlant: don't let a storage hiccup block removing
+   *  the row itself. */
+  async deletePhoto(photo: Pick<PlantPhoto, 'id' | 'photoUrl' | 'spriteUrl'>): Promise<void> {
+    const paths = [photo.photoUrl, photo.spriteUrl]
+      .filter((url): url is string => Boolean(url))
+      .map(storagePathFromPublicUrl)
+      .filter((p): p is string => Boolean(p));
+
+    if (paths.length) {
+      const { error } = await supabase.storage.from('plant-photos').remove(paths);
+      if (error) console.error(`Could not remove stored photo(s) for ${photo.id}:`, error);
+    }
+
+    const { error } = await supabase.from('plant_photos').delete().eq('id', photo.id);
     if (error) throw error;
   },
 

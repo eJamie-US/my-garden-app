@@ -1,14 +1,13 @@
 // src/services/seeds/seedPlan.ts
 // Sowing plan for a plant NAME (no photo — there is nothing to photograph yet).
 // Asks an LLM for the plan, validates the shape, and falls back to a local table
-// when the key is missing, the call fails, or the answer doesn't parse.
+// when the call fails or the answer doesn't parse. The actual Anthropic call
+// (and its API key) lives server-side in supabase/functions/ai-seed-plan —
+// this only sends the plant name and parses whatever text comes back, same
+// as before.
 
-import axios from 'axios';
 import type { CareIngredient, DraftCareItem } from '../../types';
-
-const AI_URL = import.meta.env.VITE_AI_API_URL || 'https://api.anthropic.com/v1/messages';
-const AI_KEY = import.meta.env.VITE_AI_API_KEY as string | undefined;
-const AI_MODEL = import.meta.env.VITE_AI_MODEL || 'claude-sonnet-4-5';
+import { supabase } from '../../lib/supabase';
 
 let seq = 0;
 const uid = (p: string) => `${p}-${Date.now().toString(36)}-${seq++}`;
@@ -166,21 +165,9 @@ function fallbackPlan(plantName: string): SeedPlan {
 }
 
 /* ---------- AI ---------- */
-
-const SCHEMA_PROMPT = `You are a horticulturist. Given a plant name, return ONLY a JSON object, no prose and no code fence:
-{
-  "species": "botanical name",
-  "method": "direct-sow" | "start-indoors" | "either",
-  "sowDepthMm": number,
-  "spacingCm": number,
-  "startIndoorsWeeksBeforeLastFrost": number | null,
-  "germinationDays": [minNumber, maxNumber],
-  "daysToHarvestOrBloom": number,
-  "soilTempC": [minNumber, maxNumber],
-  "steps": ["3 to 6 short imperative steps, in order"],
-  "notes": "one short caveat, or omit"
-}
-Use metric. If the name is not a plant you can raise from seed, return {"error":"not-sowable"}.`;
+// The schema prompt itself now lives in supabase/functions/ai-seed-plan —
+// it has to run server-side next to the API key. parsePlan below still
+// expects exactly the shape that prompt asks for.
 
 function coerceRange(value: unknown, fallback: [number, number]): [number, number] {
   if (Array.isArray(value) && value.length === 2) {
@@ -236,44 +223,28 @@ function parsePlan(raw: string, plantName: string): SeedPlan | null {
 }
 
 export const seedPlanService = {
-  isConfigured(): boolean {
-    return Boolean(AI_KEY);
-  },
-
-  /** Never throws — an unusable answer degrades to the local table. */
+  /** Never throws for an unusable answer — that degrades to the local
+   *  table. A cancelled request (AbortSignal fired) still rethrows, same
+   *  as before, so a caller racing/superseding requests can tell the
+   *  difference from "AI declined to answer". */
   async getSeedPlan(plantName: string, signal?: AbortSignal): Promise<SeedPlan> {
     const name = plantName.trim();
     if (!name) return fallbackPlan('plant');
-    if (!AI_KEY) return fallbackPlan(name);
 
     try {
-      const { data } = await axios.post(
-        AI_URL,
-        {
-          model: AI_MODEL,
-          max_tokens: 700,
-          system: SCHEMA_PROMPT,
-          messages: [{ role: 'user', content: `Plant name: ${name}` }],
-        },
-        {
-          signal,
-          timeout: 25_000,
-          headers: {
-            'content-type': 'application/json',
-            'x-api-key': AI_KEY,
-            'anthropic-version': '2023-06-01',
-          },
-        },
+      const { data, error } = await supabase.functions.invoke<{ text?: string; error?: string }>(
+        'ai-seed-plan',
+        { body: { plantName: name }, signal },
       );
 
-      const text: string =
-        data?.content?.map?.((part: any) => part?.text ?? '').join('') ??
-        data?.choices?.[0]?.message?.content ??
-        '';
+      if (error || !data || data.error || !data.text) {
+        if (error) console.error('Seed plan lookup failed', error);
+        return fallbackPlan(name);
+      }
 
-      return parsePlan(text, name) ?? fallbackPlan(name);
+      return parsePlan(data.text, name) ?? fallbackPlan(name);
     } catch (error) {
-      if (axios.isCancel?.(error)) throw error;
+      if (signal?.aborted) throw error;
       console.error('Seed plan lookup failed', error);
       return fallbackPlan(name);
     }

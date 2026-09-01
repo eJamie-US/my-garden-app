@@ -63,7 +63,7 @@ export function PhotoTimeline({
     setPhotos((current) => current.filter((p) => p.id !== photo.id));
     setSelected((i) => Math.max(0, Math.min(i, previous.length - 2)));
     try {
-      await plantPhotosService.deletePhoto(photo.id);
+      await plantPhotosService.deletePhoto(photo);
     } catch (err) {
       setPhotos(previous);
       setError(err instanceof Error ? err.message : 'Could not delete that photo');

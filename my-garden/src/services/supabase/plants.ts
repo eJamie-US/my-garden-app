@@ -115,9 +115,37 @@ export const plantsService = {
     return toPlant(data as PlantRow);
   },
 
-  async deletePlant(id: string): Promise<void> {
+  /**
+   * DB rows (care_items, plant_photos) cascade automatically, but Storage
+   * isn't part of Postgres, so nothing deletes the photo files on its own —
+   * they'd otherwise sit in the bucket forever. Every file for this plant
+   * lives under one `${userId}/${plantId}/` prefix (see uploadPlantPhoto),
+   * so clearing it is one list + one remove. Best-effort: a storage hiccup
+   * here shouldn't block deleting the plant itself, so it's logged rather
+   * than thrown.
+   */
+  async deletePlant(id: string, userId: string): Promise<void> {
+    await plantsService.deletePlantPhotoFolder(userId, id).catch((err) => {
+      console.error(`Could not clean up stored photos for plant ${id}:`, err);
+    });
+
     const { error } = await supabase.from('plants').delete().eq('id', id);
     if (error) throw error;
+  },
+
+  /** Removes every stored file under a plant's photo folder. */
+  async deletePlantPhotoFolder(userId: string, plantId: string): Promise<void> {
+    const folder = `${userId}/${plantId}`;
+    const { data: files, error: listError } = await supabase.storage
+      .from('plant-photos')
+      .list(folder);
+
+    if (listError) throw listError;
+    if (!files?.length) return;
+
+    const paths = files.map((f) => `${folder}/${f.name}`);
+    const { error: removeError } = await supabase.storage.from('plant-photos').remove(paths);
+    if (removeError) throw removeError;
   },
 
   /** `kind` keeps the original photo and its cut-out sprite side by side. */

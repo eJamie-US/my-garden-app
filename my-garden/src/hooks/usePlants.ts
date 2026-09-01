@@ -19,7 +19,7 @@ interface PlantStore {
   /** Syncs a plant that was already created/updated via plantsService directly
    *  into local state, without writing to the database again. */
   upsertPlantLocal: (plant: Plant) => void;
-  deletePlant: (id: string) => Promise<void>;
+  deletePlant: (id: string, userId: string) => Promise<void>;
   selectPlant: (id: string | null) => void;
   uploadPhoto: (userId: string, plantId: string, file: File) => Promise<string>;
 }
@@ -88,10 +88,10 @@ export const usePlants = create<PlantStore>((set, get) => ({
   // Rethrows, like updatePlant — the caller (the delete-confirm button)
   // needs to know a delete actually failed instead of quietly closing as
   // if the plant were gone.
-  deletePlant: async (id) => {
+  deletePlant: async (id, userId) => {
     set({ loading: true, error: null });
     try {
-      await plantsService.deletePlant(id);
+      await plantsService.deletePlant(id, userId);
       set((state) => ({
         plants: state.plants.filter((p) => p.id !== id),
         selectedPlantId: state.selectedPlantId === id ? null : state.selectedPlantId,

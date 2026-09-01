@@ -1,13 +1,15 @@
 // src/services/plantid/identify.ts
 // Pl@ntNet v2 identification. https://my.plantnet.org/  (v2/identify/{project})
+// The actual Pl@ntNet call (and its API key) lives server-side in
+// supabase/functions/plant-id — this builds the same multipart upload it
+// always did and hands it to that function instead of Pl@ntNet directly.
+// PROJECT isn't a secret (just which taxonomic index to query), so it's
+// still fine to configure client-side.
 
-import axios, { AxiosError } from 'axios';
 import type { PlantIdCandidate, PlantIdResult } from '../../types';
 import { resizeImage } from '../../utils/imageUtils';
+import { supabase } from '../../lib/supabase';
 
-const API_BASE =
-  import.meta.env.VITE_PLANTNET_API_URL || 'https://my-api.plantnet.org/v2';
-const API_KEY = import.meta.env.VITE_PLANTNET_API_KEY as string | undefined;
 const PROJECT = import.meta.env.VITE_PLANTNET_PROJECT || 'all';
 
 /** Below this the caller should make the user confirm rather than auto-accept. */
@@ -39,22 +41,10 @@ function mapCandidate(raw: any): PlantIdCandidate {
 }
 
 export const plantIdService = {
-  isConfigured(): boolean {
-    return Boolean(API_KEY);
-  },
-
   async identify(
     images: Blob[],
     { organs, signal, maxImages = 5 }: IdentifyOptions = {},
   ): Promise<PlantIdResult> {
-    if (!API_KEY) {
-      return {
-        status: 'unconfigured',
-        candidates: [],
-        message:
-          'No Pl@ntNet API key. Set VITE_PLANTNET_API_KEY, or enter the species by hand.',
-      };
-    }
     if (typeof navigator !== 'undefined' && navigator.onLine === false) {
       return {
         status: 'offline',
@@ -68,6 +58,7 @@ export const plantIdService = {
 
     const picked = images.slice(0, maxImages);
     const form = new FormData();
+    form.append('project', PROJECT);
     for (let i = 0; i < picked.length; i++) {
       // Full-resolution phone photos are rejected for size; downscale first.
       const shrunk = await resizeImage(picked[i], 1024, 1024, 0.85);
@@ -76,45 +67,36 @@ export const plantIdService = {
     }
 
     try {
-      const { data } = await axios.post(
-        `${API_BASE}/identify/${PROJECT}`,
-        form,
-        {
-          params: { 'api-key': API_KEY, 'include-related-images': true },
-          signal,
-          timeout: 30_000,
-        },
-      );
+      const { data, error } = await supabase.functions.invoke<{
+        status: number;
+        body: any;
+      }>('plant-id', { body: form, signal });
 
-      const candidates: PlantIdCandidate[] = (data?.results ?? [])
-        .map(mapCandidate)
-        .filter((c: PlantIdCandidate) => c.score >= NO_MATCH_THRESHOLD)
-        .slice(0, 5);
-
-      if (!candidates.length) {
+      if (error) {
+        // The function itself failed to run (auth, missing secret, network) —
+        // distinct from Pl@ntNet answering with an error status, which comes
+        // back as a normal `data` envelope instead (handled below).
+        const funcStatus = error?.context?.status as number | undefined;
+        if (funcStatus === 401) {
+          return { status: 'error', candidates: [], message: 'Please sign in again.' };
+        }
+        if (funcStatus === 501) {
+          return {
+            status: 'unconfigured',
+            candidates: [],
+            message: 'Plant identification isn’t set up yet — enter the species by hand.',
+          };
+        }
         return {
-          status: 'no-match',
+          status: 'offline',
           candidates: [],
-          message:
-            "Couldn't recognise a plant in that photo. Try a close-up of a single leaf or flower.",
+          message: "Couldn't reach the identification service.",
         };
       }
 
-      const best = candidates[0];
-      return {
-        status: best.score >= LOW_CONFIDENCE_THRESHOLD ? 'ok' : 'low-confidence',
-        candidates,
-        best,
-        message:
-          best.score >= LOW_CONFIDENCE_THRESHOLD
-            ? undefined
-            : 'Not a confident match — please confirm or pick another option.',
-      };
-    } catch (err) {
-      const axErr = err as AxiosError<any>;
-      if (axios.isCancel?.(err)) throw err;
+      const status = data?.status ?? 0;
+      const body = data?.body;
 
-      const status = axErr.response?.status;
       if (status === 401 || status === 403) {
         return {
           status: 'unconfigured',
@@ -145,17 +127,44 @@ export const plantIdService = {
           message: 'Daily identification limit reached. Try again tomorrow.',
         };
       }
-      if (!axErr.response) {
+      if (status < 200 || status >= 300) {
         return {
-          status: 'offline',
+          status: 'error',
           candidates: [],
-          message: "Couldn't reach the identification service.",
+          message: 'Identification failed.',
         };
       }
+
+      const candidates: PlantIdCandidate[] = (body?.results ?? [])
+        .map(mapCandidate)
+        .filter((c: PlantIdCandidate) => c.score >= NO_MATCH_THRESHOLD)
+        .slice(0, 5);
+
+      if (!candidates.length) {
+        return {
+          status: 'no-match',
+          candidates: [],
+          message:
+            "Couldn't recognise a plant in that photo. Try a close-up of a single leaf or flower.",
+        };
+      }
+
+      const best = candidates[0];
+      return {
+        status: best.score >= LOW_CONFIDENCE_THRESHOLD ? 'ok' : 'low-confidence',
+        candidates,
+        best,
+        message:
+          best.score >= LOW_CONFIDENCE_THRESHOLD
+            ? undefined
+            : 'Not a confident match — please confirm or pick another option.',
+      };
+    } catch (err) {
+      if (signal?.aborted) throw err;
       return {
         status: 'error',
         candidates: [],
-        message: axErr.message || 'Identification failed.',
+        message: err instanceof Error ? err.message : 'Identification failed.',
       };
     }
   },
