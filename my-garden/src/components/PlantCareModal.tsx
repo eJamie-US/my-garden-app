@@ -280,7 +280,9 @@ export function PlantCareModal({
               <PhotoTimeline
                 plantId={plant.id}
                 plantName={plant.name}
+                currentPhotoUrl={plant.photoUrl}
                 onAddPhoto={() => setShowCapture(true)}
+                onPlantUpdated={onPhotoUploaded}
                 refreshKey={photoRefreshKey}
               />
 

@@ -2,9 +2,10 @@
 // A plant's photos oldest-first: scrub the strip, or compare first vs selected.
 
 import { useCallback, useEffect, useState } from 'react';
-import { Camera, Columns2, Loader2, Trash2 } from 'lucide-react';
+import { Camera, Check, Columns2, Loader2, Star, Trash2 } from 'lucide-react';
 import type { PlantPhoto } from '../types';
 import { plantPhotosService } from '../services/supabase/plantPhotos';
+import { plantsService } from '../services/supabase/plants';
 
 const dateLabel = (iso: string) =>
   new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
@@ -22,20 +23,27 @@ const dateInputValue = (iso: string) => {
 interface PhotoTimelineProps {
   plantId: string;
   plantName: string;
+  /** Which photo is the plant's current one — the yard marker/thumbnail —
+   *  so a past-but-not-current photo can be told apart from the active one. */
+  currentPhotoUrl?: string;
   /** Opens the capture sheet; the parent owns the upload. */
   onAddPhoto?: () => void;
+  /** Fired after "Use as current" changes the plant's marker photo, so the
+   *  caller can refetch plants and pick up the new marker. */
+  onPlantUpdated?: () => void;
   /** Bump to force a refetch after the parent uploads one. */
   refreshKey?: number;
 }
 
 export function PhotoTimeline({
-  plantId, plantName, onAddPhoto, refreshKey = 0,
+  plantId, plantName, currentPhotoUrl, onAddPhoto, onPlantUpdated, refreshKey = 0,
 }: PhotoTimelineProps) {
   const [photos, setPhotos] = useState<PlantPhoto[]>([]);
   const [selected, setSelected] = useState(0);
   const [compare, setCompare] = useState(false);
   const [loading, setLoading] = useState(true);
   const [savingDate, setSavingDate] = useState(false);
+  const [settingCurrent, setSettingCurrent] = useState<string | null>(null);
   const [error, setError] = useState('');
 
   /** Pass a photo id to land back on it after a reload (e.g. its date moved it). */
@@ -67,6 +75,25 @@ export function PhotoTimeline({
     } catch (err) {
       setPhotos(previous);
       setError(err instanceof Error ? err.message : 'Could not delete that photo');
+    }
+  };
+
+  /** Makes this photo the plant's marker/thumbnail without deleting any
+   *  other photo — the way to "not use" a photo (e.g. a newer but blurry
+   *  shot) without losing it from the timeline. */
+  const setCurrent = async (photo: PlantPhoto) => {
+    setSettingCurrent(photo.id);
+    setError('');
+    try {
+      await plantsService.updatePlant(plantId, {
+        photoUrl: photo.photoUrl,
+        spriteUrl: photo.spriteUrl ?? photo.photoUrl,
+      });
+      onPlantUpdated?.();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not set that as the current photo');
+    } finally {
+      setSettingCurrent(null);
     }
   };
 
@@ -134,6 +161,10 @@ export function PhotoTimeline({
   const first = photos[0];
   const span = plantPhotosService.spanInDays(photos);
   const showCompare = compare && photos.length > 1 && current.id !== first.id;
+  // Whether the timeline photo being viewed is the plant's actual marker
+  // photo — distinct from `current`, which just means "selected in the
+  // scrubber right now".
+  const isMarker = Boolean(currentPhotoUrl) && current.photoUrl === currentPhotoUrl;
 
   return (
     <div className="space-y-2">
@@ -189,7 +220,7 @@ export function PhotoTimeline({
             className="h-52 w-full rounded-lg object-cover"
           />
           <figcaption className="mt-1.5 flex items-center justify-between gap-2">
-            <span className="text-xs font-semibold text-gray-700">
+            <span className="min-w-0 text-xs font-semibold text-gray-700">
               {fullDateLabel(current.takenAt)}
               {current.identifiedSpecies && (
                 <span className="ml-1.5 font-normal italic text-gray-500">
@@ -197,14 +228,38 @@ export function PhotoTimeline({
                 </span>
               )}
             </span>
-            <button
-              type="button"
-              onClick={() => remove(current)}
-              aria-label="Delete this photo"
-              className="p-1 text-gray-400 hover:text-red-600"
-            >
-              <Trash2 size={13} />
-            </button>
+            <span className="flex shrink-0 items-center gap-2">
+              {isMarker ? (
+                <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700">
+                  <Star size={12} className="fill-emerald-500 text-emerald-500" /> Marker photo
+                </span>
+              ) : (
+                onPlantUpdated && (
+                  <button
+                    type="button"
+                    onClick={() => setCurrent(current)}
+                    disabled={settingCurrent === current.id}
+                    className="flex items-center gap-1 text-[11px] font-semibold text-gray-500 hover:text-emerald-700"
+                    title="Use this photo as the plant's marker on the yard map, without deleting the others"
+                  >
+                    {settingCurrent === current.id ? (
+                      <Loader2 size={12} className="animate-spin" />
+                    ) : (
+                      <Check size={12} />
+                    )}
+                    Use as marker
+                  </button>
+                )
+              )}
+              <button
+                type="button"
+                onClick={() => remove(current)}
+                aria-label="Delete this photo"
+                className="p-1 text-gray-400 hover:text-red-600"
+              >
+                <Trash2 size={13} />
+              </button>
+            </span>
           </figcaption>
         </figure>
       )}
@@ -249,7 +304,7 @@ export function PhotoTimeline({
           />
           <ul className="flex gap-1.5 overflow-x-auto pb-1">
             {photos.map((photo, index) => (
-              <li key={photo.id} className="flex-none">
+              <li key={photo.id} className="relative flex-none">
                 <button
                   type="button"
                   onClick={() => setSelected(index)}
@@ -268,6 +323,14 @@ export function PhotoTimeline({
                     {dateLabel(photo.takenAt)}
                   </span>
                 </button>
+                {currentPhotoUrl && photo.photoUrl === currentPhotoUrl && (
+                  <span
+                    className="pointer-events-none absolute right-0.5 top-0.5 rounded-full bg-white p-0.5 shadow"
+                    title="Marker photo"
+                  >
+                    <Star size={9} className="fill-emerald-500 text-emerald-500" />
+                  </span>
+                )}
               </li>
             ))}
           </ul>
