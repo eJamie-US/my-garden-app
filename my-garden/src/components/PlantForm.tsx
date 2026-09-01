@@ -8,7 +8,7 @@
 // own addPlant/updatePlant, which would write to Supabase a second time.
 
 import { useState } from 'react';
-import { Camera, Loader2 } from 'lucide-react';
+import { Camera, ChevronDown, ChevronUp, Loader2, Sprout } from 'lucide-react';
 import { usePlants } from '../hooks/usePlants';
 import { useAuth } from '../hooks/useAuth';
 import { PlantPhotoCapture, type PhotoCaptureValue } from './PlantPhotoCapture';
@@ -17,7 +17,14 @@ import { plantsService } from '../services/supabase/plants';
 import { plantPhotosService } from '../services/supabase/plantPhotos';
 import { careItemsService } from '../services/supabase/careItems';
 import { generateCareItems } from '../services/care/generateCareItems';
+import { seedPlanService, type SeedPlan } from '../services/seeds/seedPlan';
 import type { CareItem, DraftCareItem, Plant, WeatherData } from '../types';
+
+const SOW_METHOD_LABEL: Record<SeedPlan['method'], string> = {
+  'direct-sow': 'Sow directly outdoors',
+  'start-indoors': 'Start indoors, then transplant',
+  either: 'Direct-sow or start indoors',
+};
 
 interface PlantFormProps {
   location: { x: number; y: number };
@@ -57,6 +64,11 @@ export const PlantForm = ({
   const [loading, setLoading] = useState(false);
   const [progressLabel, setProgressLabel] = useState('');
   const [error, setError] = useState('');
+
+  const [showSeedPlan, setShowSeedPlan] = useState(false);
+  const [seedPlan, setSeedPlan] = useState<SeedPlan | null>(null);
+  const [loadingSeedPlan, setLoadingSeedPlan] = useState(false);
+  const [seedPlanError, setSeedPlanError] = useState('');
 
   const [formData, setFormData] = useState({
     name: plant?.name ?? '',
@@ -112,6 +124,32 @@ export const PlantForm = ({
       ...next,
       wateringSchedule: scheduleFromCare(items),
     }));
+  };
+
+  /** Seeds have nothing to photograph yet — a sowing plan from just the name,
+   *  replacing the generic generated care items with seed/seedling-stage
+   *  ones (user-written items are kept, same as regenerateCare). */
+  const getSeedPlan = async () => {
+    if (!formData.name.trim()) return;
+    setLoadingSeedPlan(true);
+    setSeedPlanError('');
+    try {
+      const plan = await seedPlanService.getSeedPlan(formData.name);
+      setSeedPlan(plan);
+      const userItems = careItems.filter((i) => i.source === 'user');
+      const items = [...plan.careItems, ...userItems];
+      setCareItems(items);
+      setCareMeta({ rationale: [], weatherUsed: false });
+      setFormData((prev) => ({
+        ...prev,
+        species: prev.species || plan.species || '',
+        wateringSchedule: scheduleFromCare(items),
+      }));
+    } catch (err) {
+      setSeedPlanError(err instanceof Error ? err.message : 'Could not get a sowing plan');
+    } finally {
+      setLoadingSeedPlan(false);
+    }
   };
 
   const handleCaptureComplete = (value: PhotoCaptureValue) => {
@@ -260,6 +298,70 @@ export const PlantForm = ({
           required
         />
       </div>
+
+      {!isEdit && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50">
+          <button
+            type="button"
+            onClick={() => setShowSeedPlan((s) => !s)}
+            className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs font-semibold text-amber-800"
+          >
+            <span className="flex items-center gap-1.5">
+              <Sprout size={14} /> Starting from seed instead? Get a sowing plan
+            </span>
+            {showSeedPlan ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
+
+          {showSeedPlan && (
+            <div className="space-y-2 border-t border-amber-200 px-3 py-2.5">
+              <button
+                type="button"
+                onClick={getSeedPlan}
+                disabled={!formData.name.trim() || loadingSeedPlan}
+                className="flex items-center gap-1.5 rounded-md bg-amber-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-amber-700 disabled:bg-gray-400"
+              >
+                {loadingSeedPlan && <Loader2 size={12} className="animate-spin" />}
+                Get sowing plan for "{formData.name.trim() || '…'}"
+              </button>
+
+              {seedPlanError && <p className="text-xs text-red-600">{seedPlanError}</p>}
+
+              {seedPlan && (
+                <div className="space-y-1.5 rounded-md border border-amber-300 bg-white p-2.5 text-xs text-gray-700">
+                  {seedPlan.source === 'fallback' && (
+                    <p className="rounded bg-gray-100 px-2 py-1 text-[11px] text-gray-500">
+                      General planting guide — upgrade to Premium for an AI-tailored plan.
+                    </p>
+                  )}
+                  <p className="font-semibold text-gray-900">{SOW_METHOD_LABEL[seedPlan.method]}</p>
+                  <p>
+                    Sow ~{seedPlan.sowDepthMm}mm deep, {seedPlan.spacingCm}cm apart · germinates in{' '}
+                    {seedPlan.germinationDays[0]}–{seedPlan.germinationDays[1]} days
+                  </p>
+                  {seedPlan.startIndoorsWeeksBeforeLastFrost != null && (
+                    <p>Start indoors {seedPlan.startIndoorsWeeksBeforeLastFrost} weeks before your last frost.</p>
+                  )}
+                  {seedPlan.daysToHarvestOrBloom != null && (
+                    <p>~{seedPlan.daysToHarvestOrBloom} days to harvest/bloom from sowing.</p>
+                  )}
+                  {seedPlan.soilTempC && (
+                    <p>Soil temperature {seedPlan.soilTempC[0]}–{seedPlan.soilTempC[1]}°C.</p>
+                  )}
+                  <ol className="list-decimal space-y-0.5 pl-4">
+                    {seedPlan.steps.map((step, i) => (
+                      <li key={i}>{step}</li>
+                    ))}
+                  </ol>
+                  {seedPlan.notes && <p className="italic text-gray-500">{seedPlan.notes}</p>}
+                  <p className="text-[11px] text-emerald-700">
+                    Its seed-stage care items were added to the care plan below.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       <div>
         <label className="mb-1 block text-sm font-medium text-gray-700">Species</label>
