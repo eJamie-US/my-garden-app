@@ -14,7 +14,7 @@ ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS garden_orientation_deg DOUBLE
 
 CREATE TABLE IF NOT EXISTS yard_obstacles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   type TEXT NOT NULL CHECK (type IN ('building', 'covered-porch', 'tree', 'fence')),
   label TEXT,
   -- Same percent-of-yard-photo coordinates as plants.location.
