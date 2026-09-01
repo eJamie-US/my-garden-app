@@ -68,6 +68,22 @@ const PROFILES: Profile[] = [
     ],
   },
   {
+    // Checked before the "Rose" profile below: several drought-tolerant
+    // plants have "rose" in their common name (desert rose, rock rose, sun
+    // rose) without being a true Rosa — matching here first keeps e.g. a
+    // desert rose (Adenium obesum) from getting a rose bush's weekly
+    // deadheading and thirstier watering schedule.
+    match: /lavandula|lavender|rosmarinus|salvia rosmarinus|rosemary|thymus|thyme|sedum|agave|echeveria|cact|succulent|adenium|desert rose/i,
+    label: 'Drought-tolerant / Mediterranean',
+    waterDays: 10,
+    feed: {
+      title: 'Occasional feed',
+      frequency: every(3, 'month'),
+      ingredients: [ing('Low-nitrogen granular feed', '1', 'tbsp')],
+      instructions: 'Scatter around the base. These plants resent rich soil.',
+    },
+  },
+  {
     match: /rosa|rose\b/i,
     label: 'Rose',
     waterDays: 3,
@@ -109,17 +125,6 @@ const PROFILES: Profile[] = [
         instructions: 'Take the top two leaves off each stem before it flowers.',
       },
     ],
-  },
-  {
-    match: /lavandula|lavender|rosmarinus|salvia rosmarinus|rosemary|thymus|thyme|sedum|agave|echeveria|cact|succulent/i,
-    label: 'Drought-tolerant / Mediterranean',
-    waterDays: 10,
-    feed: {
-      title: 'Occasional feed',
-      frequency: every(3, 'month'),
-      ingredients: [ing('Low-nitrogen granular feed', '1', 'tbsp')],
-      instructions: 'Scatter around the base. These plants resent rich soil.',
-    },
   },
   {
     match: /hydrangea|rhododendron|azalea|camellia|blueberry|vaccinium|acer palmatum/i,

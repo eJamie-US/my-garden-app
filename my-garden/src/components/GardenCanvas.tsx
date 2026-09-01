@@ -227,7 +227,10 @@ export function GardenCanvas({
     const map = new Map<string, CareItem[]>();
     for (const item of careItems) {
       const days = daysUntil(item.nextDueDate);
-      if (days === null || days > 0) continue;
+      // No due date counts as due now, same as Due Today — an item that lost
+      // its date (e.g. cleared in the editor) shouldn't silently drop off
+      // the map badges while still showing up everywhere else.
+      if (days !== null && days > 0) continue;
       const list = map.get(item.plantId) ?? [];
       list.push(item);
       map.set(item.plantId, list);
