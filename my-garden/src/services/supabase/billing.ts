@@ -76,4 +76,25 @@ export const billingService = {
     }
     window.location.href = data.url;
   },
+
+  /** Owner-only (enforced server-side via the OWNER_EMAIL secret) — comps a
+   *  friend's account straight to a plan, no Stripe checkout. */
+  async grantAccess(email: string, plan: Plan): Promise<void> {
+    const { data, error } = await supabase.functions.invoke<{ ok?: boolean; error?: string }>(
+      'grant-access',
+      { body: { email, plan } },
+    );
+    if (error || !data?.ok) {
+      const code = data?.error;
+      throw new Error(
+        code === 'forbidden'
+          ? "You're not the account this is set up for."
+          : code === 'user_not_found'
+            ? "That email hasn't signed up yet — they need an account first."
+            : code === 'not_configured'
+              ? 'Not set up yet — set the OWNER_EMAIL secret.'
+              : 'Could not grant access.',
+      );
+    }
+  },
 };

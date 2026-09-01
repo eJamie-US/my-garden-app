@@ -14,6 +14,7 @@ import { ProfileSettings } from './components/ProfileSettings';
 import { PricingModal } from './components/PricingModal';
 import { PlantCareModal } from './components/PlantCareModal';
 import { YardObstaclesSettings } from './components/YardObstaclesSettings';
+import { GrantAccessModal } from './components/GrantAccessModal';
 import { weatherService } from './services/weather/forecast';
 import { billingService } from './services/supabase/billing';
 import { yardObstaclesService } from './services/supabase/yardObstacles';
@@ -38,6 +39,7 @@ export default function App() {
   const [showLocation, setShowLocation] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showObstacles, setShowObstacles] = useState(false);
+  const [showGrantAccess, setShowGrantAccess] = useState(false);
   const [pricingReason, setPricingReason] = useState<string | null>(null);
   const [garden, setGarden] = useState<GardenLocation | null>(null);
   const [profile, setProfile] = useState<Profile>({});
@@ -240,6 +242,7 @@ export default function App() {
             onEditProfile={() => setShowProfile(true)}
             onEditObstacles={() => setShowObstacles(true)}
             onBilling={openBilling}
+            onGrantAccess={() => setShowGrantAccess(true)}
             onLogout={logout}
           />
         }
@@ -273,6 +276,8 @@ export default function App() {
           onClose={() => setShowObstacles(false)}
         />
       )}
+
+      {showGrantAccess && <GrantAccessModal onClose={() => setShowGrantAccess(false)} />}
 
       {pricingReason !== null && (
         <PricingModal reason={pricingReason || undefined} onClose={() => setPricingReason(null)} />
