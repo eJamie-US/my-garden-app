@@ -210,19 +210,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen w-full">
-      {user && (
-        <DueToday
-          userId={user.id}
-          plants={plants}
-          onOpenPlant={(plantId) =>
-            setSelectedPlant(plants.find((p) => p.id === plantId) ?? null)
-          }
-          kindFilter={kindFilter}
-          onKindFilterChange={setKindFilter}
-        />
-      )}
-
-      {/* Banner (with the account menu overlaid on it), yard, and plant markers */}
+      {/* Banner (with the account menu overlaid on it), Due Today, the yard, and plant markers */}
       <GardenCanvas
         plants={plants}
         careItems={careItems}
@@ -231,6 +219,17 @@ export default function App() {
         onYardClick={handleCanvasClick}
         onSelectPlant={setSelectedPlant}
         onMovePlant={handleMovePlant}
+        belowBanner={
+          <DueToday
+            userId={user.id}
+            plants={plants}
+            onOpenPlant={(plantId) =>
+              setSelectedPlant(plants.find((p) => p.id === plantId) ?? null)
+            }
+            kindFilter={kindFilter}
+            onKindFilterChange={setKindFilter}
+          />
+        }
         accountSlot={
           <AccountMenu
             email={user.email}

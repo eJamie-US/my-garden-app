@@ -20,6 +20,9 @@ type GardenCanvasProps = {
   /** Rendered as a small overlay in the top-right corner of the banner —
    *  e.g. the account menu, so it doesn't need a separate header bar. */
   accountSlot?: ReactNode;
+  /** Rendered between the banner and the yard map — e.g. Due Today, so it
+   *  reads as "banner, then your to-do list, then the yard" top to bottom. */
+  belowBanner?: ReactNode;
 };
 
 type Point = { x: number; y: number };
@@ -169,6 +172,7 @@ export function GardenCanvas({
   onSelectPlant,
   onMovePlant,
   accountSlot,
+  belowBanner,
 }: GardenCanvasProps) {
   const yardRef = useRef<HTMLDivElement>(null);
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -325,12 +329,13 @@ export function GardenCanvas({
 
   return (
     <main className="mt-4">
-      {/* Garden banner. The background image + decorative text are wrapped in
-          their own clipped layer so they stay confined to the banner's
-          rounded box; the section itself is NOT clipped and sits in a
-          raised stacking context, so accountSlot's dropdown (which is
-          taller than the 100px banner) can extend below it instead of being
-          cut off. */}
+      {/* Garden banner. The background photo is clipped to the banner's own
+          box so it can never bleed outside it; the title art sits in a
+          separate, unclipped layer on top so it can spill over the top/
+          bottom edges on purpose (see below). The section itself is NOT
+          clipped and sits in a raised stacking context, so accountSlot's
+          dropdown (which is taller than the 100px banner) can extend below
+          it instead of being cut off. */}
       <section className="relative z-30 mx-auto h-[100px] w-full max-w-[1600px]">
         <div className="absolute inset-0 overflow-hidden">
           <img
@@ -338,34 +343,40 @@ export function GardenCanvas({
             alt="Garden banner"
             className="block h-full w-full object-fill"
           />
+        </div>
 
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="absolute h-16 w-56 rounded-full bg-yellow-200/25 blur-3xl" />
+        <div className="pointer-events-none absolute inset-0 flex items-end justify-center">
+          <div className="absolute h-16 w-56 -translate-y-2 rounded-full bg-yellow-200/25 blur-3xl" />
 
-            {/* The user's own gold-lettering artwork. It shipped as a flat
-                mockup preview (checkerboard baked into the pixels, not a
-                real alpha channel) — the transparent version was rebuilt
-                from it, so a CSS drop-shadow here is what grounds it on the
-                banner instead of a shadow baked into the art. Sized by
-                height, not width — the banner is a fixed 100px tall, so the
-                title has to fit that instead of stretching to a share of a
-                (variable-width) container and risking getting clipped. */}
-            <img
-              src="/my-garden-title.png"
-              alt="My Garden"
-              className="relative h-[76px] w-auto max-w-[90%] select-none"
-              style={{
-                filter: 'drop-shadow(0 3px 5px rgba(40, 25, 5, 0.55)) drop-shadow(0 1px 2px rgba(40, 25, 5, 0.4))',
-              }}
-              draggable={false}
-            />
-          </div>
+          {/* The user's own gold-lettering artwork. It shipped as a flat
+              mockup preview (checkerboard baked into the pixels, not a
+              real alpha channel) — the transparent version was rebuilt
+              from it, so a CSS drop-shadow here is what grounds it on the
+              banner instead of a shadow baked into the art. Deliberately
+              taller than the 100px banner and bottom-anchored with a small
+              downward nudge, so it spills slightly over both edges instead
+              of being confined to the strip — the lettering reads as
+              "sitting" on the banner rather than shrunk to fit inside it.
+              Smaller below the `sm` breakpoint: at that width the banner
+              itself is only as wide as the screen, and the full-size title
+              runs into accountSlot's chip in the corner. */}
+          <img
+            src="/my-garden-title.png"
+            alt="My Garden"
+            className="relative h-[72px] w-auto max-w-[85%] translate-y-1 select-none sm:h-[124px] sm:max-w-[90%] sm:translate-y-2"
+            style={{
+              filter: 'drop-shadow(0 3px 5px rgba(40, 25, 5, 0.55)) drop-shadow(0 1px 2px rgba(40, 25, 5, 0.4))',
+            }}
+            draggable={false}
+          />
         </div>
 
         {accountSlot && (
           <div className="absolute right-3 top-3 z-20">{accountSlot}</div>
         )}
       </section>
+
+      {belowBanner}
 
       <section className="mx-auto mt-6 w-full max-w-5xl px-4 pb-10">
         {moveError && (
