@@ -355,12 +355,14 @@ export function GardenCanvas({
               banner instead of a shadow baked into the art.
 
               The letters' own baseline sits well above the PNG's bottom
-              edge (there's a deep transparent margin below the "y"/"G"
-              descender loops), so sizing and nudging by the image's outer
-              box alone put the whole word too high — this pushes it down
-              by the measured baseline-to-image-bottom offset (~25% of the
-              image's height) so the baseline itself lands on the banner's
-              bottom edge, with only the descender loops (~7% of height)
+              edge — below it, the "y"/"G" descender loops reach down to
+              about 18% of the image's height from the bottom, and a small
+              leaf flourish off to the side reaches further still, to about
+              6% from the bottom. Sizing and nudging by the image's outer
+              box alone would put the whole word too high — this pushes it
+              down by the measured baseline-to-image-bottom offset (~25% of
+              the image's height) so the baseline itself lands on the
+              banner's bottom edge, with the loops and that flourish
               spilling past it. The extra height beyond the 100px banner is
               what keeps the top of the lettering poking above it too.
               Smaller below the `sm` breakpoint: at that width the banner
@@ -369,7 +371,7 @@ export function GardenCanvas({
           <img
             src="/my-garden-title.png"
             alt="My Garden"
-            className="relative h-[90px] w-auto max-w-[85%] translate-y-[22px] select-none sm:h-[154px] sm:max-w-[90%] sm:translate-y-[38px]"
+            className="relative h-[64px] w-auto max-w-[80%] translate-y-[16px] select-none sm:h-[108px] sm:max-w-[85%] sm:translate-y-[27px]"
             style={{
               filter: 'drop-shadow(0 3px 5px rgba(40, 25, 5, 0.55)) drop-shadow(0 1px 2px rgba(40, 25, 5, 0.4))',
             }}
