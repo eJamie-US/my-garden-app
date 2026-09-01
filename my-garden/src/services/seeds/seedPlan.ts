@@ -1,7 +1,7 @@
 // src/services/seeds/seedPlan.ts
 // Sowing plan for a plant NAME (no photo — there is nothing to photograph yet).
 // Asks an LLM for the plan, validates the shape, and falls back to a local table
-// when the call fails or the answer doesn't parse. The actual Anthropic call
+// when the call fails or the answer doesn't parse. The actual Mistral call
 // (and its API key) lives server-side in supabase/functions/ai-seed-plan —
 // this only sends the plant name and parses whatever text comes back, same
 // as before.
