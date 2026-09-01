@@ -7,7 +7,7 @@
 // plant itself happens by dragging its marker on the canvas, not from here.
 
 import { useMemo, useState } from 'react';
-import { Check, Loader2, Move, Pencil, Sun, Trash2, Umbrella, X } from 'lucide-react';
+import { Check, Home, Loader2, Move, Pencil, Sun, Trash2, Umbrella, X } from 'lucide-react';
 import type { CareItem, DraftCareItem, Plant, WeatherData } from '../types';
 import { useCareItems } from '../hooks/useCareItems';
 import { careItemsService } from '../services/supabase/careItems';
@@ -121,8 +121,9 @@ export function PlantCareModal({
         species: plant.species,
         sunRequirement: plant.sunRequirement,
         rainCovered: plant.rainCovered,
+        indoor: plant.indoor,
       },
-      weather,
+      plant.indoor ? undefined : weather,
     );
     const userItems = draftItems.filter((i) => i.source === 'user');
     setDraftItems([...generated.items, ...userItems]);
@@ -220,13 +221,21 @@ export function PlantCareModal({
                 </p>
               )}
               <p className="flex items-center gap-1 text-[11px] text-gray-400">
-                <Sun size={11} className="shrink-0" />
-                {SUN_LABEL[plant.sunRequirement ?? 'partial-shade']}
-                {plant.rainCovered && (
+                {plant.indoor ? (
                   <>
-                    <span aria-hidden>·</span>
-                    <Umbrella size={11} className="shrink-0" />
-                    Covered
+                    <Home size={11} className="shrink-0" /> Indoor
+                  </>
+                ) : (
+                  <>
+                    <Sun size={11} className="shrink-0" />
+                    {SUN_LABEL[plant.sunRequirement ?? 'partial-shade']}
+                    {plant.rainCovered && (
+                      <>
+                        <span aria-hidden>·</span>
+                        <Umbrella size={11} className="shrink-0" />
+                        Covered
+                      </>
+                    )}
                   </>
                 )}
               </p>

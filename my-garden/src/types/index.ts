@@ -15,9 +15,12 @@ export interface Plant {
   notes?: string;
   wateringSchedule?: 'daily' | 'weekly' | 'biweekly' | 'monthly';
   sunRequirement?: 'full-sun' | 'partial-shade' | 'full-shade';
-  /** Sheltered from rain (an eave, a patio roof, grown indoors/greenhouse) —
-   *  so care generation doesn't credit it with rainfall it never gets. */
+  /** Sheltered from rain (an eave, a patio roof) — so care generation
+   *  doesn't credit it with rainfall it never gets. Implied by `indoor`. */
   rainCovered?: boolean;
+  /** Lives indoors — weather (rain, heat, frost, sun-path/shade) doesn't
+   *  apply at all; care generation runs on baselines only. */
+  indoor?: boolean;
   /** Hydrated by careItemsService.getForPlant(); not stored on the plants row. */
   careItems?: CareItem[];
   createdAt: string;

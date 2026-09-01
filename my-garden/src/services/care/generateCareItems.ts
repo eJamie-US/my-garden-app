@@ -276,7 +276,7 @@ export interface GenerateResult {
 }
 
 export function generateCareItems(
-  plant: Pick<Plant, 'species' | 'commonName' | 'name' | 'sunRequirement' | 'rainCovered'>,
+  plant: Pick<Plant, 'species' | 'commonName' | 'name' | 'sunRequirement' | 'rainCovered' | 'indoor'>,
   weather?: WeatherData | null,
 ): GenerateResult {
   const profile = profileFor(plant);
@@ -307,9 +307,13 @@ export function generateCareItems(
     rationale.push(
       `Watering set to every ${waterFreq.every} ${waterFreq.unit}${waterFreq.every > 1 ? 's' : ''} — ${why.join(', ')}.`,
     );
-  } else if (!read.available) {
+  } else if (!read.available && !plant.indoor) {
     rationale.push(
       `No local weather available, so watering uses the baseline for ${profile.label.toLowerCase()}s. Adjust it if your week has been wet or dry.`,
+    );
+  } else if (plant.indoor) {
+    rationale.push(
+      `Indoor plant — watering uses the baseline for ${profile.label.toLowerCase()}s, since outdoor weather doesn't apply.`,
     );
   }
 

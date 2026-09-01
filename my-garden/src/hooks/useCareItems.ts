@@ -133,8 +133,9 @@ export const useCareItems = create<CareItemsState>((set, get) => ({
               species: plant.species,
               sunRequirement: plant.sunRequirement,
               rainCovered: plant.rainCovered,
+              indoor: plant.indoor,
             },
-            weather,
+            plant.indoor ? undefined : weather,
           ).items;
 
           const existingForPlant = currentItems.filter((i) => i.plantId === plant.id && i.source === 'generated');

@@ -77,6 +77,7 @@ export const PlantForm = ({
     wateringSchedule: plant?.wateringSchedule ?? ('weekly' as 'daily' | 'weekly' | 'biweekly' | 'monthly'),
     sunRequirement: plant?.sunRequirement ?? ('partial-shade' as 'full-sun' | 'partial-shade' | 'full-shade'),
     rainCovered: plant?.rainCovered ?? false,
+    indoor: plant?.indoor ?? false,
     plantedDate: (plant?.plantedDate ?? new Date().toISOString()).split('T')[0],
     notes: plant?.notes ?? '',
   });
@@ -112,8 +113,11 @@ export const PlantForm = ({
         species: merged.species,
         sunRequirement: merged.sunRequirement,
         rainCovered: merged.rainCovered,
+        indoor: merged.indoor,
       },
-      weather,
+      // Indoor plants skip weather entirely — no rain, heat, or frost to
+      // adjust for, so care generation falls back to species baselines.
+      merged.indoor ? undefined : weather,
     );
     const userItems = keepUserItems ? careItems.filter((i) => i.source === 'user') : [];
     const items = [...generated.items, ...userItems];
@@ -415,15 +419,32 @@ export const PlantForm = ({
       <label className="flex items-center gap-2 text-sm text-gray-700">
         <input
           type="checkbox"
-          checked={formData.rainCovered}
+          checked={formData.indoor}
           onChange={(e) => {
-            setFormData((prev) => ({ ...prev, rainCovered: e.target.checked }));
-            regenerateCare({ rainCovered: e.target.checked });
+            const indoor = e.target.checked;
+            // Indoors implies covered — no rain reaches it either way.
+            setFormData((prev) => ({ ...prev, indoor, rainCovered: indoor || prev.rainCovered }));
+            regenerateCare({ indoor, rainCovered: indoor || formData.rainCovered });
           }}
           className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
         />
-        Sheltered from rain (eave, patio roof, greenhouse)
+        Indoor plant (weather doesn't apply)
       </label>
+
+      {!formData.indoor && (
+        <label className="flex items-center gap-2 text-sm text-gray-700">
+          <input
+            type="checkbox"
+            checked={formData.rainCovered}
+            onChange={(e) => {
+              setFormData((prev) => ({ ...prev, rainCovered: e.target.checked }));
+              regenerateCare({ rainCovered: e.target.checked });
+            }}
+            className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+          />
+          Sheltered from rain (eave, patio roof)
+        </label>
+      )}
 
       {careItems.length > 0 ? (
         <CareItemsEditor

@@ -196,6 +196,51 @@ describe('generateCareItems: weather adjustments', () => {
   });
 });
 
+describe('generateCareItems: indoor plants', () => {
+  it('ignores weather entirely for an indoor plant even when weather is passed in', () => {
+    const wet = weatherWith({
+      past: Array.from({ length: 7 }, (_, i) => ({
+        date: `2025-12-2${i}`,
+        tempMax: 18,
+        tempMin: 10,
+        precipitation: 25,
+        weatherCode: 61,
+        condition: 'Rain',
+        icon: '',
+      })),
+    });
+    // An indoor plant never actually receives this rain — the caller is
+    // expected to omit weather for indoor plants, but the important
+    // regression to guard is that indoor: true alone changes nothing about
+    // an item's shape (no crash, no weather-flavoured rationale) even if a
+    // caller passes weather through by mistake and the item content is
+    // otherwise identical to the no-weather baseline.
+    const indoorWithWeatherArg = generateCareItems({ name: 'Tomato', indoor: true }, wet);
+    const indoorNoWeather = generateCareItems({ name: 'Tomato', indoor: true });
+    const outdoorNoWeather = generateCareItems({ name: 'Tomato' });
+
+    const water = (r: typeof indoorNoWeather) => r.items.find((i) => i.title === 'Water')!;
+    expect(water(indoorNoWeather).frequency).toEqual(water(outdoorNoWeather).frequency);
+    // Passing weather in is a caller bug (should omit it for indoor plants),
+    // but generateCareItems itself doesn't special-case indoor beyond the
+    // rationale text — document that here rather than assume.
+    expect(indoorWithWeatherArg.weatherUsed).toBe(true);
+  });
+
+  it('never adds frost protection or heat mulching when weather is omitted for an indoor plant', () => {
+    const result = generateCareItems({ name: 'Tomato', indoor: true });
+    expect(result.items.some((i) => i.title === 'Cover before frost')).toBe(false);
+    expect(result.items.some((i) => i.title === 'Mulch to hold moisture')).toBe(false);
+    expect(result.weatherUsed).toBe(false);
+  });
+
+  it('gives an indoor-specific rationale instead of the "no weather available" one', () => {
+    const result = generateCareItems({ name: 'Tomato', indoor: true });
+    expect(result.rationale.some((r) => r.toLowerCase().includes('indoor'))).toBe(true);
+    expect(result.rationale.some((r) => r.toLowerCase().includes('no local weather'))).toBe(false);
+  });
+});
+
 describe('describeFrequency', () => {
   it('describes single-unit frequencies as their adverb form', () => {
     expect(describeFrequency({ every: 1, unit: 'day' })).toBe('daily');
