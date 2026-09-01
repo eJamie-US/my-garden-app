@@ -94,10 +94,16 @@ export const plantIdService = {
             message: 'Photo identification is a premium feature — enter the species by hand, or upgrade for AI ID.',
           };
         }
+        // Not a connectivity problem — the browser is online (checked
+        // above); this is the plant-id Edge Function itself being
+        // unreachable, almost always because it hasn't been deployed yet
+        // (`supabase functions deploy plant-id`). Saying "you're offline"
+        // here would send someone chasing their wifi instead.
+        console.error('plant-id function unreachable', error);
         return {
-          status: 'offline',
+          status: 'unconfigured',
           candidates: [],
-          message: "Couldn't reach the identification service.",
+          message: "Couldn't reach plant identification — enter the species by hand. (If you're the developer: check that the plant-id Edge Function is deployed.)",
         };
       }
 
