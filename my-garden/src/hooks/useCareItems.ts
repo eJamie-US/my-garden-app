@@ -116,11 +116,16 @@ export const useCareItems = create<CareItemsState>((set, get) => ({
   // Re-derives each plant's *generated* care items from the current weather
   // snapshot (past rainfall/sun + upcoming forecast) without disturbing
   // anything the user typed themselves. Matched by `kind`, since each
-  // species profile currently produces at most one generated item per kind.
-  // Each matched item is diffed (buildRefreshPatch) against its fresh
-  // suggestion, and only written back to Supabase if something actually
-  // changed — including, when the item has a completion history, whether
-  // today's weather moves its next due date earlier or later.
+  // species profile currently produces at most one generated item per kind
+  // — *should* produce, anyway; self-heals if that's ever violated (a
+  // profile re-match after a code change, a partial save, etc. can leave
+  // two items of the same kind sitting on one plant) by keeping the first
+  // and deleting the rest, rather than the old behavior of silently losing
+  // track of every duplicate but the last. Each kept item is diffed
+  // (buildRefreshPatch) against its fresh suggestion, and only written back
+  // to Supabase if something actually changed — including, when the item
+  // has a completion history, whether today's weather moves its next due
+  // date earlier or later.
   refreshFromWeather: async (plants, weather, userId) => {
     try {
       const currentItems = get().items;
@@ -139,26 +144,34 @@ export const useCareItems = create<CareItemsState>((set, get) => ({
           ).items;
 
           const existingForPlant = currentItems.filter((i) => i.plantId === plant.id && i.source === 'generated');
-          const existingByKind = new Map(existingForPlant.map((i) => [i.kind, i]));
+          const existingByKind = new Map<CareItem['kind'], CareItem[]>();
+          for (const item of existingForPlant) {
+            const list = existingByKind.get(item.kind) ?? [];
+            list.push(item);
+            existingByKind.set(item.kind, list);
+          }
           const freshKinds = new Set(generated.map((i) => i.kind));
 
           const work: Promise<unknown>[] = [];
           const toCreate: DraftCareItem[] = [];
 
           for (const fresh of generated) {
-            const existing = existingByKind.get(fresh.kind);
-            if (existing) {
-              const patch = buildRefreshPatch(existing, fresh);
-              if (patch) work.push(careItemsService.updateCareItem(existing.id, patch));
+            const [keep, ...dupes] = existingByKind.get(fresh.kind) ?? [];
+            if (keep) {
+              const patch = buildRefreshPatch(keep, fresh);
+              if (patch) work.push(careItemsService.updateCareItem(keep.id, patch));
             } else {
               toCreate.push(fresh);
             }
+            for (const dupe of dupes) work.push(careItemsService.deleteCareItem(dupe.id));
           }
 
           if (toCreate.length) work.push(careItemsService.createMany(plant.id, userId, toCreate));
 
-          for (const existing of existingForPlant) {
-            if (!freshKinds.has(existing.kind)) work.push(careItemsService.deleteCareItem(existing.id));
+          for (const [kind, group] of existingByKind) {
+            if (!freshKinds.has(kind)) {
+              for (const item of group) work.push(careItemsService.deleteCareItem(item.id));
+            }
           }
 
           await Promise.all(work);
