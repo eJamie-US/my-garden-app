@@ -8,8 +8,9 @@
 //
 // Deploy: supabase functions deploy plant-id
 // Secret: supabase secrets set PLANTNET_API_KEY=...
-import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
+import { requireUser } from '../_shared/authUser.ts';
+import { requirePremium } from '../_shared/entitlement.ts';
 
 const API_BASE = Deno.env.get('PLANTNET_API_URL') || 'https://my-api.plantnet.org/v2';
 
@@ -27,16 +28,19 @@ Deno.serve(async (req) => {
       });
     }
 
-    const authHeader = req.headers.get('Authorization') ?? '';
-    const token = authHeader.replace(/^Bearer\s+/i, '');
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-    );
-    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-    if (userError || !userData?.user) {
+    const user = await requireUser(req);
+    if (!user) {
       return new Response(JSON.stringify({ error: 'unauthorized' }), {
         status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Pl@ntNet identifications are metered too — same reasoning as
+    // ai-seed-plan: this stays behind a paying plan.
+    if (!(await requirePremium(user.id))) {
+      return new Response(JSON.stringify({ error: 'premium_required' }), {
+        status: 402,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }

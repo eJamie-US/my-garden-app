@@ -6,8 +6,9 @@
 //
 // Deploy: supabase functions deploy ai-seed-plan
 // Secret: supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
-import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
+import { requireUser } from '../_shared/authUser.ts';
+import { requirePremium } from '../_shared/entitlement.ts';
 
 const AI_URL = 'https://api.anthropic.com/v1/messages';
 const AI_MODEL = Deno.env.get('ANTHROPIC_MODEL') || 'claude-sonnet-4-5';
@@ -43,20 +44,19 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Require a real signed-in user, not just the public anon key — the
-    // anon key alone satisfies Supabase's default JWT check, which would
-    // otherwise let anyone holding it (i.e. anyone who opened the site)
-    // spend this project's AI budget without ever logging in.
-    const authHeader = req.headers.get('Authorization') ?? '';
-    const token = authHeader.replace(/^Bearer\s+/i, '');
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-    );
-    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-    if (userError || !userData?.user) {
+    const user = await requireUser(req);
+    if (!user) {
       return new Response(JSON.stringify({ error: 'unauthorized' }), {
         status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // AI lookups cost real money per call — gated to paying plans so a free
+    // account can't run up the project's Anthropic bill.
+    if (!(await requirePremium(user.id))) {
+      return new Response(JSON.stringify({ error: 'premium_required' }), {
+        status: 402,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }

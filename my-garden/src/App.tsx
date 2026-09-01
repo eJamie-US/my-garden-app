@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useAuth } from './hooks/useAuth';
 import { usePlants } from './hooks/usePlants';
 import { useCareItems } from './hooks/useCareItems';
+import { useEntitlement, useIsPremium, FREE_PLANT_LIMIT } from './hooks/useEntitlement';
 import { LoginForm } from './components/Auth/LoginForm';
 import { GardenCanvas } from './components/GardenCanvas';
 import { GardenSpotModal } from './components/GardenSpotModal';
@@ -10,8 +11,10 @@ import { PlantForm } from './components/PlantForm';
 import { DueToday } from './components/DueToday';
 import { GardenLocationSettings } from './components/GardenLocationSettings';
 import { ProfileSettings } from './components/ProfileSettings';
+import { PricingModal } from './components/PricingModal';
 import { PlantCareModal } from './components/PlantCareModal';
 import { weatherService } from './services/weather/forecast';
+import { billingService } from './services/supabase/billing';
 import {
   userSettingsService,
   type GardenLocation,
@@ -25,10 +28,14 @@ export default function App() {
   const careItems = useCareItems((s) => s.items);
   const fetchCareItems = useCareItems((s) => s.fetchForUser);
   const refreshFromWeather = useCareItems((s) => s.refreshFromWeather);
+  const entitlement = useEntitlement((s) => s.entitlement);
+  const fetchEntitlement = useEntitlement((s) => s.fetchForUser);
+  const isPremium = useIsPremium();
 
   const [showPlantForm, setShowPlantForm] = useState(false);
   const [showLocation, setShowLocation] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [pricingReason, setPricingReason] = useState<string | null>(null);
   const [garden, setGarden] = useState<GardenLocation | null>(null);
   const [profile, setProfile] = useState<Profile>({});
   const [weather, setWeather] = useState<WeatherData | null>(null);
@@ -59,6 +66,7 @@ export default function App() {
     if (user?.id) {
       fetchPlants(user.id);
       fetchCareItems(user.id);
+      fetchEntitlement(user.id);
     }
   }, [user?.id]);
 
@@ -85,6 +93,19 @@ export default function App() {
       .then(setWeather)
       .catch((err) => console.error('Weather unavailable:', err));
   }, [user?.id, garden?.latitude, garden?.longitude]);
+
+  // Coming back from Stripe Checkout: the webhook that actually grants the
+  // plan can lag a second or two behind the redirect, so refetch once now
+  // and once shortly after, then drop the query param either way.
+  useEffect(() => {
+    if (!user?.id) return;
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has('checkout')) return;
+    fetchEntitlement(user.id);
+    const retry = setTimeout(() => fetchEntitlement(user.id), 3000);
+    window.history.replaceState({}, '', window.location.pathname);
+    return () => clearTimeout(retry);
+  }, [user?.id]);
 
   // Keep the open care popup in sync if plants refetch underneath it.
   useEffect(() => {
@@ -125,8 +146,28 @@ export default function App() {
   }
 
   const openPlantFormAt = (x: number, y: number) => {
+    if (!isPremium && plants.length >= FREE_PLANT_LIMIT) {
+      setPricingReason(
+        `The free plan is limited to ${FREE_PLANT_LIMIT} plants — upgrade for unlimited plants.`,
+      );
+      return;
+    }
     setSelectedLocation({ x, y });
     setShowPlantForm(true);
+  };
+
+  const openBilling = async () => {
+    if (isPremium) {
+      try {
+        await billingService.openPortal();
+      } catch (err) {
+        // No dedicated error UI for this one — it's a redirect, not a form;
+        // console is enough for a "billing isn't configured yet" hiccup.
+        console.error('Could not open billing portal:', err);
+      }
+      return;
+    }
+    setPricingReason('');
   };
 
   // A click that landed near existing plant(s) opens the chooser instead of
@@ -178,8 +219,10 @@ export default function App() {
             displayName={profile.displayName}
             avatarIcon={profile.avatarIcon}
             locationLabel={garden?.label}
+            plan={entitlement.plan}
             onSetLocation={() => setShowLocation(true)}
             onEditProfile={() => setShowProfile(true)}
+            onBilling={openBilling}
             onLogout={logout}
           />
         }
@@ -202,6 +245,10 @@ export default function App() {
           onSaved={setProfile}
           onClose={() => setShowProfile(false)}
         />
+      )}
+
+      {pricingReason !== null && (
+        <PricingModal reason={pricingReason || undefined} onClose={() => setPricingReason(null)} />
       )}
 
       {spotPicker && (

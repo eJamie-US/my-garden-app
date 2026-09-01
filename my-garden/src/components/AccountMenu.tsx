@@ -4,25 +4,37 @@
 // bar competing with the yard for space.
 
 import { useState } from 'react';
-import { LogOut, MapPin, UserCircle } from 'lucide-react';
+import { CreditCard, LogOut, MapPin, Sparkles, UserCircle } from 'lucide-react';
+import type { Plan } from '../services/supabase/billing';
 
 interface AccountMenuProps {
   email: string;
   displayName?: string;
   avatarIcon?: string;
   locationLabel?: string;
+  plan: Plan;
   onSetLocation: () => void;
   onEditProfile: () => void;
+  /** Free plan: opens the pricing modal. Paying plan: opens Stripe's billing portal. */
+  onBilling: () => void;
   onLogout: () => void;
 }
+
+const PLAN_LABEL: Record<Plan, string> = {
+  free: 'Free plan',
+  premium: 'Premium',
+  lifetime: 'Lifetime',
+};
 
 export function AccountMenu({
   email,
   displayName,
   avatarIcon,
   locationLabel,
+  plan,
   onSetLocation,
   onEditProfile,
+  onBilling,
   onLogout,
 }: AccountMenuProps) {
   const [open, setOpen] = useState(false);
@@ -58,6 +70,13 @@ export function AccountMenu({
                 <p className="truncate text-sm font-semibold text-gray-900">{displayName}</p>
               )}
               <p className="truncate text-xs text-gray-500">{email}</p>
+              <span
+                className={`mt-1 inline-block rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                  plan === 'free' ? 'bg-gray-100 text-gray-500' : 'bg-emerald-100 text-emerald-700'
+                }`}
+              >
+                {PLAN_LABEL[plan]}
+              </span>
             </div>
             <button
               type="button"
@@ -69,6 +88,21 @@ export function AccountMenu({
             >
               <UserCircle size={14} className="shrink-0 text-emerald-600" />
               Edit profile
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                onBilling();
+              }}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+            >
+              {plan === 'free' ? (
+                <Sparkles size={14} className="shrink-0 text-emerald-600" />
+              ) : (
+                <CreditCard size={14} className="shrink-0 text-emerald-600" />
+              )}
+              {plan === 'free' ? 'Upgrade' : 'Manage billing'}
             </button>
             <button
               type="button"

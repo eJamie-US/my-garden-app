@@ -87,6 +87,13 @@ export const plantIdService = {
             message: 'Plant identification isn’t set up yet — enter the species by hand.',
           };
         }
+        if (funcStatus === 402) {
+          return {
+            status: 'unconfigured',
+            candidates: [],
+            message: 'Photo identification is a premium feature — enter the species by hand, or upgrade for AI ID.',
+          };
+        }
         return {
           status: 'offline',
           candidates: [],
