@@ -17,6 +17,20 @@ interface Match {
   longitude: number;
 }
 
+/** 8-way compass picker for "which way is up in the yard photo" — plenty
+ *  of precision for the sun/shade estimate, which already reasons in
+ *  rough terms. */
+const ORIENTATION_OPTIONS: { label: string; deg: number }[] = [
+  { label: 'North (up in the photo)', deg: 0 },
+  { label: 'Northeast', deg: 45 },
+  { label: 'East', deg: 90 },
+  { label: 'Southeast', deg: 135 },
+  { label: 'South', deg: 180 },
+  { label: 'Southwest', deg: 225 },
+  { label: 'West', deg: 270 },
+  { label: 'Northwest', deg: 315 },
+];
+
 interface GardenLocationSettingsProps {
   userId: string;
   current: GardenLocation | null;
@@ -36,7 +50,8 @@ export const GardenLocationSettings = ({
 }: GardenLocationSettingsProps) => {
   const [query, setQuery] = useState(current?.label ?? '');
   const [matches, setMatches] = useState<Match[] | null>(null);
-  const [picked, setPicked] = useState<GardenLocation | null>(current);
+  const [picked, setPicked] = useState<Omit<GardenLocation, 'orientationDeg'> | null>(current);
+  const [orientationDeg, setOrientationDeg] = useState(current?.orientationDeg ?? 0);
   const [busy, setBusy] = useState<'search' | 'locate' | 'save' | null>(null);
   const [error, setError] = useState('');
 
@@ -93,7 +108,7 @@ export const GardenLocationSettings = ({
     setError('');
     setBusy('save');
     try {
-      const saved = await userSettingsService.saveGardenLocation(userId, picked);
+      const saved = await userSettingsService.saveGardenLocation(userId, { ...picked, orientationDeg });
       if (saved.garden) onSaved(saved.garden);
       onClose();
     } catch (err) {
@@ -208,6 +223,26 @@ export const GardenLocationSettings = ({
               </p>
             </div>
           )}
+
+          <div>
+            <label htmlFor="yard-orientation" className="mb-1 block text-sm font-medium text-gray-700">
+              Which way is up in your yard photo?
+            </label>
+            <select
+              id="yard-orientation"
+              value={orientationDeg}
+              onChange={(e) => setOrientationDeg(Number(e.target.value))}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:ring-green-500"
+            >
+              {ORIENTATION_OPTIONS.map((o) => (
+                <option key={o.deg} value={o.deg}>{o.label}</option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-gray-400">
+              Used for the sun/shade exposure estimate — it's the only way to know which
+              direction the sun crosses your yard photo. Doesn't need to be exact.
+            </p>
+          </div>
         </div>
 
         <div className="flex shrink-0 gap-2 border-t p-4">

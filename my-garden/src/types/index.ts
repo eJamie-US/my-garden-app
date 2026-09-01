@@ -27,6 +27,31 @@ export interface Plant {
   updatedAt: string;
 }
 
+/* ---------- Yard obstacles (sun/shade exposure estimate) ---------- */
+
+export type YardObstacleType = 'building' | 'covered-porch' | 'tree' | 'fence';
+
+/**
+ * Qualitative, not metric — the yard photo has no known real-world scale
+ * (no ruler in frame), so sunExposure.ts reasons in "how far, as a percent
+ * of the yard, before this stops mattering" rather than true shadow-length
+ * geometry. 'low' ~ a fence (~1-1.5m), 'medium' ~ a single-story roof or
+ * porch (~3m), 'tall' ~ a tree or two-story building (~6m+).
+ */
+export type ObstacleHeightTier = 'low' | 'medium' | 'tall';
+
+export interface YardObstacle {
+  id: string;
+  userId: string;
+  type: YardObstacleType;
+  label?: string;
+  /** Same percent-of-yard-photo coordinates as Plant.location. */
+  location: { x: number; y: number };
+  heightTier: ObstacleHeightTier;
+  createdAt: string;
+  updatedAt: string;
+}
+
 /* ---------- Photo timeline ---------- */
 
 export interface PlantPhoto {

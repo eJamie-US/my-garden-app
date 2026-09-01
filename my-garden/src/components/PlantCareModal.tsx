@@ -8,12 +8,14 @@
 
 import { useMemo, useState } from 'react';
 import { Check, Home, Loader2, Move, Pencil, Sun, Trash2, Umbrella, X } from 'lucide-react';
-import type { CareItem, DraftCareItem, Plant, WeatherData } from '../types';
+import type { CareItem, DraftCareItem, Plant, WeatherData, YardObstacle } from '../types';
+import type { GardenLocation } from '../services/supabase/userSettings';
 import { useCareItems } from '../hooks/useCareItems';
 import { careItemsService } from '../services/supabase/careItems';
 import { plantPhotosService } from '../services/supabase/plantPhotos';
 import { generateCareItems, describeFrequency } from '../services/care/generateCareItems';
 import { KIND_ICONS, daysUntil, dueLabel, dueBadgeClass, ingredientSummary } from '../utils/careDisplay';
+import { estimateSeasonalExposure, summarizeExposure, type Season } from '../utils/sunExposure';
 import { CareItemsEditor } from './CareItemsEditor';
 import { PhotoTimeline } from './PhotoTimeline';
 import { PlantPhotoCapture, type PhotoCaptureValue } from './PlantPhotoCapture';
@@ -22,6 +24,10 @@ const SUN_LABEL: Record<NonNullable<Plant['sunRequirement']>, string> = {
   'full-sun': 'Full sun',
   'partial-shade': 'Partial shade',
   'full-shade': 'Full shade',
+};
+
+const SEASON_LABEL: Record<Season, string> = {
+  spring: 'Spring', summer: 'Summer', fall: 'Fall', winter: 'Winter',
 };
 
 function byDueDate(a: CareItem, b: CareItem) {
@@ -39,6 +45,9 @@ interface PlantCareModalProps {
   userId: string;
   /** Powers "regenerate from weather" while editing the care plan. */
   weather?: WeatherData | null;
+  /** Powers the sun/shade exposure estimate — omitted (or no garden set) hides that section. */
+  garden?: GardenLocation | null;
+  obstacles?: YardObstacle[];
   onClose: () => void;
   /** Fired after a new photo is saved, so the caller can refetch plants and
    *  pick up the new marker icon / current photo. */
@@ -57,6 +66,8 @@ export function PlantCareModal({
   plant,
   userId,
   weather,
+  garden,
+  obstacles = [],
   onClose,
   onPhotoUploaded,
   onDeletePlant,
@@ -71,6 +82,21 @@ export function PlantCareModal({
     () => allCareItems.filter((i) => i.plantId === plant.id).sort(byDueDate),
     [allCareItems, plant.id],
   );
+
+  // Indoor plants and anyone without a garden location set (no lat/lon to
+  // compute a real sun path from) skip this entirely — no estimate is
+  // better than a wrong one.
+  const exposure = useMemo(() => {
+    if (plant.indoor || !garden) return null;
+    const bySeason = estimateSeasonalExposure(
+      plant.location,
+      obstacles,
+      garden.latitude,
+      garden.longitude,
+      garden.orientationDeg,
+    );
+    return { bySeason, summary: summarizeExposure(plant.sunRequirement, bySeason) };
+  }, [plant.indoor, plant.location, plant.sunRequirement, garden, obstacles]);
 
   const [completing, setCompleting] = useState<string | null>(null);
   const [completeError, setCompleteError] = useState('');
@@ -294,6 +320,33 @@ export function PlantCareModal({
                 onPlantUpdated={onPhotoUploaded}
                 refreshKey={photoRefreshKey}
               />
+
+              {exposure && (
+                <>
+                  <div className="my-4 border-t border-gray-100" />
+                  <h4 className="mb-2 text-sm font-semibold text-gray-800">Sun check</h4>
+                  <div className="flex gap-1.5">
+                    {exposure.bySeason.map((s) => (
+                      <span
+                        key={s.season}
+                        className={`flex-1 rounded-md px-1.5 py-1 text-center text-[10px] font-semibold ${
+                          s.sunny ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'
+                        }`}
+                      >
+                        {SEASON_LABEL[s.season]}
+                        <span className="mt-0.5 block">{s.sunny ? '☀️ Sun' : '☁️ Shade'}</span>
+                      </span>
+                    ))}
+                  </div>
+                  <p className="mt-1.5 text-xs text-gray-600">{exposure.summary}</p>
+                  {obstacles.length === 0 && (
+                    <p className="mt-1 text-[11px] text-gray-400">
+                      No yard obstacles marked yet — this assumes open sky. Mark the house, a
+                      covered porch, trees or fences from the account menu for a closer estimate.
+                    </p>
+                  )}
+                </>
+              )}
 
               <div className="my-4 border-t border-gray-100" />
 

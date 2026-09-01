@@ -6,6 +6,11 @@ export interface GardenLocation {
   label?: string;
   latitude: number;
   longitude: number;
+  /** Degrees clockwise from the top of the yard photo to true north — 0 (the
+   *  default) means the top of the photo IS north. Lets the sun/shade
+   *  exposure estimate reason about compass direction from a plain top-down
+   *  photo that otherwise carries no orientation information. */
+  orientationDeg: number;
 }
 
 export interface Profile {
@@ -25,6 +30,7 @@ interface UserSettingsRow {
   garden_label: string | null;
   garden_lat: number | null;
   garden_lon: number | null;
+  garden_orientation_deg: number | null;
   display_name: string | null;
   avatar_icon: string | null;
   created_at: string;
@@ -40,6 +46,7 @@ function toSettings(row: UserSettingsRow): UserSettings {
           label: row.garden_label ?? undefined,
           latitude: row.garden_lat as number,
           longitude: row.garden_lon as number,
+          orientationDeg: row.garden_orientation_deg ?? 0,
         }
       : null,
     profile: {
@@ -72,7 +79,23 @@ export const userSettingsService = {
           garden_label: garden.label ?? null,
           garden_lat: garden.latitude,
           garden_lon: garden.longitude,
+          garden_orientation_deg: garden.orientationDeg,
         },
+        { onConflict: 'user_id' },
+      )
+      .select()
+      .single();
+
+    if (error) throw error;
+    return toSettings(data as UserSettingsRow);
+  },
+
+  /** Just the orientation, independent of re-picking the location. */
+  async saveOrientation(userId: string, orientationDeg: number): Promise<UserSettings> {
+    const { data, error } = await supabase
+      .from('user_settings')
+      .upsert(
+        { user_id: userId, garden_orientation_deg: orientationDeg },
         { onConflict: 'user_id' },
       )
       .select()

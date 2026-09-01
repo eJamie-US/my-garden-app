@@ -13,14 +13,16 @@ import { GardenLocationSettings } from './components/GardenLocationSettings';
 import { ProfileSettings } from './components/ProfileSettings';
 import { PricingModal } from './components/PricingModal';
 import { PlantCareModal } from './components/PlantCareModal';
+import { YardObstaclesSettings } from './components/YardObstaclesSettings';
 import { weatherService } from './services/weather/forecast';
 import { billingService } from './services/supabase/billing';
+import { yardObstaclesService } from './services/supabase/yardObstacles';
 import {
   userSettingsService,
   type GardenLocation,
   type Profile,
 } from './services/supabase/userSettings';
-import type { CareItem, Plant, WeatherData } from './types';
+import type { CareItem, Plant, WeatherData, YardObstacle } from './types';
 
 export default function App() {
   const { user, loading, checkAuth, logout } = useAuth();
@@ -35,9 +37,11 @@ export default function App() {
   const [showPlantForm, setShowPlantForm] = useState(false);
   const [showLocation, setShowLocation] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [showObstacles, setShowObstacles] = useState(false);
   const [pricingReason, setPricingReason] = useState<string | null>(null);
   const [garden, setGarden] = useState<GardenLocation | null>(null);
   const [profile, setProfile] = useState<Profile>({});
+  const [obstacles, setObstacles] = useState<YardObstacle[]>([]);
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [selectedPlant, setSelectedPlant] = useState<Plant | null>(null);
   const [editingPlant, setEditingPlant] = useState<Plant | null>(null);
@@ -68,6 +72,10 @@ export default function App() {
       fetchPlants(user.id);
       fetchCareItems(user.id);
       fetchEntitlement(user.id);
+      yardObstaclesService
+        .getForUser(user.id)
+        .then(setObstacles)
+        .catch((err) => console.error('Yard obstacles unavailable:', err));
     }
   }, [user?.id]);
 
@@ -230,6 +238,7 @@ export default function App() {
             plan={entitlement.plan}
             onSetLocation={() => setShowLocation(true)}
             onEditProfile={() => setShowProfile(true)}
+            onEditObstacles={() => setShowObstacles(true)}
             onBilling={openBilling}
             onLogout={logout}
           />
@@ -252,6 +261,16 @@ export default function App() {
           fallbackInitial={user.email.trim().charAt(0).toUpperCase() || '?'}
           onSaved={setProfile}
           onClose={() => setShowProfile(false)}
+        />
+      )}
+
+      {showObstacles && (
+        <YardObstaclesSettings
+          userId={user.id}
+          yardImageUrl="/default-yard.png"
+          obstacles={obstacles}
+          onSaved={setObstacles}
+          onClose={() => setShowObstacles(false)}
         />
       )}
 
@@ -279,6 +298,8 @@ export default function App() {
           plant={selectedPlant}
           userId={user.id}
           weather={weather}
+          garden={garden}
+          obstacles={obstacles}
           onClose={() => setSelectedPlant(null)}
           onPhotoUploaded={() => fetchPlants(user.id)}
           onDeletePlant={deletePlant}
