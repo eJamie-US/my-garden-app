@@ -62,6 +62,54 @@ describe('findBlocker', () => {
   });
 });
 
+describe('findBlocker with a sized shape', () => {
+  const plant = { x: 50, y: 50 };
+
+  it('a circle widens the blocking cone beyond the flat-point guess', () => {
+    // Obstacle bearing 0 (due north), 10 units away — a sun at bearing 45°
+    // sits outside the legacy ±30° point-cone but within a circle wide
+    // enough to actually subtend that angle from 10 units off.
+    const asPoint = obstacle({ location: { x: 50, y: 40 }, heightTier: 'tall' });
+    const asCircle: typeof asPoint = { ...asPoint, shape: { kind: 'circle', radius: 8 } };
+
+    expect(findBlocker(plant, [asPoint], 45, 30, 0)).toBeNull();
+    expect(findBlocker(plant, [asCircle], 45, 30, 0)).not.toBeNull();
+  });
+
+  it('a line only blocks sun bearings that fall within its span', () => {
+    const fence: YardObstacle = {
+      ...obstacle({ location: { x: 40, y: 40 }, heightTier: 'tall' }),
+      shape: { kind: 'line', to: { x: 60, y: 40 } },
+    };
+    // The fence runs east-west, 10 units north of the plant — due north
+    // (bearing 0) passes straight through its span; due east (bearing 90)
+    // passes well outside it.
+    expect(findBlocker(plant, [fence], 0, 30, 0)).not.toBeNull();
+    expect(findBlocker(plant, [fence], 90, 30, 0)).toBeNull();
+  });
+
+  it('a rectangle blocks across its whole footprint, not just its anchor corner', () => {
+    const building: YardObstacle = {
+      ...obstacle({ location: { x: 40, y: 30 }, heightTier: 'tall' }),
+      shape: { kind: 'rect', to: { x: 60, y: 45 } },
+    };
+    // Bearing to the far (60,45) corner from the plant differs from the
+    // bearing to the (40,30) anchor corner — both should still resolve to
+    // "blocked" since the sun passes over the footprint either way.
+    expect(findBlocker(plant, [building], 0, 30, 0)).not.toBeNull();
+  });
+
+  it('a plant standing inside a shape\'s footprint is always blocked by it', () => {
+    const overhead: YardObstacle = {
+      ...obstacle({ location: { x: 45, y: 45 }, heightTier: 'tall' }),
+      shape: { kind: 'triangle', b: { x: 55, y: 45 }, c: { x: 50, y: 55 } },
+    };
+    // Whatever direction the sun happens to be in, standing under the
+    // obstacle's own footprint should block it.
+    expect(findBlocker(plant, [overhead], 200, 60, 0)).not.toBeNull();
+  });
+});
+
 describe('estimateSeasonalExposure', () => {
   it('is sunny in every season with no obstacles marked', () => {
     const result = estimateSeasonalExposure({ x: 50, y: 50 }, [], LAT, LON, 0, 2026);

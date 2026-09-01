@@ -51,12 +51,123 @@ function angularDiff(a: number, b: number): number {
   return d > 180 ? 360 - d : d;
 }
 
+/** Signed difference `to - from`, in (-180, 180] — which side of `from`
+ *  `to` falls on, not just how far. */
+function signedAngularOffset(fromDeg: number, toDeg: number): number {
+  let d = (toDeg - fromDeg) % 360;
+  if (d > 180) d -= 360;
+  if (d <= -180) d += 360;
+  return d;
+}
+
 function blockingDistance(tier: ObstacleHeightTier, elevationDeg: number): number {
   const { near, far } = TIER_RANGE[tier];
   if (elevationDeg >= 40) return near;
   if (elevationDeg <= 15) return far;
   const t = (40 - elevationDeg) / (40 - 15);
   return near + t * (far - near);
+}
+
+function pointToSegmentDistance(p: Point, a: Point, b: Point): number {
+  const abx = b.x - a.x;
+  const aby = b.y - a.y;
+  const lengthSq = abx * abx + aby * aby;
+  if (lengthSq === 0) return Math.hypot(p.x - a.x, p.y - a.y);
+  const t = Math.max(0, Math.min(1, ((p.x - a.x) * abx + (p.y - a.y) * aby) / lengthSq));
+  return Math.hypot(p.x - (a.x + t * abx), p.y - (a.y + t * aby));
+}
+
+function pointInPolygon(p: Point, verts: Point[]): boolean {
+  let inside = false;
+  for (let i = 0, j = verts.length - 1; i < verts.length; j = i++) {
+    const { x: xi, y: yi } = verts[i];
+    const { x: xj, y: yj } = verts[j];
+    const crosses = yi > p.y !== yj > p.y && p.x < ((xj - xi) * (p.y - yi)) / (yj - yi) + xi;
+    if (crosses) inside = !inside;
+  }
+  return inside;
+}
+
+/** Distance from a point to a filled polygon's boundary — 0 if the point falls inside it. */
+function polygonDistance(p: Point, verts: Point[]): number {
+  if (pointInPolygon(p, verts)) return 0;
+  let min = Infinity;
+  for (let i = 0; i < verts.length; i++) {
+    min = Math.min(min, pointToSegmentDistance(p, verts[i], verts[(i + 1) % verts.length]));
+  }
+  return min;
+}
+
+function rectCorners(a: Point, b: Point): Point[] {
+  return [
+    { x: a.x, y: a.y },
+    { x: b.x, y: a.y },
+    { x: b.x, y: b.y },
+    { x: a.x, y: b.y },
+  ];
+}
+
+/** Whether the sun's bearing falls within the angular slice a set of
+ *  vertices (seen from `plant`) spans — the shape's actual angular width,
+ *  in place of a fixed guess. Assumes the shape doesn't wrap more than
+ *  180° from the viewer, true for any convex shape seen from outside it. */
+function angularSpanBlocks(plant: Point, vertices: Point[], orientationDeg: number, sunAzimuthDeg: number): boolean {
+  const refBearing = bearingTo(plant, vertices[0], orientationDeg);
+  let min = 0;
+  let max = 0;
+  for (const v of vertices) {
+    const offset = signedAngularOffset(refBearing, bearingTo(plant, v, orientationDeg));
+    if (offset < min) min = offset;
+    if (offset > max) max = offset;
+  }
+  const sunOffset = signedAngularOffset(refBearing, sunAzimuthDeg);
+  return sunOffset >= min && sunOffset <= max;
+}
+
+/** Whether this one obstacle plausibly blocks the sun from `plant` right now. */
+function shapeBlocks(
+  plant: Point,
+  obstacle: YardObstacle,
+  sunAzimuthDeg: number,
+  sunElevationDeg: number,
+  orientationDeg: number,
+): boolean {
+  const maxDist = blockingDistance(obstacle.heightTier, sunElevationDeg);
+  const shape = obstacle.shape;
+
+  if (!shape) {
+    // No measured size — the original fixed guess at how wide a slice of
+    // sky a "there's something roughly here" marker covers.
+    const bearing = bearingTo(plant, obstacle.location, orientationDeg);
+    if (angularDiff(bearing, sunAzimuthDeg) > CONE_HALF_WIDTH_DEG) return false;
+    const dist = Math.hypot(plant.x - obstacle.location.x, plant.y - obstacle.location.y);
+    return dist <= maxDist;
+  }
+
+  if (shape.kind === 'circle') {
+    const center = obstacle.location;
+    const dist = Math.hypot(plant.x - center.x, plant.y - center.y);
+    if (dist <= shape.radius) return true; // plant sits under the canopy/footprint itself
+    if (dist - shape.radius > maxDist) return false;
+    const bearing = bearingTo(plant, center, orientationDeg);
+    const halfWidthDeg = (Math.asin(Math.min(1, shape.radius / dist)) * 180) / Math.PI;
+    return angularDiff(bearing, sunAzimuthDeg) <= halfWidthDeg;
+  }
+
+  const vertices: Point[] =
+    shape.kind === 'line'
+      ? [obstacle.location, shape.to]
+      : shape.kind === 'rect'
+        ? rectCorners(obstacle.location, shape.to)
+        : [obstacle.location, shape.b, shape.c];
+
+  const edgeDist =
+    shape.kind === 'line'
+      ? pointToSegmentDistance(plant, obstacle.location, shape.to)
+      : polygonDistance(plant, vertices);
+  if (edgeDist > maxDist) return false;
+  if (edgeDist === 0) return true; // plant falls inside the footprint
+  return angularSpanBlocks(plant, vertices, orientationDeg, sunAzimuthDeg);
 }
 
 /** The first obstacle (if any) that plausibly blocks the sun from this spot at this moment. */
@@ -71,12 +182,7 @@ export function findBlocker(
     // A fence-height obstacle only matters when the sun is already very
     // low — it can't block a high midday sun no matter how close.
     if (obstacle.heightTier === 'low' && sunElevationDeg > 15) continue;
-
-    const bearing = bearingTo(plantLocation, obstacle.location, orientationDeg);
-    if (angularDiff(bearing, sunAzimuthDeg) > CONE_HALF_WIDTH_DEG) continue;
-
-    const dist = Math.hypot(plantLocation.x - obstacle.location.x, plantLocation.y - obstacle.location.y);
-    if (dist <= blockingDistance(obstacle.heightTier, sunElevationDeg)) return obstacle;
+    if (shapeBlocks(plantLocation, obstacle, sunAzimuthDeg, sunElevationDeg, orientationDeg)) return obstacle;
   }
   return null;
 }
@@ -132,6 +238,45 @@ export function estimateSeasonalExposure(
     const sunFraction = daylightCount ? sunnyCount / daylightCount : 0;
     return { season, sunFraction, sunny: sunFraction >= 0.5, blockedBy };
   });
+}
+
+export interface SunMapCell {
+  x: number;
+  y: number;
+  /** Averaged across all four seasons. */
+  sunFraction: number;
+  classification: 'full-sun' | 'partial-shade' | 'full-shade';
+}
+
+/**
+ * A grid of season-aware sun/shade estimates across the whole yard — for
+ * picking a spot a plant can stay in year-round rather than checking one
+ * point at a time. Same heuristics as `estimateSeasonalExposure`, just run
+ * over every cell.
+ */
+export function computeSunMap(
+  obstacles: YardObstacle[],
+  lat: number,
+  lon: number,
+  orientationDeg = 0,
+  cols = 20,
+  rows = 14,
+  year = new Date().getFullYear(),
+): SunMapCell[] {
+  const cells: SunMapCell[] = [];
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const x = ((col + 0.5) / cols) * 100;
+      const y = ((row + 0.5) / rows) * 100;
+      const bySeason = estimateSeasonalExposure({ x, y }, obstacles, lat, lon, orientationDeg, year);
+      const sunFraction = bySeason.reduce((sum, s) => sum + s.sunFraction, 0) / bySeason.length;
+      const sunnySeasons = bySeason.filter((s) => s.sunny).length;
+      const classification: SunMapCell['classification'] =
+        sunnySeasons === bySeason.length ? 'full-sun' : sunnySeasons === 0 ? 'full-shade' : 'partial-shade';
+      cells.push({ x, y, sunFraction, classification });
+    }
+  }
+  return cells;
 }
 
 const SEASON_LABEL: Record<Season, string> = {

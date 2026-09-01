@@ -1,7 +1,7 @@
 // src/services/supabase/yardObstacles.ts
 
 import { supabase } from '../../lib/supabase';
-import type { ObstacleHeightTier, YardObstacle, YardObstacleType } from '../../types';
+import type { ObstacleHeightTier, ObstacleShape, YardObstacle, YardObstacleType } from '../../types';
 
 interface YardObstacleRow {
   id: string;
@@ -9,6 +9,7 @@ interface YardObstacleRow {
   type: YardObstacleType;
   label: string | null;
   location: { x: number; y: number };
+  shape: ObstacleShape | null;
   height_tier: ObstacleHeightTier;
   created_at: string;
   updated_at: string;
@@ -21,6 +22,7 @@ function toObstacle(row: YardObstacleRow): YardObstacle {
     type: row.type,
     label: row.label ?? undefined,
     location: { x: Number(row.location?.x ?? 50), y: Number(row.location?.y ?? 50) },
+    shape: row.shape ?? undefined,
     heightTier: row.height_tier,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -41,7 +43,8 @@ export const yardObstaclesService = {
 
   async create(
     userId: string,
-    obstacle: Pick<YardObstacle, 'type' | 'location' | 'heightTier'> & Partial<Pick<YardObstacle, 'label'>>,
+    obstacle: Pick<YardObstacle, 'type' | 'location' | 'heightTier'> &
+      Partial<Pick<YardObstacle, 'label' | 'shape'>>,
   ): Promise<YardObstacle> {
     const { data, error } = await supabase
       .from('yard_obstacles')
@@ -50,6 +53,7 @@ export const yardObstaclesService = {
         type: obstacle.type,
         label: obstacle.label ?? null,
         location: obstacle.location,
+        shape: obstacle.shape ?? null,
         height_tier: obstacle.heightTier,
       })
       .select()
@@ -59,11 +63,15 @@ export const yardObstaclesService = {
     return toObstacle(data as YardObstacleRow);
   },
 
-  async update(id: string, updates: Partial<Pick<YardObstacle, 'type' | 'label' | 'location' | 'heightTier'>>): Promise<YardObstacle> {
+  async update(
+    id: string,
+    updates: Partial<Pick<YardObstacle, 'type' | 'label' | 'location' | 'shape' | 'heightTier'>>,
+  ): Promise<YardObstacle> {
     const patch: Record<string, unknown> = {};
     if (updates.type !== undefined) patch.type = updates.type;
     if (updates.label !== undefined) patch.label = updates.label ?? null;
     if (updates.location !== undefined) patch.location = updates.location;
+    if (updates.shape !== undefined) patch.shape = updates.shape ?? null;
     if (updates.heightTier !== undefined) patch.height_tier = updates.heightTier;
 
     const { data, error } = await supabase

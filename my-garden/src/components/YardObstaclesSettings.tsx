@@ -1,14 +1,17 @@
 // src/components/YardObstaclesSettings.tsx
 // Mark roughly where buildings, covered porches, shade sails, trees and
-// fences sit in the yard photo — click a spot, pick a type and a rough
-// height. Feeds the sun/shade exposure estimate (see utils/sunExposure.ts);
-// position only needs to be approximate, same as everything else that
-// estimate does.
+// fences sit in the yard photo, sized to their actual footprint — a circle
+// for a tree, a line for a fence, a rectangle for a building/porch, a
+// triangle for a triangular shade sail. Feeds the sun/shade exposure
+// estimate (see utils/sunExposure.ts); position and size only need to be
+// approximate, same as everything else that estimate does.
 
 import { useState } from 'react';
 import { Loader2, Trash2, X } from 'lucide-react';
 import { yardObstaclesService } from '../services/supabase/yardObstacles';
-import type { ObstacleHeightTier, YardObstacle, YardObstacleType } from '../types';
+import type { ObstacleHeightTier, ObstacleShape, Point, YardObstacle, YardObstacleType } from '../types';
+
+type ShapeKind = 'point' | 'circle' | 'line' | 'rect' | 'triangle';
 
 const TYPE_OPTIONS: { value: YardObstacleType; label: string; icon: string }[] = [
   { value: 'building', label: 'Building', icon: '🏠' },
@@ -16,6 +19,14 @@ const TYPE_OPTIONS: { value: YardObstacleType; label: string; icon: string }[] =
   { value: 'shade-sail', label: 'Sun tarp / shade sail', icon: '⛱️' },
   { value: 'tree', label: 'Tree', icon: '🌳' },
   { value: 'fence', label: 'Fence', icon: '🚧' },
+];
+
+const SHAPE_OPTIONS: { value: ShapeKind; label: string; hint: string }[] = [
+  { value: 'point', label: 'Just a point', hint: 'Click a spot to place it.' },
+  { value: 'circle', label: 'Circle', hint: 'Click and drag out from the center to size it.' },
+  { value: 'line', label: 'Line', hint: 'Click two points — start, then end.' },
+  { value: 'rect', label: 'Rectangle', hint: 'Click and drag from one corner to the opposite corner.' },
+  { value: 'triangle', label: 'Triangle', hint: 'Click three points — its corners.' },
 ];
 
 const TIER_OPTIONS: { value: ObstacleHeightTier; label: string }[] = [
@@ -32,14 +43,101 @@ const ICON_BY_TYPE: Record<YardObstacleType, string> = {
   fence: '🚧',
 };
 
-/** Types that are nearly always one particular height tier — a starting
- *  point the user can still override before saving. */
+/** A starting point the user can still override before drawing. */
+const SUGGESTED_SHAPE: Record<YardObstacleType, ShapeKind> = {
+  building: 'rect',
+  'covered-porch': 'rect',
+  // Rectangular is the common case; switch to Triangle for a triangular sail.
+  'shade-sail': 'rect',
+  tree: 'circle',
+  fence: 'line',
+};
+
 const SUGGESTED_TIER: Partial<Record<YardObstacleType, ObstacleHeightTier>> = {
   'covered-porch': 'medium',
   // Strung overhead but usually lower than a roofline — closer to a fence
   // than a building in practice.
   'shade-sail': 'low',
 };
+
+type Draft =
+  | { mode: 'idle' }
+  | { mode: 'dragging'; start: Point; current: Point }
+  | { mode: 'clicking'; points: Point[]; cursor: Point };
+
+interface PendingObstacle {
+  location: Point;
+  shape?: ObstacleShape;
+}
+
+const OBSTACLE_STYLE = { fill: 'rgba(217, 119, 6, 0.3)', stroke: '#b45309' };
+const PENDING_STYLE = { fill: 'rgba(16, 185, 129, 0.3)', stroke: '#059669' };
+const DRAFT_STYLE = { fill: 'rgba(16, 185, 129, 0.18)', stroke: '#059669' };
+
+function ShapeMark({
+  location,
+  shape,
+  fill,
+  stroke,
+  dashed = false,
+}: {
+  location: Point;
+  shape?: ObstacleShape;
+  fill: string;
+  stroke: string;
+  dashed?: boolean;
+}) {
+  const dash = dashed ? '2,1.2' : undefined;
+  // A white halo behind the colored stroke keeps a thin shape outline
+  // visible against whatever the yard photo happens to look like underneath.
+  const halo = { stroke: 'rgba(255,255,255,0.9)', strokeWidth: 2.2 };
+  const main = { stroke, strokeWidth: 1.1, strokeDasharray: dash };
+
+  if (!shape) {
+    return (
+      <>
+        <circle cx={location.x} cy={location.y} r={1.6} fill="none" {...halo} />
+        <circle cx={location.x} cy={location.y} r={1.6} fill={fill} {...main} />
+      </>
+    );
+  }
+  if (shape.kind === 'circle') {
+    return (
+      <>
+        <circle cx={location.x} cy={location.y} r={shape.radius} fill="none" {...halo} />
+        <circle cx={location.x} cy={location.y} r={shape.radius} fill={fill} {...main} />
+      </>
+    );
+  }
+  if (shape.kind === 'line') {
+    const { to } = shape;
+    return (
+      <>
+        <line x1={location.x} y1={location.y} x2={to.x} y2={to.y} strokeLinecap="round" {...halo} />
+        <line x1={location.x} y1={location.y} x2={to.x} y2={to.y} strokeLinecap="round" {...main} />
+      </>
+    );
+  }
+  if (shape.kind === 'rect') {
+    const x = Math.min(location.x, shape.to.x);
+    const y = Math.min(location.y, shape.to.y);
+    const width = Math.abs(shape.to.x - location.x);
+    const height = Math.abs(shape.to.y - location.y);
+    return (
+      <>
+        <rect x={x} y={y} width={width} height={height} fill="none" {...halo} />
+        <rect x={x} y={y} width={width} height={height} fill={fill} {...main} />
+      </>
+    );
+  }
+  const points = `${location.x},${location.y} ${shape.b.x},${shape.b.y} ${shape.c.x},${shape.c.y}`;
+  return (
+    <>
+      <polygon points={points} fill="none" {...halo} />
+      <polygon points={points} fill={fill} {...main} />
+    </>
+  );
+}
 
 interface YardObstaclesSettingsProps {
   userId: string;
@@ -56,19 +154,86 @@ export function YardObstaclesSettings({
   onSaved,
   onClose,
 }: YardObstaclesSettingsProps) {
-  const [pending, setPending] = useState<{ x: number; y: number } | null>(null);
   const [type, setType] = useState<YardObstacleType>('tree');
+  const [shapeKind, setShapeKind] = useState<ShapeKind>(SUGGESTED_SHAPE.tree);
   const [heightTier, setHeightTier] = useState<ObstacleHeightTier>('medium');
+  const [draft, setDraft] = useState<Draft>({ mode: 'idle' });
+  const [pending, setPending] = useState<PendingObstacle | null>(null);
   const [saving, setSaving] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [error, setError] = useState('');
 
-  const handleImageClick = (e: React.MouseEvent<HTMLDivElement>) => {
+  const changeType = (next: YardObstacleType) => {
+    setType(next);
+    setShapeKind(SUGGESTED_SHAPE[next]);
+    setHeightTier(SUGGESTED_TIER[next] ?? heightTier);
+  };
+
+  const toPercent = (e: React.PointerEvent<HTMLDivElement>): Point => {
     const rect = e.currentTarget.getBoundingClientRect();
-    const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
-    const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
-    setPending({ x, y });
-    setHeightTier(SUGGESTED_TIER[type] ?? heightTier);
+    return {
+      x: Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100)),
+      y: Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100)),
+    };
+  };
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (pending) return;
+    const p = toPercent(e);
+    setError('');
+
+    if (shapeKind === 'point') {
+      setPending({ location: p });
+      return;
+    }
+    if (shapeKind === 'circle' || shapeKind === 'rect') {
+      e.currentTarget.setPointerCapture(e.pointerId);
+      setDraft({ mode: 'dragging', start: p, current: p });
+      return;
+    }
+    // line / triangle — accumulate clicked points
+    const points = draft.mode === 'clicking' ? [...draft.points, p] : [p];
+    const need = shapeKind === 'line' ? 2 : 3;
+    if (points.length >= need) {
+      setDraft({ mode: 'idle' });
+      const [a, b, c] = points;
+      setPending(
+        shapeKind === 'line'
+          ? { location: a, shape: { kind: 'line', to: b } }
+          : { location: a, shape: { kind: 'triangle', b, c } },
+      );
+    } else {
+      setDraft({ mode: 'clicking', points, cursor: p });
+    }
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (draft.mode === 'idle') return;
+    const p = toPercent(e);
+    if (draft.mode === 'dragging') setDraft({ ...draft, current: p });
+    else setDraft({ ...draft, cursor: p });
+  };
+
+  const handlePointerUp = () => {
+    if (draft.mode !== 'dragging') return;
+    const { start, current } = draft;
+    setDraft({ mode: 'idle' });
+    const dist = Math.hypot(current.x - start.x, current.y - start.y);
+    if (dist < 1.5) {
+      // Barely dragged — treat it as a quick point placement instead of a
+      // near-invisible sliver of a shape.
+      setPending({ location: start });
+      return;
+    }
+    setPending({
+      location: start,
+      shape: shapeKind === 'circle' ? { kind: 'circle', radius: dist } : { kind: 'rect', to: current },
+    });
+  };
+
+  const cancelDraft = () => {
+    setDraft({ mode: 'idle' });
+    setPending(null);
     setError('');
   };
 
@@ -79,7 +244,8 @@ export function YardObstaclesSettings({
     try {
       const created = await yardObstaclesService.create(userId, {
         type,
-        location: pending,
+        location: pending.location,
+        shape: pending.shape,
         heightTier,
       });
       onSaved([...obstacles, created]);
@@ -104,6 +270,8 @@ export function YardObstaclesSettings({
     }
   };
 
+  const hint = SHAPE_OPTIONS.find((s) => s.value === shapeKind)?.hint ?? '';
+
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 sm:items-center">
       <div className="flex max-h-[90vh] w-full max-w-lg flex-col rounded-lg bg-white shadow-xl">
@@ -121,8 +289,9 @@ export function YardObstaclesSettings({
 
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
           <p className="text-sm text-gray-600">
-            Click a spot on the yard for anything that blocks the sun — the house, a covered
-            porch, trees, fences. Rough position and height are all the sun/shade estimate needs.
+            Mark anything that blocks the sun — the house, a covered porch, trees, fences — sized
+            to its actual footprint so the sun/shade estimate can tell how wide a slice of sky it
+            really covers.
           </p>
 
           {error && (
@@ -131,11 +300,69 @@ export function YardObstaclesSettings({
             </div>
           )}
 
+          {!pending && (
+            <div className="flex flex-wrap gap-2">
+              <select
+                value={type}
+                onChange={(e) => changeType(e.target.value as YardObstacleType)}
+                className="flex-1 rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
+              >
+                {TYPE_OPTIONS.map((t) => (
+                  <option key={t.value} value={t.value}>{t.icon} {t.label}</option>
+                ))}
+              </select>
+              <select
+                value={shapeKind}
+                onChange={(e) => setShapeKind(e.target.value as ShapeKind)}
+                className="flex-1 rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
+              >
+                {SHAPE_OPTIONS.map((s) => (
+                  <option key={s.value} value={s.value}>{s.label}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {!pending && <p className="text-xs text-gray-500">{hint}</p>}
+
           <div
-            onClick={handleImageClick}
-            className="relative w-full cursor-crosshair overflow-hidden rounded-lg border border-gray-200"
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            className="relative w-full touch-none select-none overflow-hidden rounded-lg border border-gray-200"
+            style={{ cursor: pending ? 'default' : 'crosshair' }}
           >
             <img src={yardImageUrl} alt="Your yard" className="block h-auto w-full select-none" draggable={false} />
+            <svg
+              className="pointer-events-none absolute inset-0 h-full w-full"
+              viewBox="0 0 100 100"
+              preserveAspectRatio="none"
+            >
+              {obstacles.map((o) => (
+                <ShapeMark key={o.id} location={o.location} shape={o.shape} {...OBSTACLE_STYLE} />
+              ))}
+              {pending && <ShapeMark location={pending.location} shape={pending.shape} {...PENDING_STYLE} />}
+              {draft.mode === 'dragging' && shapeKind === 'circle' && (
+                <ShapeMark
+                  location={draft.start}
+                  shape={{ kind: 'circle', radius: Math.hypot(draft.current.x - draft.start.x, draft.current.y - draft.start.y) }}
+                  {...DRAFT_STYLE}
+                  dashed
+                />
+              )}
+              {draft.mode === 'dragging' && shapeKind === 'rect' && (
+                <ShapeMark location={draft.start} shape={{ kind: 'rect', to: draft.current }} {...DRAFT_STYLE} dashed />
+              )}
+              {draft.mode === 'clicking' && (
+                <polyline
+                  points={[...draft.points, draft.cursor].map((p) => `${p.x},${p.y}`).join(' ')}
+                  fill="none"
+                  stroke={DRAFT_STYLE.stroke}
+                  strokeWidth={0.7}
+                  strokeDasharray="1.5,1"
+                />
+              )}
+            </svg>
             {obstacles.map((o) => (
               <span
                 key={o.id}
@@ -148,13 +375,23 @@ export function YardObstaclesSettings({
             ))}
             {pending && (
               <span
-                className="absolute flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 animate-pulse items-center justify-center rounded-full bg-emerald-500 text-sm text-white shadow ring-2 ring-white"
-                style={{ left: `${pending.x}%`, top: `${pending.y}%` }}
+                className="absolute flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 animate-pulse items-center justify-center rounded-full bg-white text-sm shadow ring-2 ring-emerald-500"
+                style={{ left: `${pending.location.x}%`, top: `${pending.location.y}%` }}
               >
                 {ICON_BY_TYPE[type]}
               </span>
             )}
           </div>
+
+          {draft.mode === 'clicking' && (
+            <button
+              type="button"
+              onClick={cancelDraft}
+              className="w-full rounded-lg border border-gray-300 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+            >
+              Cancel ({draft.points.length}/{shapeKind === 'line' ? 2 : 3} points placed)
+            </button>
+          )}
 
           {pending && (
             <div className="space-y-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
@@ -181,7 +418,7 @@ export function YardObstaclesSettings({
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => setPending(null)}
+                  onClick={cancelDraft}
                   className="flex-1 rounded-lg border border-gray-300 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
                 >
                   Cancel
@@ -206,7 +443,7 @@ export function YardObstaclesSettings({
                   <span className="text-base">{ICON_BY_TYPE[o.type]}</span>
                   <span className="min-w-0 flex-1 truncate text-gray-700">
                     {o.label || TYPE_OPTIONS.find((t) => t.value === o.type)?.label}
-                    <span className="text-gray-400"> · {o.heightTier}</span>
+                    <span className="text-gray-400"> · {o.heightTier}{o.shape ? ` · ${o.shape.kind}` : ''}</span>
                   </span>
                   <button
                     type="button"

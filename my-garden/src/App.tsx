@@ -14,6 +14,7 @@ import { ProfileSettings } from './components/ProfileSettings';
 import { PricingModal } from './components/PricingModal';
 import { PlantCareModal } from './components/PlantCareModal';
 import { YardObstaclesSettings } from './components/YardObstaclesSettings';
+import { SunMapOverlay } from './components/SunMapOverlay';
 import { GrantAccessModal } from './components/GrantAccessModal';
 import { weatherService } from './services/weather/forecast';
 import { billingService } from './services/supabase/billing';
@@ -39,6 +40,7 @@ export default function App() {
   const [showLocation, setShowLocation] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showObstacles, setShowObstacles] = useState(false);
+  const [showSunMap, setShowSunMap] = useState(false);
   const [showGrantAccess, setShowGrantAccess] = useState(false);
   const [pricingReason, setPricingReason] = useState<string | null>(null);
   const [garden, setGarden] = useState<GardenLocation | null>(null);
@@ -240,6 +242,7 @@ export default function App() {
             onSetLocation={() => setShowLocation(true)}
             onEditProfile={() => setShowProfile(true)}
             onEditObstacles={() => setShowObstacles(true)}
+            onShowSunMap={() => setShowSunMap(true)}
             onBilling={openBilling}
             onGrantAccess={() => setShowGrantAccess(true)}
             onLogout={logout}
@@ -273,6 +276,15 @@ export default function App() {
           obstacles={obstacles}
           onSaved={setObstacles}
           onClose={() => setShowObstacles(false)}
+        />
+      )}
+
+      {showSunMap && (
+        <SunMapOverlay
+          yardImageUrl="/default-yard.png"
+          obstacles={obstacles}
+          garden={garden}
+          onClose={() => setShowSunMap(false)}
         />
       )}
 

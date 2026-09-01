@@ -6,7 +6,7 @@ export interface Plant {
   name: string;
   commonName?: string;
   species?: string;
-  location: { x: number; y: number };
+  location: Point;
   photoUrl?: string;
   /** Cut-out PNG used as the map marker sprite. */
   spriteUrl?: string;
@@ -40,13 +40,36 @@ export type YardObstacleType = 'building' | 'covered-porch' | 'shade-sail' | 'tr
  */
 export type ObstacleHeightTier = 'low' | 'medium' | 'tall';
 
+export interface Point {
+  x: number;
+  y: number;
+}
+
+/**
+ * How much of the sky an obstacle blocks, seen from a plant, beyond just
+ * "there's something over there" (a bare point). Coordinates are in the
+ * same percent-of-yard-photo units as `location` — same no-real-world-scale
+ * caveat as heightTier. Undefined `shape` on a YardObstacle means "just a
+ * point" (the original, pre-shape behavior): a fixed guess at how wide a
+ * slice of sky it covers, rather than a measured one.
+ */
+export type ObstacleShape =
+  | { kind: 'circle'; radius: number }
+  | { kind: 'line'; to: Point }
+  | { kind: 'rect'; to: Point }
+  | { kind: 'triangle'; b: Point; c: Point };
+
 export interface YardObstacle {
   id: string;
   userId: string;
   type: YardObstacleType;
   label?: string;
-  /** Same percent-of-yard-photo coordinates as Plant.location. */
-  location: { x: number; y: number };
+  /** Same percent-of-yard-photo coordinates as Plant.location. Anchor
+   *  point for `shape` — circle center, line/rect start corner, triangle
+   *  vertex `a`. */
+  location: Point;
+  /** Undefined = a plain point obstacle (legacy/quick-placed). */
+  shape?: ObstacleShape;
   heightTier: ObstacleHeightTier;
   createdAt: string;
   updatedAt: string;

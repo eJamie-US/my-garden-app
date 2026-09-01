@@ -4,7 +4,7 @@
 // bar competing with the yard for space.
 
 import { useState } from 'react';
-import { CreditCard, LogOut, MapPin, Sparkles, Trees, UserCircle, UserPlus } from 'lucide-react';
+import { CreditCard, LogOut, MapPin, Sparkles, Sun, Trees, UserCircle, UserPlus } from 'lucide-react';
 import type { Plan } from '../services/supabase/billing';
 
 interface AccountMenuProps {
@@ -16,6 +16,7 @@ interface AccountMenuProps {
   onSetLocation: () => void;
   onEditProfile: () => void;
   onEditObstacles: () => void;
+  onShowSunMap: () => void;
   /** Free plan: opens the pricing modal. Paying plan: opens Stripe's billing portal. */
   onBilling: () => void;
   /** Owner-only in practice — the server rejects anyone else, so this stays
@@ -39,6 +40,7 @@ export function AccountMenu({
   onSetLocation,
   onEditProfile,
   onEditObstacles,
+  onShowSunMap,
   onBilling,
   onGrantAccess,
   onLogout,
@@ -131,6 +133,17 @@ export function AccountMenu({
             >
               <Trees size={14} className="shrink-0 text-emerald-600" />
               Yard obstacles
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                onShowSunMap();
+              }}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+            >
+              <Sun size={14} className="shrink-0 text-emerald-600" />
+              Sun map
             </button>
             <button
               type="button"
