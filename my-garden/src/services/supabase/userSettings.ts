@@ -8,9 +8,16 @@ export interface GardenLocation {
   longitude: number;
 }
 
+export interface Profile {
+  displayName?: string;
+  /** A single emoji, picked from a small curated set — see ProfileSettings. */
+  avatarIcon?: string;
+}
+
 export interface UserSettings {
   userId: string;
   garden: GardenLocation | null;
+  profile: Profile;
 }
 
 interface UserSettingsRow {
@@ -18,6 +25,8 @@ interface UserSettingsRow {
   garden_label: string | null;
   garden_lat: number | null;
   garden_lon: number | null;
+  display_name: string | null;
+  avatar_icon: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -33,6 +42,10 @@ function toSettings(row: UserSettingsRow): UserSettings {
           longitude: row.garden_lon as number,
         }
       : null,
+    profile: {
+      displayName: row.display_name ?? undefined,
+      avatarIcon: row.avatar_icon ?? undefined,
+    },
   };
 }
 
@@ -59,6 +72,25 @@ export const userSettingsService = {
           garden_label: garden.label ?? null,
           garden_lat: garden.latitude,
           garden_lon: garden.longitude,
+        },
+        { onConflict: 'user_id' },
+      )
+      .select()
+      .single();
+
+    if (error) throw error;
+    return toSettings(data as UserSettingsRow);
+  },
+
+  /** Upserts on user_id, same as saveGardenLocation — leaves garden_* columns untouched. */
+  async saveProfile(userId: string, profile: Profile): Promise<UserSettings> {
+    const { data, error } = await supabase
+      .from('user_settings')
+      .upsert(
+        {
+          user_id: userId,
+          display_name: profile.displayName?.trim() || null,
+          avatar_icon: profile.avatarIcon ?? null,
         },
         { onConflict: 'user_id' },
       )

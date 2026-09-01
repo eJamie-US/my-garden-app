@@ -9,11 +9,13 @@ import { AccountMenu } from './components/AccountMenu';
 import { PlantForm } from './components/PlantForm';
 import { DueToday } from './components/DueToday';
 import { GardenLocationSettings } from './components/GardenLocationSettings';
+import { ProfileSettings } from './components/ProfileSettings';
 import { PlantCareModal } from './components/PlantCareModal';
 import { weatherService } from './services/weather/forecast';
 import {
   userSettingsService,
   type GardenLocation,
+  type Profile,
 } from './services/supabase/userSettings';
 import type { CareItem, Plant, WeatherData } from './types';
 
@@ -26,7 +28,9 @@ export default function App() {
 
   const [showPlantForm, setShowPlantForm] = useState(false);
   const [showLocation, setShowLocation] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const [garden, setGarden] = useState<GardenLocation | null>(null);
+  const [profile, setProfile] = useState<Profile>({});
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [selectedPlant, setSelectedPlant] = useState<Plant | null>(null);
   // Shared between Due Today and the yard map so picking "Water" narrows
@@ -58,12 +62,15 @@ export default function App() {
     }
   }, [user?.id]);
 
-  // Saved garden location, if the user has set one.
+  // Saved garden location + profile (display name/icon), if the user has set them.
   useEffect(() => {
     if (!user?.id) return;
     userSettingsService
       .getSettings(user.id)
-      .then((s) => setGarden(s?.garden ?? null))
+      .then((s) => {
+        setGarden(s?.garden ?? null);
+        setProfile(s?.profile ?? {});
+      })
       .catch((err) => console.error('Settings unavailable:', err));
   }, [user?.id]);
 
@@ -168,8 +175,11 @@ export default function App() {
         accountSlot={
           <AccountMenu
             email={user.email}
+            displayName={profile.displayName}
+            avatarIcon={profile.avatarIcon}
             locationLabel={garden?.label}
             onSetLocation={() => setShowLocation(true)}
+            onEditProfile={() => setShowProfile(true)}
             onLogout={logout}
           />
         }
@@ -181,6 +191,16 @@ export default function App() {
           current={garden}
           onSaved={setGarden}
           onClose={() => setShowLocation(false)}
+        />
+      )}
+
+      {showProfile && (
+        <ProfileSettings
+          userId={user.id}
+          current={profile}
+          fallbackInitial={user.email.trim().charAt(0).toUpperCase() || '?'}
+          onSaved={setProfile}
+          onClose={() => setShowProfile(false)}
         />
       )}
 

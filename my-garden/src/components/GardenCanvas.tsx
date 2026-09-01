@@ -324,7 +324,7 @@ export function GardenCanvas({
   }
 
   return (
-    <main className="mt-16">
+    <main className="mt-4">
       {/* Garden banner. The background image + decorative text are wrapped in
           their own clipped layer so they stay confined to the banner's
           rounded box; the section itself is NOT clipped and sits in a

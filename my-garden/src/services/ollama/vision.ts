@@ -1,10 +1,10 @@
 import axios from 'axios'
-import { OllamaResponse } from '../../types'
+import type { VisionResult } from '../../types'
 
 const OLLAMA_API = import.meta.env.VITE_OLLAMA_API_URL || 'http://localhost:11434'
 
 export const ollamaService = {
-  async identifyPlant(imageBase64: string): Promise<OllamaResponse> {
+  async identifyPlant(imageBase64: string): Promise<VisionResult> {
     try {
       const response = await axios.post(`${OLLAMA_API}/api/generate`, {
         model: 'llava-phi',
