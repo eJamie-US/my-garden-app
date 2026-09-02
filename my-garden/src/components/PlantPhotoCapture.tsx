@@ -32,15 +32,16 @@ interface PlantPhotoCaptureProps {
   onSkipIdentification?: (photo: Blob, previewUrl: string) => void;
 }
 
-type Stage = 'capture' | 'identifying' | 'review' | 'cutout';
+type Stage = 'capture' | 'live-camera' | 'identifying' | 'review' | 'cutout';
 
 export function PlantPhotoCapture({
   onComplete,
   onCancel,
   onSkipIdentification,
 }: PlantPhotoCaptureProps) {
-  const cameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const objectUrls = useRef<string[]>([]);
 
   const [stage, setStage] = useState<Stage>('capture');
@@ -53,28 +54,37 @@ export function PlantPhotoCapture({
   const [permissionDenied, setPermissionDenied] = useState(false);
   const [error, setError] = useState('');
 
+  const stopStream = useCallback(() => {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+  }, []);
+
   useEffect(() => {
     preloadBackgroundRemoval();
-    return () => objectUrls.current.forEach((url) => URL.revokeObjectURL(url));
-  }, []);
+    return () => {
+      objectUrls.current.forEach((url) => URL.revokeObjectURL(url));
+      stopStream();
+    };
+  }, [stopStream]);
+
+  // Attach the live stream once the <video> element for this stage exists.
+  useEffect(() => {
+    if (stage === 'live-camera' && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+    }
+  }, [stage]);
 
   const track = useCallback((url: string) => {
     objectUrls.current.push(url);
     return url;
   }, []);
 
-  const handleFile = async (file: File | undefined) => {
-    if (!file) return;
+  const processImage = async (blob: Blob) => {
     setError('');
     setCutoutWarning('');
 
-    if (!file.type.startsWith('image/')) {
-      setError('That file is not an image.');
-      return;
-    }
-
     try {
-      const shrunk = await resizeImage(file, 1280, 1280, 0.88);
+      const shrunk = await resizeImage(blob, 1280, 1280, 0.88);
       setPhoto(shrunk);
       setPhotoUrl(track(URL.createObjectURL(shrunk)));
       setStage('identifying');
@@ -89,23 +99,61 @@ export function PlantPhotoCapture({
     }
   };
 
-  /**
-   * File inputs don't report permission denial, so we probe getUserMedia first
-   * and fall back to the gallery picker when the camera is refused.
-   */
+  const handleFile = (file: File | undefined) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setError('That file is not an image.');
+      return;
+    }
+    void processImage(file);
+  };
+
+  /** Opens a live in-page camera preview — works the same on desktop and
+   *  mobile, unlike handing off to the OS (which on desktop just silently
+   *  falls back to a plain file picker that's easy to miss). */
   const openCamera = async () => {
     setError('');
-    if (navigator.mediaDevices?.getUserMedia) {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        stream.getTracks().forEach((t) => t.stop());
-        setPermissionDenied(false);
-      } catch {
-        setPermissionDenied(true);
-        return;
-      }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      // No camera API at all — fall back to the gallery/file picker.
+      fileInputRef.current?.click();
+      return;
     }
-    cameraInputRef.current?.click();
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } },
+      });
+      streamRef.current = stream;
+      setPermissionDenied(false);
+      setStage('live-camera');
+    } catch {
+      setPermissionDenied(true);
+    }
+  };
+
+  const cancelLiveCamera = () => {
+    stopStream();
+    setStage('capture');
+  };
+
+  const snapPhoto = () => {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d')?.drawImage(video, 0, 0);
+    canvas.toBlob(
+      (blob) => {
+        stopStream();
+        if (blob) void processImage(blob);
+        else {
+          setError('Could not capture that photo.');
+          setStage('capture');
+        }
+      },
+      'image/jpeg',
+      0.9,
+    );
   };
 
   const buildSprite = async () => {
@@ -144,14 +192,6 @@ export function PlantPhotoCapture({
   if (stage === 'capture') {
     return (
       <div className="space-y-3">
-        <input
-          ref={cameraInputRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          className="hidden"
-          onChange={(e) => handleFile(e.target.files?.[0])}
-        />
         <input
           ref={fileInputRef}
           type="file"
@@ -204,6 +244,34 @@ export function PlantPhotoCapture({
             Skip the photo
           </button>
         )}
+      </div>
+    );
+  }
+
+  /* ---------- live camera ---------- */
+
+  if (stage === 'live-camera') {
+    return (
+      <div className="space-y-3">
+        <div className="overflow-hidden rounded-lg bg-black">
+          <video ref={videoRef} autoPlay playsInline muted className="block w-full" />
+        </div>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={cancelLiveCamera}
+            className="flex-1 rounded-lg border border-gray-300 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={snapPhoto}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-emerald-600 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+          >
+            <Camera size={16} /> Capture
+          </button>
+        </div>
       </div>
     );
   }
