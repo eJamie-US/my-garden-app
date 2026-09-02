@@ -68,9 +68,13 @@ export function PlantPhotoCapture({
   }, [stopStream]);
 
   // Attach the live stream once the <video> element for this stage exists.
+  // Safari in particular won't actually start rendering frames from a
+  // programmatically-set srcObject on the strength of the `autoPlay`
+  // attribute alone — it needs an explicit play() call.
   useEffect(() => {
     if (stage === 'live-camera' && videoRef.current && streamRef.current) {
       videoRef.current.srcObject = streamRef.current;
+      videoRef.current.play().catch(() => {});
     }
   }, [stage]);
 
