@@ -135,10 +135,10 @@ describe('estimateSeasonalExposure', () => {
 
 describe('summarizeExposure', () => {
   const sunnyAll = (['spring', 'summer', 'fall', 'winter'] as const).map((season) => ({
-    season, sunFraction: 1, sunny: true,
+    season, sunHours: 10, sunFraction: 1, sunny: true,
   }));
   const shadedAll = (['spring', 'summer', 'fall', 'winter'] as const).map((season) => ({
-    season, sunFraction: 0, sunny: false,
+    season, sunHours: 0, sunFraction: 0, sunny: false,
   }));
 
   it('confirms a match for a full-sun plant that is sunny year-round', () => {
@@ -146,7 +146,7 @@ describe('summarizeExposure', () => {
   });
 
   it('flags a full-sun plant shaded in summer', () => {
-    const bySeason = sunnyAll.map((s) => (s.season === 'summer' ? { ...s, sunny: false, sunFraction: 0 } : s));
+    const bySeason = sunnyAll.map((s) => (s.season === 'summer' ? { ...s, sunny: false, sunHours: 0, sunFraction: 0 } : s));
     expect(summarizeExposure('full-sun', bySeason)).toMatch(/shaded in summer/i);
   });
 
@@ -155,7 +155,7 @@ describe('summarizeExposure', () => {
   });
 
   it('flags a full-shade plant getting direct summer sun', () => {
-    const bySeason = shadedAll.map((s) => (s.season === 'summer' ? { ...s, sunny: true, sunFraction: 1 } : s));
+    const bySeason = shadedAll.map((s) => (s.season === 'summer' ? { ...s, sunny: true, sunHours: 10, sunFraction: 1 } : s));
     expect(summarizeExposure('full-shade', bySeason)).toMatch(/direct summer sun/i);
   });
 

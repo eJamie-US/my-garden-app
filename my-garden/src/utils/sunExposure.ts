@@ -8,7 +8,7 @@
 // what it assumes, so the estimate can be judged (and corrected by moving
 // or adding obstacles) rather than taken as ground truth.
 
-import { solarPosition, isDaytime } from './sunPosition';
+import { solarPosition, isDaytime, type SunPosition } from './sunPosition';
 import type { ObstacleHeightTier, Plant, YardObstacle } from '../types';
 
 export type Season = 'spring' | 'summer' | 'fall' | 'winter';
@@ -187,29 +187,72 @@ export function findBlocker(
   return null;
 }
 
-function approxSolarNoonUTCHour(lon: number): number {
-  return (((12 - lon / 15) % 24) + 24) % 24;
-}
+/** Resolution for walking through a reference day's daylight hours. */
+const SAMPLE_INTERVAL_MINUTES = 30;
+const SAMPLE_INTERVAL_HOURS = SAMPLE_INTERVAL_MINUTES / 60;
 
-/** Morning / midday / afternoon sample instants for one reference date, in UTC. */
-function sampleTimesUTC(monthDay: string, year: number, lon: number): Date[] {
-  const noonHour = approxSolarNoonUTCHour(lon);
+/** Every half-hour of one reference date, in UTC — covers all local times
+ *  regardless of longitude, so daylight (wherever it falls in the day) is
+ *  never missed. */
+function sampleDayUTC(monthDay: string, year: number): Date[] {
   const base = new Date(`${year}-${monthDay}T00:00:00Z`);
-  return [-3, 0, 3].map((offsetHours) => {
-    const d = new Date(base.getTime());
-    d.setUTCHours(0, 0, 0, 0);
-    d.setTime(d.getTime() + ((noonHour + offsetHours + 24) % 24) * 3_600_000);
-    return d;
-  });
+  const samples: Date[] = [];
+  for (let m = 0; m < 24 * 60; m += SAMPLE_INTERVAL_MINUTES) {
+    samples.push(new Date(base.getTime() + m * 60_000));
+  }
+  return samples;
 }
 
-export interface SeasonExposure {
-  season: Season;
-  /** Of the sampled daylight moments (morning/midday/afternoon), the fraction that were sunny. */
+/** How many hours of direct sun counts as "full sun," "partial shade," or
+ *  "full shade" for one day — the same rule of thumb gardeners use. */
+export function classifyDaySun(sunHours: number): 'full-sun' | 'partial-shade' | 'full-shade' {
+  if (sunHours >= 6) return 'full-sun';
+  if (sunHours >= 3) return 'partial-shade';
+  return 'full-shade';
+}
+
+interface DateExposure {
+  /** Estimated hours of direct, unblocked sun that day (half-hour resolution). */
+  sunHours: number;
+  /** Of the day's daylight hours, the fraction that were sunny. */
   sunFraction: number;
+  /** At least 6 hours of direct sun — the usual "full sun" bar. */
   sunny: boolean;
-  /** One obstacle seen blocking the sun this season, if any — for "what's blocking it" messaging. */
+  /** One obstacle seen blocking the sun on this date, if any — for "what's blocking it" messaging. */
   blockedBy?: YardObstacle;
+}
+
+/** Sun/shade estimate for one point, walked across a full reference date at
+ *  half-hour resolution — actual elapsed sun-hours, not a coarse 3-point guess. */
+function exposureForDate(
+  plantLocation: Point,
+  obstacles: YardObstacle[],
+  lat: number,
+  lon: number,
+  monthDay: string,
+  orientationDeg: number,
+  year: number,
+): DateExposure {
+  let sunnyCount = 0;
+  let daylightCount = 0;
+  let blockedBy: YardObstacle | undefined;
+
+  for (const t of sampleDayUTC(monthDay, year)) {
+    const pos = solarPosition(lat, lon, t);
+    if (!isDaytime(pos)) continue;
+    daylightCount++;
+    const blocker = findBlocker(plantLocation, obstacles, pos.azimuthDeg, pos.elevationDeg, orientationDeg);
+    if (blocker) blockedBy = blocker;
+    else sunnyCount++;
+  }
+
+  const sunHours = sunnyCount * SAMPLE_INTERVAL_HOURS;
+  const sunFraction = daylightCount ? sunnyCount / daylightCount : 0;
+  return { sunHours, sunFraction, sunny: sunHours >= 6, blockedBy };
+}
+
+export interface SeasonExposure extends DateExposure {
+  season: Season;
 }
 
 /** Season-by-season sun/shade estimate for one point in the yard. */
@@ -221,23 +264,10 @@ export function estimateSeasonalExposure(
   orientationDeg = 0,
   year = new Date().getFullYear(),
 ): SeasonExposure[] {
-  return SEASON_DATES.map(({ season, monthDay }) => {
-    let sunnyCount = 0;
-    let daylightCount = 0;
-    let blockedBy: YardObstacle | undefined;
-
-    for (const t of sampleTimesUTC(monthDay, year, lon)) {
-      const pos = solarPosition(lat, lon, t);
-      if (!isDaytime(pos)) continue;
-      daylightCount++;
-      const blocker = findBlocker(plantLocation, obstacles, pos.azimuthDeg, pos.elevationDeg, orientationDeg);
-      if (blocker) blockedBy = blocker;
-      else sunnyCount++;
-    }
-
-    const sunFraction = daylightCount ? sunnyCount / daylightCount : 0;
-    return { season, sunFraction, sunny: sunFraction >= 0.5, blockedBy };
-  });
+  return SEASON_DATES.map(({ season, monthDay }) => ({
+    season,
+    ...exposureForDate(plantLocation, obstacles, lat, lon, monthDay, orientationDeg, year),
+  }));
 }
 
 export interface SunMapCell {
@@ -277,6 +307,79 @@ export function computeSunMap(
     }
   }
   return cells;
+}
+
+export interface MonthSunMapCell {
+  x: number;
+  y: number;
+  /** Estimated hours of direct sun on a representative day (the 15th) for the chosen month. */
+  sunHours: number;
+  classification: 'full-sun' | 'partial-shade' | 'full-shade';
+}
+
+/**
+ * A grid of sun/shade estimates for one calendar month — same idea as
+ * `computeSunMap`, but for a single month's sun angle (via its 15th, as a
+ * representative day) instead of averaged across all four seasons.
+ * Classification is by actual estimated sun-hours that day: 6+ is full sun,
+ * 3-6 is partial shade, under 3 is full shade — see `classifyDaySun`.
+ */
+export function computeMonthSunMap(
+  obstacles: YardObstacle[],
+  lat: number,
+  lon: number,
+  month: number, // 1-12
+  orientationDeg = 0,
+  cols = 20,
+  rows = 14,
+  year = new Date().getFullYear(),
+): MonthSunMapCell[] {
+  const monthDay = `${String(month).padStart(2, '0')}-15`;
+  const cells: MonthSunMapCell[] = [];
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const x = ((col + 0.5) / cols) * 100;
+      const y = ((row + 0.5) / rows) * 100;
+      const { sunHours } = exposureForDate({ x, y }, obstacles, lat, lon, monthDay, orientationDeg, year);
+      cells.push({ x, y, sunHours, classification: classifyDaySun(sunHours) });
+    }
+  }
+  return cells;
+}
+
+export interface CurrentSunMap {
+  sun: SunPosition;
+  /** False at night — the whole yard is shaded and cells aren't meaningful. */
+  daytime: boolean;
+  cells: { x: number; y: number; sunny: boolean }[];
+}
+
+/**
+ * Same grid as `computeSunMap`, but for this exact moment instead of
+ * averaged across the year — where the sun actually is right now, and
+ * which cells it can currently reach.
+ */
+export function computeCurrentSunMap(
+  obstacles: YardObstacle[],
+  lat: number,
+  lon: number,
+  orientationDeg = 0,
+  cols = 20,
+  rows = 14,
+  now = new Date(),
+): CurrentSunMap {
+  const sun = solarPosition(lat, lon, now);
+  const daytime = isDaytime(sun);
+  const cells: CurrentSunMap['cells'] = [];
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const x = ((col + 0.5) / cols) * 100;
+      const y = ((row + 0.5) / rows) * 100;
+      const sunny = daytime && !findBlocker({ x, y }, obstacles, sun.azimuthDeg, sun.elevationDeg, orientationDeg);
+      cells.push({ x, y, sunny });
+    }
+  }
+  return { sun, daytime, cells };
 }
 
 const SEASON_LABEL: Record<Season, string> = {

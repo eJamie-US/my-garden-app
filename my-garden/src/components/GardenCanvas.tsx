@@ -341,7 +341,7 @@ export function GardenCanvas({
           <img
             src="/garden-banner.png"
             alt="Garden banner"
-            className="block h-full w-full object-fill"
+            className="block h-full w-full object-cover"
           />
         </div>
 

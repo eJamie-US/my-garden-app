@@ -4,9 +4,9 @@
 // point at a time. Same heuristic as the per-plant "Sun check"
 // (utils/sunExposure.ts), just sampled across a grid.
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { X } from 'lucide-react';
-import { computeSunMap, type SunMapCell } from '../utils/sunExposure';
+import { computeCurrentSunMap, computeMonthSunMap, computeSunMap, type SunMapCell } from '../utils/sunExposure';
 import type { GardenLocation } from '../services/supabase/userSettings';
 import type { YardObstacle } from '../types';
 
@@ -16,8 +16,26 @@ const CLASSIFICATION_STYLE: Record<SunMapCell['classification'], { color: string
   'full-shade': { color: 'rgba(71, 85, 105, 0.5)', label: 'Shaded year-round' },
 };
 
+const MONTH_CLASSIFICATION_LABEL: Record<SunMapCell['classification'], string> = {
+  'full-sun': '6+ hours of sun',
+  'partial-shade': '3–6 hours of sun',
+  'full-shade': 'Under 3 hours of sun',
+};
+
+const CURRENT_STYLE = {
+  sunny: { color: 'rgba(251, 191, 36, 0.55)', label: 'Sunny right now' },
+  shaded: { color: 'rgba(71, 85, 105, 0.5)', label: 'Shaded right now' },
+};
+
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
 const COLS = 20;
 const ROWS = 14;
+
+type Mode = 'year-round' | 'month' | 'now';
 
 interface SunMapOverlayProps {
   yardImageUrl: string;
@@ -27,10 +45,28 @@ interface SunMapOverlayProps {
 }
 
 export function SunMapOverlay({ yardImageUrl, obstacles, garden, onClose }: SunMapOverlayProps) {
+  const [mode, setMode] = useState<Mode>('year-round');
+  const [month, setMonth] = useState(new Date().getMonth() + 1);
+
   const cells = useMemo(() => {
     if (!garden) return [];
     return computeSunMap(obstacles, garden.latitude, garden.longitude, garden.orientationDeg, COLS, ROWS);
   }, [obstacles, garden]);
+
+  const monthCells = useMemo(() => {
+    if (!garden || mode !== 'month') return [];
+    return computeMonthSunMap(obstacles, garden.latitude, garden.longitude, month, garden.orientationDeg, COLS, ROWS);
+  }, [obstacles, garden, mode, month]);
+
+  const current = useMemo(() => {
+    if (!garden || mode !== 'now') return null;
+    return computeCurrentSunMap(obstacles, garden.latitude, garden.longitude, garden.orientationDeg, COLS, ROWS);
+  }, [obstacles, garden, mode]);
+
+  const now = useMemo(
+    () => new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+    [current],
+  );
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 sm:items-center">
@@ -55,41 +91,132 @@ export function SunMapOverlay({ yardImageUrl, obstacles, garden, onClose }: SunM
             </p>
           ) : (
             <>
+              <div className="flex gap-1 rounded-lg bg-gray-100 p-1 text-sm">
+                <button
+                  type="button"
+                  onClick={() => setMode('year-round')}
+                  className={`flex-1 rounded-md py-1.5 font-semibold transition-colors ${
+                    mode === 'year-round' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  Year-round
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode('month')}
+                  className={`flex-1 rounded-md py-1.5 font-semibold transition-colors ${
+                    mode === 'month' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  By month
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode('now')}
+                  className={`flex-1 rounded-md py-1.5 font-semibold transition-colors ${
+                    mode === 'now' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  Right now
+                </button>
+              </div>
+
+              {mode === 'month' && (
+                <select
+                  value={month}
+                  onChange={(e) => setMonth(Number(e.target.value))}
+                  className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
+                >
+                  {MONTH_NAMES.map((name, i) => (
+                    <option key={name} value={i + 1}>{name}</option>
+                  ))}
+                </select>
+              )}
+
               <p className="text-sm text-gray-600">
-                A season-by-season estimate of every spot in the yard, so you can plant somewhere
-                that won't need to move come summer or winter. Same heuristic as each plant's own
-                "Sun check" — a starting point, not a guarantee.
+                {mode === 'year-round'
+                  ? 'A season-by-season estimate of every spot in the yard, so you can plant somewhere that won\'t need to move come summer or winter.'
+                  : mode === 'month'
+                    ? `A mid-${MONTH_NAMES[month - 1]} snapshot of every spot in the yard, at that month's sun angle.`
+                    : `Where the sun can reach as of ${now}.`}{' '}
+                Same heuristic as each plant's own "Sun check" — a starting point, not a guarantee.
               </p>
+
+              {mode === 'now' && current && !current.daytime && (
+                <p className="rounded border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
+                  It's nighttime right now — the sun's below the horizon everywhere in the yard.
+                </p>
+              )}
 
               <div className="relative w-full overflow-hidden rounded-lg border border-gray-200">
                 <img src={yardImageUrl} alt="Your yard" className="block h-auto w-full select-none" draggable={false} />
                 <div className="pointer-events-none absolute inset-0">
-                  {cells.map((cell, i) => (
-                    <div
-                      key={i}
-                      className="absolute"
-                      style={{
-                        left: `${cell.x - 100 / COLS / 2}%`,
-                        top: `${cell.y - 100 / ROWS / 2}%`,
-                        width: `${100 / COLS}%`,
-                        height: `${100 / ROWS}%`,
-                        backgroundColor: CLASSIFICATION_STYLE[cell.classification].color,
-                      }}
-                    />
-                  ))}
+                  {mode === 'year-round' &&
+                    cells.map((cell, i) => (
+                      <div
+                        key={i}
+                        className="absolute"
+                        style={{
+                          left: `${cell.x - 100 / COLS / 2}%`,
+                          top: `${cell.y - 100 / ROWS / 2}%`,
+                          width: `${100 / COLS}%`,
+                          height: `${100 / ROWS}%`,
+                          backgroundColor: CLASSIFICATION_STYLE[cell.classification].color,
+                        }}
+                      />
+                    ))}
+                  {mode === 'month' &&
+                    monthCells.map((cell, i) => (
+                      <div
+                        key={i}
+                        className="absolute"
+                        style={{
+                          left: `${cell.x - 100 / COLS / 2}%`,
+                          top: `${cell.y - 100 / ROWS / 2}%`,
+                          width: `${100 / COLS}%`,
+                          height: `${100 / ROWS}%`,
+                          backgroundColor: CLASSIFICATION_STYLE[cell.classification].color,
+                        }}
+                      />
+                    ))}
+                  {mode === 'now' &&
+                    current?.daytime &&
+                    current.cells.map((cell, i) => (
+                      <div
+                        key={i}
+                        className="absolute"
+                        style={{
+                          left: `${cell.x - 100 / COLS / 2}%`,
+                          top: `${cell.y - 100 / ROWS / 2}%`,
+                          width: `${100 / COLS}%`,
+                          height: `${100 / ROWS}%`,
+                          backgroundColor: cell.sunny ? CURRENT_STYLE.sunny.color : CURRENT_STYLE.shaded.color,
+                        }}
+                      />
+                    ))}
                 </div>
               </div>
 
               <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600">
-                {(Object.keys(CLASSIFICATION_STYLE) as SunMapCell['classification'][]).map((key) => (
-                  <li key={key} className="flex items-center gap-1.5">
-                    <span
-                      className="h-3 w-3 rounded-sm border border-black/10"
-                      style={{ backgroundColor: CLASSIFICATION_STYLE[key].color }}
-                    />
-                    {CLASSIFICATION_STYLE[key].label}
-                  </li>
-                ))}
+                {mode === 'now'
+                  ? (Object.keys(CURRENT_STYLE) as (keyof typeof CURRENT_STYLE)[]).map((key) => (
+                      <li key={key} className="flex items-center gap-1.5">
+                        <span
+                          className="h-3 w-3 rounded-sm border border-black/10"
+                          style={{ backgroundColor: CURRENT_STYLE[key].color }}
+                        />
+                        {CURRENT_STYLE[key].label}
+                      </li>
+                    ))
+                  : (Object.keys(CLASSIFICATION_STYLE) as SunMapCell['classification'][]).map((key) => (
+                      <li key={key} className="flex items-center gap-1.5">
+                        <span
+                          className="h-3 w-3 rounded-sm border border-black/10"
+                          style={{ backgroundColor: CLASSIFICATION_STYLE[key].color }}
+                        />
+                        {mode === 'month' ? MONTH_CLASSIFICATION_LABEL[key] : CLASSIFICATION_STYLE[key].label}
+                      </li>
+                    ))}
               </ul>
 
               {obstacles.length === 0 && (

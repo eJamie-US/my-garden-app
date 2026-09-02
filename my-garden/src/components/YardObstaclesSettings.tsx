@@ -26,14 +26,34 @@ const SHAPE_OPTIONS: { value: ShapeKind; label: string; hint: string }[] = [
   { value: 'circle', label: 'Circle', hint: 'Click and drag out from the center to size it.' },
   { value: 'line', label: 'Line', hint: 'Click two points — start, then end.' },
   { value: 'rect', label: 'Rectangle', hint: 'Click and drag from one corner to the opposite corner.' },
-  { value: 'triangle', label: 'Triangle', hint: 'Click three points — its corners.' },
+  { value: 'triangle', label: 'Triangle', hint: 'Click and drag out from a corner to size it.' },
 ];
+
+/** Upward-pointing triangle inscribed in the box between two drag points —
+ *  apex at the top, base spanning the bottom, regardless of drag direction. */
+function boundingTriangle(start: Point, current: Point): { location: Point; b: Point; c: Point } {
+  const x0 = Math.min(start.x, current.x);
+  const x1 = Math.max(start.x, current.x);
+  const y0 = Math.min(start.y, current.y);
+  const y1 = Math.max(start.y, current.y);
+  return {
+    location: { x: (x0 + x1) / 2, y: y0 },
+    b: { x: x0, y: y1 },
+    c: { x: x1, y: y1 },
+  };
+}
 
 const TIER_OPTIONS: { value: ObstacleHeightTier; label: string }[] = [
   { value: 'low', label: 'Low (~fence height)' },
   { value: 'medium', label: 'Medium (~single-story roof)' },
   { value: 'tall', label: 'Tall (~tree or two-story)' },
 ];
+
+const SHORT_TIER_LABEL: Record<ObstacleHeightTier, string> = {
+  low: 'Low',
+  medium: 'Medium',
+  tall: 'Tall',
+};
 
 const ICON_BY_TYPE: Record<YardObstacleType, string> = {
   building: '🏠',
@@ -53,11 +73,18 @@ const SUGGESTED_SHAPE: Record<YardObstacleType, ShapeKind> = {
   fence: 'line',
 };
 
-const SUGGESTED_TIER: Partial<Record<YardObstacleType, ObstacleHeightTier>> = {
+// A complete mapping (not partial) so switching types always resets the
+// tier to a sensible default instead of leaking whatever tier the
+// previous type happened to have selected — a building picked right
+// after a shade-sail would otherwise silently stay "low."
+const SUGGESTED_TIER: Record<YardObstacleType, ObstacleHeightTier> = {
+  building: 'medium',
   'covered-porch': 'medium',
   // Strung overhead but usually lower than a roofline — closer to a fence
   // than a building in practice.
   'shade-sail': 'low',
+  tree: 'tall',
+  fence: 'low',
 };
 
 type Draft =
@@ -161,12 +188,13 @@ export function YardObstaclesSettings({
   const [pending, setPending] = useState<PendingObstacle | null>(null);
   const [saving, setSaving] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [error, setError] = useState('');
 
   const changeType = (next: YardObstacleType) => {
     setType(next);
     setShapeKind(SUGGESTED_SHAPE[next]);
-    setHeightTier(SUGGESTED_TIER[next] ?? heightTier);
+    setHeightTier(SUGGESTED_TIER[next]);
   };
 
   const toPercent = (e: React.PointerEvent<HTMLDivElement>): Point => {
@@ -186,22 +214,17 @@ export function YardObstaclesSettings({
       setPending({ location: p });
       return;
     }
-    if (shapeKind === 'circle' || shapeKind === 'rect') {
+    if (shapeKind === 'circle' || shapeKind === 'rect' || shapeKind === 'triangle') {
       e.currentTarget.setPointerCapture(e.pointerId);
       setDraft({ mode: 'dragging', start: p, current: p });
       return;
     }
-    // line / triangle — accumulate clicked points
+    // line — accumulate two clicked points (start, then end)
     const points = draft.mode === 'clicking' ? [...draft.points, p] : [p];
-    const need = shapeKind === 'line' ? 2 : 3;
-    if (points.length >= need) {
+    if (points.length >= 2) {
       setDraft({ mode: 'idle' });
-      const [a, b, c] = points;
-      setPending(
-        shapeKind === 'line'
-          ? { location: a, shape: { kind: 'line', to: b } }
-          : { location: a, shape: { kind: 'triangle', b, c } },
-      );
+      const [a, b] = points;
+      setPending({ location: a, shape: { kind: 'line', to: b } });
     } else {
       setDraft({ mode: 'clicking', points, cursor: p });
     }
@@ -225,10 +248,14 @@ export function YardObstaclesSettings({
       setPending({ location: start });
       return;
     }
-    setPending({
-      location: start,
-      shape: shapeKind === 'circle' ? { kind: 'circle', radius: dist } : { kind: 'rect', to: current },
-    });
+    if (shapeKind === 'circle') {
+      setPending({ location: start, shape: { kind: 'circle', radius: dist } });
+    } else if (shapeKind === 'rect') {
+      setPending({ location: start, shape: { kind: 'rect', to: current } });
+    } else {
+      const { location, b, c } = boundingTriangle(start, current);
+      setPending({ location, shape: { kind: 'triangle', b, c } });
+    }
   };
 
   const cancelDraft = () => {
@@ -267,6 +294,20 @@ export function YardObstaclesSettings({
       setError(err instanceof Error ? err.message : 'Could not remove that obstacle');
     } finally {
       setRemovingId(null);
+    }
+  };
+
+  const updateHeightTier = async (obstacle: YardObstacle, heightTier: ObstacleHeightTier) => {
+    if (heightTier === obstacle.heightTier) return;
+    setUpdatingId(obstacle.id);
+    setError('');
+    try {
+      const updated = await yardObstaclesService.update(obstacle.id, { heightTier });
+      onSaved(obstacles.map((o) => (o.id === obstacle.id ? updated : o)));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not update that obstacle');
+    } finally {
+      setUpdatingId(null);
     }
   };
 
@@ -353,6 +394,10 @@ export function YardObstaclesSettings({
               {draft.mode === 'dragging' && shapeKind === 'rect' && (
                 <ShapeMark location={draft.start} shape={{ kind: 'rect', to: draft.current }} {...DRAFT_STYLE} dashed />
               )}
+              {draft.mode === 'dragging' && shapeKind === 'triangle' && (() => {
+                const { location, b, c } = boundingTriangle(draft.start, draft.current);
+                return <ShapeMark location={location} shape={{ kind: 'triangle', b, c }} {...DRAFT_STYLE} dashed />;
+              })()}
               {draft.mode === 'clicking' && (
                 <polyline
                   points={[...draft.points, draft.cursor].map((p) => `${p.x},${p.y}`).join(' ')}
@@ -389,7 +434,7 @@ export function YardObstaclesSettings({
               onClick={cancelDraft}
               className="w-full rounded-lg border border-gray-300 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
             >
-              Cancel ({draft.points.length}/{shapeKind === 'line' ? 2 : 3} points placed)
+              Cancel ({draft.points.length}/2 points placed)
             </button>
           )}
 
@@ -443,8 +488,27 @@ export function YardObstaclesSettings({
                   <span className="text-base">{ICON_BY_TYPE[o.type]}</span>
                   <span className="min-w-0 flex-1 truncate text-gray-700">
                     {o.label || TYPE_OPTIONS.find((t) => t.value === o.type)?.label}
-                    <span className="text-gray-400"> · {o.heightTier}{o.shape ? ` · ${o.shape.kind}` : ''}</span>
+                    {o.shape && <span className="text-gray-400"> · {o.shape.kind}</span>}
                   </span>
+                  <div className="relative shrink-0">
+                    <select
+                      value={o.heightTier}
+                      onChange={(e) => updateHeightTier(o, e.target.value as ObstacleHeightTier)}
+                      disabled={updatingId === o.id}
+                      aria-label="Height"
+                      className="rounded-md border border-gray-300 bg-white px-1.5 py-1 text-xs text-gray-700 disabled:opacity-50"
+                    >
+                      {TIER_OPTIONS.map((t) => (
+                        <option key={t.value} value={t.value}>{SHORT_TIER_LABEL[t.value]}</option>
+                      ))}
+                    </select>
+                    {updatingId === o.id && (
+                      <Loader2
+                        size={11}
+                        className="pointer-events-none absolute -right-1 -top-1 animate-spin rounded-full bg-white text-emerald-600"
+                      />
+                    )}
+                  </div>
                   <button
                     type="button"
                     onClick={() => remove(o)}
