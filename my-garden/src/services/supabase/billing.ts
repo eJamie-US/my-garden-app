@@ -84,8 +84,18 @@ export const billingService = {
       'grant-access',
       { body: { email, plan } },
     );
+    // On a non-2xx response, supabase-js leaves `data` null and puts the
+    // actual JSON body on `error.context` (a Response) instead — read the
+    // real reason from there, or callers only ever see the generic fallback.
+    let code = data?.error;
+    if (!code && error && 'context' in error && error.context instanceof Response) {
+      code = await error.context
+        .clone()
+        .json()
+        .then((body: { error?: string }) => body?.error)
+        .catch(() => undefined);
+    }
     if (error || !data?.ok) {
-      const code = data?.error;
       throw new Error(
         code === 'forbidden'
           ? "You're not the account this is set up for."
