@@ -9,17 +9,37 @@
 import { useState } from 'react';
 import { Loader2, Trash2, X } from 'lucide-react';
 import { yardObstaclesService } from '../services/supabase/yardObstacles';
-import type { ObstacleHeightTier, ObstacleShape, Point, YardObstacle, YardObstacleType } from '../types';
+import type { ObstacleEdge, ObstacleHeightTier, ObstacleShape, Point, YardObstacle, YardObstacleType } from '../types';
 
 type ShapeKind = 'point' | 'circle' | 'line' | 'rect' | 'triangle';
 
 const TYPE_OPTIONS: { value: YardObstacleType; label: string; icon: string }[] = [
   { value: 'building', label: 'Building', icon: '🏠' },
   { value: 'covered-porch', label: 'Covered porch/roof', icon: '⛺' },
+  { value: 'gazebo', label: 'Gazebo / carport / open picnic shelter', icon: '🏛️' },
   { value: 'shade-sail', label: 'Sun tarp / shade sail', icon: '⛱️' },
   { value: 'tree', label: 'Tree', icon: '🌳' },
   { value: 'fence', label: 'Fence', icon: '🚧' },
 ];
+
+/** Reused wherever an obstacle needs a plain-English label outside this
+ *  file — e.g. the rain-shelter readout on the plant form. */
+export const OBSTACLE_TYPE_LABEL: Record<YardObstacleType, string> = Object.fromEntries(
+  TYPE_OPTIONS.map((t) => [t.value, t.label]),
+) as Record<YardObstacleType, string>;
+
+/** Types with an actual roof, whose open sides matter for the rain-shelter
+ *  estimate (utils/rainShelter.ts) — only meaningful with a rect shape. */
+const ROOFED_TYPES = new Set<YardObstacleType>(['building', 'covered-porch', 'gazebo']);
+
+const EDGE_OPTIONS: { value: ObstacleEdge; label: string }[] = [
+  { value: 'top', label: 'Top' },
+  { value: 'right', label: 'Right' },
+  { value: 'bottom', label: 'Bottom' },
+  { value: 'left', label: 'Left' },
+];
+
+const ALL_EDGES: ObstacleEdge[] = ['top', 'right', 'bottom', 'left'];
 
 const SHAPE_OPTIONS: { value: ShapeKind; label: string; hint: string }[] = [
   { value: 'point', label: 'Just a point', hint: 'Click a spot to place it.' },
@@ -58,6 +78,7 @@ const SHORT_TIER_LABEL: Record<ObstacleHeightTier, string> = {
 const ICON_BY_TYPE: Record<YardObstacleType, string> = {
   building: '🏠',
   'covered-porch': '⛺',
+  gazebo: '🏛️',
   'shade-sail': '⛱️',
   tree: '🌳',
   fence: '🚧',
@@ -67,6 +88,7 @@ const ICON_BY_TYPE: Record<YardObstacleType, string> = {
 const SUGGESTED_SHAPE: Record<YardObstacleType, ShapeKind> = {
   building: 'rect',
   'covered-porch': 'rect',
+  gazebo: 'rect',
   // Rectangular is the common case; switch to Triangle for a triangular sail.
   'shade-sail': 'rect',
   tree: 'circle',
@@ -80,11 +102,23 @@ const SUGGESTED_SHAPE: Record<YardObstacleType, ShapeKind> = {
 const SUGGESTED_TIER: Record<YardObstacleType, ObstacleHeightTier> = {
   building: 'medium',
   'covered-porch': 'medium',
+  gazebo: 'medium',
   // Strung overhead but usually lower than a roofline — closer to a fence
   // than a building in practice.
   'shade-sail': 'low',
   tree: 'tall',
   fence: 'low',
+};
+
+// A gazebo/open picnic shelter has no walls at all by definition; anything
+// else defaults to fully enclosed until the user says otherwise.
+const SUGGESTED_OPEN_EDGES: Record<YardObstacleType, ObstacleEdge[]> = {
+  building: [],
+  'covered-porch': [],
+  gazebo: ALL_EDGES,
+  'shade-sail': [],
+  tree: [],
+  fence: [],
 };
 
 type Draft =
@@ -184,6 +218,7 @@ export function YardObstaclesSettings({
   const [type, setType] = useState<YardObstacleType>('tree');
   const [shapeKind, setShapeKind] = useState<ShapeKind>(SUGGESTED_SHAPE.tree);
   const [heightTier, setHeightTier] = useState<ObstacleHeightTier>('medium');
+  const [openEdges, setOpenEdges] = useState<ObstacleEdge[]>([]);
   const [draft, setDraft] = useState<Draft>({ mode: 'idle' });
   const [pending, setPending] = useState<PendingObstacle | null>(null);
   const [saving, setSaving] = useState(false);
@@ -195,6 +230,11 @@ export function YardObstaclesSettings({
     setType(next);
     setShapeKind(SUGGESTED_SHAPE[next]);
     setHeightTier(SUGGESTED_TIER[next]);
+    setOpenEdges(SUGGESTED_OPEN_EDGES[next]);
+  };
+
+  const toggleOpenEdge = (edge: ObstacleEdge) => {
+    setOpenEdges((prev) => (prev.includes(edge) ? prev.filter((e) => e !== edge) : [...prev, edge]));
   };
 
   const toPercent = (e: React.PointerEvent<HTMLDivElement>): Point => {
@@ -274,6 +314,7 @@ export function YardObstaclesSettings({
         location: pending.location,
         shape: pending.shape,
         heightTier,
+        openEdges: ROOFED_TYPES.has(type) && pending.shape?.kind === 'rect' ? openEdges : undefined,
       });
       onSaved([...obstacles, created]);
       setPending(null);
@@ -460,6 +501,41 @@ export function YardObstaclesSettings({
                   ))}
                 </select>
               </div>
+
+              {ROOFED_TYPES.has(type) && pending.shape?.kind === 'rect' && (
+                <div>
+                  <p className="mb-1 text-xs font-medium text-gray-700">
+                    Which sides are open (no wall)? Matters for wind-driven rain, not sun.
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {EDGE_OPTIONS.map((edge) => {
+                      const active = openEdges.includes(edge.value);
+                      return (
+                        <button
+                          key={edge.value}
+                          type="button"
+                          onClick={() => toggleOpenEdge(edge.value)}
+                          className={`rounded-full border px-2.5 py-1 text-xs font-semibold transition ${
+                            active
+                              ? 'border-emerald-500 bg-emerald-100 text-emerald-800'
+                              : 'border-gray-300 bg-white text-gray-600 hover:border-gray-400'
+                          }`}
+                        >
+                          {edge.label}
+                        </button>
+                      );
+                    })}
+                    <button
+                      type="button"
+                      onClick={() => setOpenEdges(openEdges.length === 4 ? [] : ALL_EDGES)}
+                      className="rounded-full border border-dashed border-gray-300 px-2.5 py-1 text-xs font-semibold text-gray-500 hover:border-gray-400"
+                    >
+                      {openEdges.length === 4 ? 'None open (enclosed)' : 'All open (gazebo)'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -489,6 +565,12 @@ export function YardObstaclesSettings({
                   <span className="min-w-0 flex-1 truncate text-gray-700">
                     {o.label || TYPE_OPTIONS.find((t) => t.value === o.type)?.label}
                     {o.shape && <span className="text-gray-400"> · {o.shape.kind}</span>}
+                    {ROOFED_TYPES.has(o.type) && o.shape?.kind === 'rect' && (
+                      <span className="text-gray-400">
+                        {' '}
+                        · {o.openEdges?.length ? `${o.openEdges.length} side${o.openEdges.length > 1 ? 's' : ''} open` : 'enclosed'}
+                      </span>
+                    )}
                   </span>
                   <div className="relative shrink-0">
                     <select

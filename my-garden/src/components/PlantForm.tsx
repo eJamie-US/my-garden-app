@@ -7,7 +7,7 @@
 // then synced into local state with upsertPlantLocal — NOT via the store's
 // own addPlant/updatePlant, which would write to Supabase a second time.
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Camera, ChevronDown, ChevronUp, Loader2, Sprout } from 'lucide-react';
 import { usePlants } from '../hooks/usePlants';
 import { useAuth } from '../hooks/useAuth';
@@ -18,7 +18,10 @@ import { plantPhotosService } from '../services/supabase/plantPhotos';
 import { careItemsService } from '../services/supabase/careItems';
 import { generateCareItems } from '../services/care/generateCareItems';
 import { seedPlanService, type SeedPlan } from '../services/seeds/seedPlan';
-import type { CareItem, DraftCareItem, Plant, WeatherData } from '../types';
+import { computeRainShelter, describeRainShelter } from '../utils/rainShelter';
+import { OBSTACLE_TYPE_LABEL } from './YardObstaclesSettings';
+import type { GardenLocation } from '../services/supabase/userSettings';
+import type { CareItem, DraftCareItem, Plant, WeatherData, YardObstacle } from '../types';
 
 const SOW_METHOD_LABEL: Record<SeedPlan['method'], string> = {
   'direct-sow': 'Sow directly outdoors',
@@ -30,6 +33,10 @@ interface PlantFormProps {
   location: { x: number; y: number };
   /** Passed down from the weather panel so care generation can use it. */
   weather?: WeatherData | null;
+  /** Powers the automatic rain-shelter check in place of asking — omitted
+   *  or empty falls back to the manual "sheltered from rain" checkbox. */
+  obstacles?: YardObstacle[];
+  garden?: GardenLocation | null;
   /** When the flow started from the canvas camera button, open on the photo step. */
   startWithPhoto?: boolean;
   /** Present = edit an existing plant instead of creating one. */
@@ -42,6 +49,8 @@ interface PlantFormProps {
 export const PlantForm = ({
   location,
   weather,
+  obstacles = [],
+  garden = null,
   startWithPhoto = false,
   plant = null,
   existingCareItems,
@@ -77,6 +86,7 @@ export const PlantForm = ({
     wateringSchedule: plant?.wateringSchedule ?? ('weekly' as 'daily' | 'weekly' | 'biweekly' | 'monthly'),
     sunRequirement: plant?.sunRequirement ?? ('partial-shade' as 'full-sun' | 'partial-shade' | 'full-shade'),
     rainCovered: plant?.rainCovered ?? false,
+    mount: plant?.mount ?? ('ground' as 'ground' | 'hanging'),
     indoor: plant?.indoor ?? false,
     plantedDate: (plant?.plantedDate ?? new Date().toISOString()).split('T')[0],
     notes: plant?.notes ?? '',
@@ -101,6 +111,25 @@ export const PlantForm = ({
     return 'monthly' as const;
   };
 
+  /** Once yard obstacles are mapped, whether this plant is actually
+   *  sheltered is computed from its position, mount, and the current wind
+   *  instead of relying on the manual checkbox. No obstacles yet (nothing
+   *  to reason from) falls back to whatever was checked by hand. */
+  const effectiveRainCovered = (
+    indoor: boolean,
+    mount: 'ground' | 'hanging',
+    manualRainCovered: boolean,
+  ): boolean => {
+    if (indoor) return true;
+    if (obstacles.length === 0) return manualRainCovered;
+    return computeRainShelter(
+      { location, mount },
+      obstacles,
+      garden?.orientationDeg ?? 0,
+      weather?.windDirection,
+    ).sheltered;
+  };
+
   const regenerateCare = (
     next: Partial<typeof formData> = {},
     keepUserItems = true,
@@ -112,7 +141,7 @@ export const PlantForm = ({
         commonName: merged.commonName,
         species: merged.species,
         sunRequirement: merged.sunRequirement,
-        rainCovered: merged.rainCovered,
+        rainCovered: effectiveRainCovered(merged.indoor, merged.mount, merged.rainCovered),
         indoor: merged.indoor,
       },
       // Indoor plants skip weather entirely — no rain, heat, or frost to
@@ -129,6 +158,19 @@ export const PlantForm = ({
       wateringSchedule: scheduleFromCare(items),
     }));
   };
+
+  /** Live "is this spot actually covered right now" readout for the form —
+   *  null when there's no obstacle data to compute it from, in which case
+   *  the manual checkbox below is the only source of truth. */
+  const shelterResult = useMemo(() => {
+    if (formData.indoor || obstacles.length === 0) return null;
+    return computeRainShelter(
+      { location, mount: formData.mount },
+      obstacles,
+      garden?.orientationDeg ?? 0,
+      weather?.windDirection,
+    );
+  }, [formData.indoor, formData.mount, obstacles, garden, location, weather?.windDirection]);
 
   /** Seeds have nothing to photograph yet — a sowing plan from just the name,
    *  replacing the generic generated care items with seed/seedling-stage
@@ -431,7 +473,42 @@ export const PlantForm = ({
         Indoor plant (weather doesn't apply)
       </label>
 
-      {!formData.indoor && (
+      {!formData.indoor && obstacles.length > 0 && (
+        <div className="space-y-2 rounded-lg border border-gray-200 bg-gray-50 p-2.5">
+          <div className="flex gap-1.5">
+            {(['ground', 'hanging'] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => {
+                  setFormData((prev) => ({ ...prev, mount: m }));
+                  regenerateCare({ mount: m });
+                }}
+                className={`flex-1 rounded-md py-1 text-xs font-semibold transition ${
+                  formData.mount === m
+                    ? 'bg-emerald-600 text-white'
+                    : 'border border-gray-300 bg-white text-gray-600 hover:border-gray-400'
+                }`}
+              >
+                {m === 'ground' ? 'Planted / potted' : 'Hanging'}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-gray-600">
+            {shelterResult
+              ? describeRainShelter(
+                  shelterResult,
+                  shelterResult.obstacle
+                    ? OBSTACLE_TYPE_LABEL[shelterResult.obstacle.type]
+                    : '',
+                )
+              : 'No rain-shelter estimate yet.'}
+            {' '}Detected automatically from your yard obstacles — no need to check a box.
+          </p>
+        </div>
+      )}
+
+      {!formData.indoor && obstacles.length === 0 && (
         <label className="flex items-center gap-2 text-sm text-gray-700">
           <input
             type="checkbox"

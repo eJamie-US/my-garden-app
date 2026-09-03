@@ -43,7 +43,7 @@ export const weatherService = {
           latitude,
           longitude,
           current:
-            'temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m,weather_code',
+            'temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m,wind_direction_10m,weather_code',
           daily:
             'temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code',
           past_days: PAST_DAYS,
@@ -66,6 +66,7 @@ export const weatherService = {
         temperature: current.temperature_2m ?? 0,
         humidity: current.relative_humidity_2m,
         windSpeed: current.wind_speed_10m,
+        windDirection: current.wind_direction_10m,
         precipitation: current.precipitation ?? 0,
         condition: getWeatherCondition(code),
         icon: getWeatherIcon(code),

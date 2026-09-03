@@ -145,8 +145,8 @@ export default function App() {
     if (!user?.id || !weather || plants.length === 0) return;
     if (refreshedForUserRef.current === user.id) return;
     refreshedForUserRef.current = user.id;
-    refreshFromWeather(plants, weather, user.id);
-  }, [user?.id, weather, plants, refreshFromWeather]);
+    refreshFromWeather(plants, weather, user.id, obstacles, garden);
+  }, [user?.id, weather, plants, refreshFromWeather, obstacles, garden]);
 
   if (loading) {
     return (
@@ -349,6 +349,8 @@ export default function App() {
                 location={editingPlant.location}
                 existingCareItems={careItems.filter((i) => i.plantId === editingPlant.id)}
                 weather={weather}
+                obstacles={obstacles}
+                garden={garden}
                 onSuccess={() => {
                   setEditingPlant(null);
                   fetchPlants(user.id);
@@ -381,6 +383,8 @@ export default function App() {
               <PlantForm
                 location={selectedLocation}
                 weather={weather}
+                obstacles={obstacles}
+                garden={garden}
                 onSuccess={() => {
                   closePlantForm();
 

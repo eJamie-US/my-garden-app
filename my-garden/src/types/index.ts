@@ -16,11 +16,19 @@ export interface Plant {
   wateringSchedule?: 'daily' | 'weekly' | 'biweekly' | 'monthly';
   sunRequirement?: 'full-sun' | 'partial-shade' | 'full-shade';
   /** Sheltered from rain (an eave, a patio roof) — so care generation
-   *  doesn't credit it with rainfall it never gets. Implied by `indoor`. */
+   *  doesn't credit it with rainfall it never gets. Implied by `indoor`.
+   *  Manual fallback only — once yard obstacles are mapped, whether this
+   *  plant is actually covered is computed instead (utils/rainShelter.ts). */
   rainCovered?: boolean;
   /** Lives indoors — weather (rain, heat, frost, sun-path/shade) doesn't
    *  apply at all; care generation runs on baselines only. */
   indoor?: boolean;
+  /** 'hanging' sits right at a structure's roofline (a hanging basket under
+   *  an eave or carport) — wind can blow rain onto it through any open
+   *  side, not just the nearest one. Undefined/'ground' means planted or
+   *  potted below the roofline, only exposed through a *nearby* open side.
+   *  See utils/rainShelter.ts. */
+  mount?: 'ground' | 'hanging';
   /** Hydrated by careItemsService.getForPlant(); not stored on the plants row. */
   careItems?: CareItem[];
   createdAt: string;
@@ -29,7 +37,12 @@ export interface Plant {
 
 /* ---------- Yard obstacles (sun/shade exposure estimate) ---------- */
 
-export type YardObstacleType = 'building' | 'covered-porch' | 'shade-sail' | 'tree' | 'fence';
+export type YardObstacleType = 'building' | 'covered-porch' | 'gazebo' | 'shade-sail' | 'tree' | 'fence';
+
+/** One side of a rectangular obstacle's footprint, in photo space (before
+ *  the yard's compass orientation is applied) — 'top' is the obstacle's
+ *  own north-in-the-photo edge, and so on around. See utils/rainShelter.ts. */
+export type ObstacleEdge = 'top' | 'right' | 'bottom' | 'left';
 
 /**
  * Qualitative, not metric — the yard photo has no known real-world scale
@@ -71,6 +84,12 @@ export interface YardObstacle {
   /** Undefined = a plain point obstacle (legacy/quick-placed). */
   shape?: ObstacleShape;
   heightTier: ObstacleHeightTier;
+  /** Which sides of a roofed, rect-shaped obstacle (building/covered-porch/
+   *  gazebo) have no wall — wind can blow rain in through these. Undefined
+   *  or empty means fully enclosed (a house). Meaningless for other shapes
+   *  or types (a tree or fence has no roof to shelter under in the first
+   *  place). A gazebo is just the case where all four are open. */
+  openEdges?: ObstacleEdge[];
   createdAt: string;
   updatedAt: string;
 }
@@ -160,6 +179,10 @@ export interface WeatherData {
   icon: string;
   humidity?: number;
   windSpeed?: number;
+  /** Degrees, meteorological convention — the direction wind is blowing
+   *  FROM (0 = north, 90 = east, ...), matching Open-Meteo's convention.
+   *  Powers the wind-driven-rain shelter estimate (utils/rainShelter.ts). */
+  windDirection?: number;
   precipitation?: number;
   timestamp: string;
   /** Trailing 14 days, oldest first. */

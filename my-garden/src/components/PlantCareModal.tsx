@@ -16,6 +16,7 @@ import { plantPhotosService } from '../services/supabase/plantPhotos';
 import { generateCareItems, describeFrequency } from '../services/care/generateCareItems';
 import { KIND_ICONS, daysUntil, dueLabel, dueBadgeClass, ingredientSummary } from '../utils/careDisplay';
 import { estimateSeasonalExposure, summarizeExposure, type Season } from '../utils/sunExposure';
+import { computeRainShelter } from '../utils/rainShelter';
 import { CareItemsEditor } from './CareItemsEditor';
 import { PhotoTimeline } from './PhotoTimeline';
 import { PlantPhotoCapture, type PhotoCaptureValue } from './PlantPhotoCapture';
@@ -98,6 +99,15 @@ export function PlantCareModal({
     return { bySeason, summary: summarizeExposure(plant.sunRequirement, bySeason) };
   }, [plant.indoor, plant.location, plant.sunRequirement, garden, obstacles]);
 
+  // Once obstacles are mapped, whether this plant is actually rained on
+  // right now is computed instead of trusting a static checkbox — falls
+  // back to plant.rainCovered when there's no obstacle data to reason from.
+  const shelter = useMemo(() => {
+    if (plant.indoor || obstacles.length === 0) return null;
+    return computeRainShelter(plant, obstacles, garden?.orientationDeg ?? 0, weather?.windDirection);
+  }, [plant, obstacles, garden, weather?.windDirection]);
+  const effectiveRainCovered = shelter ? shelter.sheltered : plant.rainCovered;
+
   const [completing, setCompleting] = useState<string | null>(null);
   const [completeError, setCompleteError] = useState('');
 
@@ -146,7 +156,7 @@ export function PlantCareModal({
         commonName: plant.commonName,
         species: plant.species,
         sunRequirement: plant.sunRequirement,
-        rainCovered: plant.rainCovered,
+        rainCovered: effectiveRainCovered,
         indoor: plant.indoor,
       },
       plant.indoor ? undefined : weather,
@@ -255,7 +265,7 @@ export function PlantCareModal({
                   <>
                     <Sun size={11} className="shrink-0" />
                     {SUN_LABEL[plant.sunRequirement ?? 'partial-shade']}
-                    {plant.rainCovered && (
+                    {effectiveRainCovered && (
                       <>
                         <span aria-hidden>·</span>
                         <Umbrella size={11} className="shrink-0" />

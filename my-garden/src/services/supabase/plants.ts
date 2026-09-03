@@ -20,6 +20,7 @@ interface PlantRow {
   sun_requirement: Plant['sunRequirement'] | null;
   rain_covered: boolean | null;
   indoor: boolean | null;
+  mount: Plant['mount'] | null;
   created_at: string;
   updated_at: string;
 }
@@ -48,6 +49,7 @@ function toPlant(row: PlantRow): Plant {
     sunRequirement: row.sun_requirement ?? 'partial-shade',
     rainCovered: row.rain_covered ?? false,
     indoor: row.indoor ?? false,
+    mount: row.mount ?? 'ground',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -70,6 +72,7 @@ function toRow(plant: Partial<Plant>) {
   if (plant.sunRequirement !== undefined) row.sun_requirement = plant.sunRequirement;
   if (plant.rainCovered !== undefined) row.rain_covered = plant.rainCovered;
   if (plant.indoor !== undefined) row.indoor = plant.indoor;
+  if (plant.mount !== undefined) row.mount = plant.mount;
   return row;
 }
 

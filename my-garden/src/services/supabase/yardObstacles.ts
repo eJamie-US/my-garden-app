@@ -1,7 +1,7 @@
 // src/services/supabase/yardObstacles.ts
 
 import { supabase } from '../../lib/supabase';
-import type { ObstacleHeightTier, ObstacleShape, YardObstacle, YardObstacleType } from '../../types';
+import type { ObstacleEdge, ObstacleHeightTier, ObstacleShape, YardObstacle, YardObstacleType } from '../../types';
 
 interface YardObstacleRow {
   id: string;
@@ -11,6 +11,7 @@ interface YardObstacleRow {
   location: { x: number; y: number };
   shape: ObstacleShape | null;
   height_tier: ObstacleHeightTier;
+  open_edges: ObstacleEdge[] | null;
   created_at: string;
   updated_at: string;
 }
@@ -24,6 +25,7 @@ function toObstacle(row: YardObstacleRow): YardObstacle {
     location: { x: Number(row.location?.x ?? 50), y: Number(row.location?.y ?? 50) },
     shape: row.shape ?? undefined,
     heightTier: row.height_tier,
+    openEdges: row.open_edges ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -44,7 +46,7 @@ export const yardObstaclesService = {
   async create(
     userId: string,
     obstacle: Pick<YardObstacle, 'type' | 'location' | 'heightTier'> &
-      Partial<Pick<YardObstacle, 'label' | 'shape'>>,
+      Partial<Pick<YardObstacle, 'label' | 'shape' | 'openEdges'>>,
   ): Promise<YardObstacle> {
     const { data, error } = await supabase
       .from('yard_obstacles')
@@ -55,6 +57,7 @@ export const yardObstaclesService = {
         location: obstacle.location,
         shape: obstacle.shape ?? null,
         height_tier: obstacle.heightTier,
+        open_edges: obstacle.openEdges ?? null,
       })
       .select()
       .single();
@@ -65,7 +68,7 @@ export const yardObstaclesService = {
 
   async update(
     id: string,
-    updates: Partial<Pick<YardObstacle, 'type' | 'label' | 'location' | 'shape' | 'heightTier'>>,
+    updates: Partial<Pick<YardObstacle, 'type' | 'label' | 'location' | 'shape' | 'heightTier' | 'openEdges'>>,
   ): Promise<YardObstacle> {
     const patch: Record<string, unknown> = {};
     if (updates.type !== undefined) patch.type = updates.type;
@@ -73,6 +76,7 @@ export const yardObstaclesService = {
     if (updates.location !== undefined) patch.location = updates.location;
     if (updates.shape !== undefined) patch.shape = updates.shape ?? null;
     if (updates.heightTier !== undefined) patch.height_tier = updates.heightTier;
+    if (updates.openEdges !== undefined) patch.open_edges = updates.openEdges ?? null;
 
     const { data, error } = await supabase
       .from('yard_obstacles')

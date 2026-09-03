@@ -1,8 +1,10 @@
 // src/hooks/useCareItems.ts
 import { create } from 'zustand';
-import type { CareIngredient, CareItem, DraftCareItem, Plant, WeatherData } from '../types';
+import type { CareIngredient, CareItem, DraftCareItem, Plant, WeatherData, YardObstacle } from '../types';
+import type { GardenLocation } from '../services/supabase/userSettings';
 import { careItemsService } from '../services/supabase/careItems';
 import { generateCareItems, nextDueFrom } from '../services/care/generateCareItems';
+import { computeRainShelter } from '../utils/rainShelter';
 
 interface CareItemsState {
   items: CareItem[];
@@ -12,7 +14,13 @@ interface CareItemsState {
   completeItem: (item: CareItem) => Promise<void>;
   /** Completes a batch in one go — e.g. "mark all water done" from a kind filter. */
   completeMany: (items: CareItem[]) => Promise<void>;
-  refreshFromWeather: (plants: Plant[], weather: WeatherData | null | undefined, userId: string) => Promise<void>;
+  refreshFromWeather: (
+    plants: Plant[],
+    weather: WeatherData | null | undefined,
+    userId: string,
+    obstacles?: YardObstacle[],
+    garden?: GardenLocation | null,
+  ) => Promise<void>;
 }
 
 function ingredientsKey(list: CareIngredient[]): string {
@@ -126,18 +134,27 @@ export const useCareItems = create<CareItemsState>((set, get) => ({
   // to Supabase if something actually changed — including, when the item
   // has a completion history, whether today's weather moves its next due
   // date earlier or later.
-  refreshFromWeather: async (plants, weather, userId) => {
+  refreshFromWeather: async (plants, weather, userId, obstacles = [], garden = null) => {
     try {
       const currentItems = get().items;
       await Promise.all(
         plants.map(async (plant) => {
+          // Once obstacles are mapped, whether this plant is actually
+          // rained on is computed from its position/mount and the current
+          // wind instead of trusting the static checkbox — see
+          // utils/rainShelter.ts. No obstacles yet falls back to it.
+          const rainCovered =
+            !plant.indoor && obstacles.length > 0
+              ? computeRainShelter(plant, obstacles, garden?.orientationDeg ?? 0, weather?.windDirection).sheltered
+              : plant.rainCovered;
+
           const generated = generateCareItems(
             {
               name: plant.name,
               commonName: plant.commonName,
               species: plant.species,
               sunRequirement: plant.sunRequirement,
-              rainCovered: plant.rainCovered,
+              rainCovered,
               indoor: plant.indoor,
             },
             plant.indoor ? undefined : weather,
