@@ -101,6 +101,7 @@ export async function removeBackground(
     const message = err instanceof Error ? err.message : '';
     if (message === '__abort') throw err;
     if (message === '__timeout') {
+      console.error('Background removal timed out after', timeoutMs, 'ms');
       return {
         ok: false,
         blob: input,
@@ -108,6 +109,10 @@ export async function removeBackground(
         message: 'Cut-out took too long. Using the full photo for the marker.',
       };
     }
+    // The model/WASM is fetched at runtime from a third-party CDN
+    // (staticimgly.com) — logging the real cause here is the only way to
+    // tell a network/CDN problem apart from an actual library bug later.
+    console.error('Background removal failed:', err);
     return {
       ok: false,
       blob: input,
