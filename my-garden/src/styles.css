@@ -1,4 +1,4 @@
-@import "tailwindcss";@import "tailwindcss";
+@import "tailwindcss";
 
 html, body, #root {
   height: 100%;
@@ -8,46 +8,4 @@ html, body, #root {
 
 body {
   background: #f4fbf4;
-}
-.garden-banner {
-  position: relative;
-  width: 100%;
-  height: 150px;
-  overflow: hidden;
-  background: #17351f;
-}
-
-.garden-banner img {
-  width: 100%;
-  height: 100%;
-  display: block;
-  object-fit: cover;
-}
-
-.garden-banner::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0.05),
-    rgba(0, 0, 0, 0.35)
-  );
-}
-
-.garden-banner h1 {
-  position: absolute;
-  z-index: 1;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  margin: 0;
-  color: #fff8c5;
-  font-family: Georgia, serif;
-  font-size: clamp(2.5rem, 8vw, 5rem);
-  font-style: italic;
-  text-shadow:
-    0 0 5px #fff8c5,
-    0 0 15px #ffd85a,
-    0 0 30px #f5a623;
 }

@@ -219,16 +219,6 @@ export interface PlantIdResult {
   message?: string;
 }
 
-/** Legacy Ollama shape — kept so old imports keep compiling. */
-export interface VisionResult {
-  identified: boolean;
-  plantName?: string;
-  commonName?: string;
-  confidence?: number;
-  description?: string;
-  careNotes?: string;
-}
-
 export interface User {
   id: string;
   email: string;
