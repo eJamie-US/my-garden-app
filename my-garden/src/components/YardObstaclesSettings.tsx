@@ -7,7 +7,7 @@
 // approximate, same as everything else that estimate does.
 
 import { useState } from 'react';
-import { Loader2, Trash2, X } from 'lucide-react';
+import { Loader2, Pencil, Trash2, X } from 'lucide-react';
 import { yardObstaclesService } from '../services/supabase/yardObstacles';
 import type { ObstacleEdge, ObstacleHeightTier, ObstacleShape, Point, YardObstacle, YardObstacleType } from '../types';
 
@@ -226,6 +226,16 @@ export function YardObstaclesSettings({
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [error, setError] = useState('');
 
+  // Editing an already-placed obstacle's type/height/open-edges. Its
+  // position and shape stay put — reposition or resize by deleting and
+  // redrawing instead, which keeps this to a plain "fix the details" flow.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editType, setEditType] = useState<YardObstacleType>('tree');
+  const [editHeightTier, setEditHeightTier] = useState<ObstacleHeightTier>('medium');
+  const [editOpenEdges, setEditOpenEdges] = useState<ObstacleEdge[]>([]);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const editingObstacle = obstacles.find((o) => o.id === editingId) ?? null;
+
   const changeType = (next: YardObstacleType) => {
     setType(next);
     setShapeKind(SUGGESTED_SHAPE[next]);
@@ -246,7 +256,7 @@ export function YardObstaclesSettings({
   };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (pending) return;
+    if (pending || editingId) return;
     const p = toPercent(e);
     setError('');
 
@@ -352,6 +362,46 @@ export function YardObstaclesSettings({
     }
   };
 
+  const startEditing = (obstacle: YardObstacle) => {
+    cancelDraft();
+    setEditingId(obstacle.id);
+    setEditType(obstacle.type);
+    setEditHeightTier(obstacle.heightTier);
+    setEditOpenEdges(obstacle.openEdges ?? []);
+    setError('');
+  };
+
+  const cancelEditing = () => {
+    setEditingId(null);
+    setError('');
+  };
+
+  const saveEdit = async () => {
+    if (!editingObstacle) return;
+    setSavingEdit(true);
+    setError('');
+    try {
+      const updated = await yardObstaclesService.update(editingObstacle.id, {
+        type: editType,
+        heightTier: editHeightTier,
+        openEdges:
+          ROOFED_TYPES.has(editType) && editingObstacle.shape?.kind === 'rect' ? editOpenEdges : undefined,
+      });
+      onSaved(obstacles.map((o) => (o.id === updated.id ? updated : o)));
+      setEditingId(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not update that obstacle');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const deleteEditing = async () => {
+    if (!editingObstacle) return;
+    await remove(editingObstacle);
+    setEditingId(null);
+  };
+
   const hint = SHAPE_OPTIONS.find((s) => s.value === shapeKind)?.hint ?? '';
 
   return (
@@ -382,7 +432,7 @@ export function YardObstaclesSettings({
             </div>
           )}
 
-          {!pending && (
+          {!pending && !editingId && (
             <div className="flex flex-wrap gap-2">
               <select
                 value={type}
@@ -405,7 +455,13 @@ export function YardObstaclesSettings({
             </div>
           )}
 
-          {!pending && <p className="text-xs text-gray-500">{hint}</p>}
+          {!pending && !editingId && <p className="text-xs text-gray-500">{hint}</p>}
+          {editingId && (
+            <p className="text-xs text-gray-500">
+              Editing this obstacle's type, height, and open sides — to move or resize it, delete
+              it and redraw instead.
+            </p>
+          )}
 
           <div
             onPointerDown={handlePointerDown}
@@ -421,7 +477,12 @@ export function YardObstaclesSettings({
               preserveAspectRatio="none"
             >
               {obstacles.map((o) => (
-                <ShapeMark key={o.id} location={o.location} shape={o.shape} {...OBSTACLE_STYLE} />
+                <ShapeMark
+                  key={o.id}
+                  location={o.location}
+                  shape={o.shape}
+                  {...(o.id === editingId ? PENDING_STYLE : OBSTACLE_STYLE)}
+                />
               ))}
               {pending && <ShapeMark location={pending.location} shape={pending.shape} {...PENDING_STYLE} />}
               {draft.mode === 'dragging' && shapeKind === 'circle' && (
@@ -450,14 +511,26 @@ export function YardObstaclesSettings({
               )}
             </svg>
             {obstacles.map((o) => (
-              <span
+              <button
                 key={o.id}
-                className="absolute flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white text-sm shadow ring-1 ring-gray-300"
+                type="button"
+                onPointerDown={(e) => {
+                  // Otherwise this bubbles to the draw surface underneath
+                  // and starts placing a brand-new obstacle right here.
+                  e.stopPropagation();
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  startEditing(o);
+                }}
+                className={`absolute flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white text-sm shadow ring-1 transition hover:ring-2 ${
+                  o.id === editingId ? 'ring-2 ring-emerald-500' : 'ring-gray-300 hover:ring-emerald-400'
+                }`}
                 style={{ left: `${o.location.x}%`, top: `${o.location.y}%` }}
-                title={`${o.label || TYPE_OPTIONS.find((t) => t.value === o.type)?.label} (${o.heightTier})`}
+                title={`Edit ${o.label || TYPE_OPTIONS.find((t) => t.value === o.type)?.label} (${o.heightTier})`}
               >
                 {ICON_BY_TYPE[o.type]}
-              </span>
+              </button>
             ))}
             {pending && (
               <span
@@ -557,6 +630,98 @@ export function YardObstaclesSettings({
             </div>
           )}
 
+          {editingObstacle && (
+            <div className="space-y-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+              <div className="flex gap-2">
+                <select
+                  value={editType}
+                  onChange={(e) => setEditType(e.target.value as YardObstacleType)}
+                  className="flex-1 rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
+                >
+                  {TYPE_OPTIONS.map((t) => (
+                    <option key={t.value} value={t.value}>{t.icon} {t.label}</option>
+                  ))}
+                </select>
+                <select
+                  value={editHeightTier}
+                  onChange={(e) => setEditHeightTier(e.target.value as ObstacleHeightTier)}
+                  className="flex-1 rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
+                >
+                  {TIER_OPTIONS.map((t) => (
+                    <option key={t.value} value={t.value}>{t.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {ROOFED_TYPES.has(editType) && editingObstacle.shape?.kind === 'rect' && (
+                <div>
+                  <p className="mb-1 text-xs font-medium text-gray-700">
+                    Which sides are open (no wall)? Matters for wind-driven rain, not sun.
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {EDGE_OPTIONS.map((edge) => {
+                      const active = editOpenEdges.includes(edge.value);
+                      return (
+                        <button
+                          key={edge.value}
+                          type="button"
+                          onClick={() =>
+                            setEditOpenEdges((prev) =>
+                              prev.includes(edge.value)
+                                ? prev.filter((e) => e !== edge.value)
+                                : [...prev, edge.value],
+                            )
+                          }
+                          className={`rounded-full border px-2.5 py-1 text-xs font-semibold transition ${
+                            active
+                              ? 'border-emerald-500 bg-emerald-100 text-emerald-800'
+                              : 'border-gray-300 bg-white text-gray-600 hover:border-gray-400'
+                          }`}
+                        >
+                          {edge.label}
+                        </button>
+                      );
+                    })}
+                    <button
+                      type="button"
+                      onClick={() => setEditOpenEdges(editOpenEdges.length === 4 ? [] : ALL_EDGES)}
+                      className="rounded-full border border-dashed border-gray-300 px-2.5 py-1 text-xs font-semibold text-gray-500 hover:border-gray-400"
+                    >
+                      {editOpenEdges.length === 4 ? 'None open (enclosed)' : 'All open (gazebo)'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={deleteEditing}
+                  aria-label="Delete this obstacle"
+                  className="shrink-0 rounded-lg border border-red-200 px-2.5 py-1.5 text-red-600 hover:bg-red-50"
+                >
+                  <Trash2 size={14} />
+                </button>
+                <button
+                  type="button"
+                  onClick={cancelEditing}
+                  className="flex-1 rounded-lg border border-gray-300 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={saveEdit}
+                  disabled={savingEdit}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-emerald-600 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:bg-gray-400"
+                >
+                  {savingEdit && <Loader2 size={12} className="animate-spin" />}
+                  Save
+                </button>
+              </div>
+            </div>
+          )}
+
           {obstacles.length > 0 && (
             <ul className="divide-y rounded-lg border border-gray-200">
               {obstacles.map((o) => (
@@ -591,6 +756,14 @@ export function YardObstaclesSettings({
                       />
                     )}
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => startEditing(o)}
+                    aria-label="Edit obstacle"
+                    className="shrink-0 p-1 text-gray-400 hover:text-emerald-600"
+                  >
+                    <Pencil size={13} />
+                  </button>
                   <button
                     type="button"
                     onClick={() => remove(o)}
