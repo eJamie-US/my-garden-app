@@ -7,6 +7,7 @@ import { blobToFile } from '../../utils/imageUtils';
 interface PlantRow {
   id: string;
   user_id: string;
+  yard_id: string;
   name: string;
   common_name: string | null;
   species: string | null;
@@ -33,6 +34,7 @@ function toPlant(row: PlantRow): Plant {
   return {
     id: row.id,
     userId: row.user_id,
+    yardId: row.yard_id,
     name: row.name,
     commonName: row.common_name ?? undefined,
     species: row.species ?? undefined,
@@ -59,6 +61,7 @@ function toPlant(row: PlantRow): Plant {
 function toRow(plant: Partial<Plant>) {
   const row: Record<string, unknown> = {};
   if (plant.userId !== undefined) row.user_id = plant.userId;
+  if (plant.yardId !== undefined) row.yard_id = plant.yardId;
   if (plant.name !== undefined) row.name = plant.name;
   if (plant.commonName !== undefined) row.common_name = plant.commonName ?? null;
   if (plant.species !== undefined) row.species = plant.species ?? null;

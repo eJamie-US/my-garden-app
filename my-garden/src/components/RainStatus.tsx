@@ -7,15 +7,14 @@
 
 import { useMemo, useState } from 'react';
 import { CloudRain, Umbrella, X } from 'lucide-react';
-import type { Plant, WeatherData, YardObstacle } from '../types';
-import type { GardenLocation } from '../services/supabase/userSettings';
+import type { Plant, WeatherData, Yard, YardObstacle } from '../types';
 import { computeRainShelter, describeRainShelter } from '../utils/rainShelter';
 import { OBSTACLE_TYPE_LABEL } from './YardObstaclesSettings';
 
 interface RainStatusProps {
   plants: Plant[];
   obstacles: YardObstacle[];
-  garden: GardenLocation | null;
+  garden: Yard | null;
   weather?: WeatherData | null;
   onOpenPlant?: (plantId: string) => void;
 }

@@ -6,6 +6,7 @@ import type { ObstacleEdge, ObstacleHeightTier, ObstacleShape, YardObstacle, Yar
 interface YardObstacleRow {
   id: string;
   user_id: string;
+  yard_id: string;
   type: YardObstacleType;
   label: string | null;
   location: { x: number; y: number };
@@ -20,6 +21,7 @@ function toObstacle(row: YardObstacleRow): YardObstacle {
   return {
     id: row.id,
     userId: row.user_id,
+    yardId: row.yard_id,
     type: row.type,
     label: row.label ?? undefined,
     location: { x: Number(row.location?.x ?? 50), y: Number(row.location?.y ?? 50) },
@@ -45,6 +47,7 @@ export const yardObstaclesService = {
 
   async create(
     userId: string,
+    yardId: string,
     obstacle: Pick<YardObstacle, 'type' | 'location' | 'heightTier'> &
       Partial<Pick<YardObstacle, 'label' | 'shape' | 'openEdges'>>,
   ): Promise<YardObstacle> {
@@ -52,6 +55,7 @@ export const yardObstaclesService = {
       .from('yard_obstacles')
       .insert({
         user_id: userId,
+        yard_id: yardId,
         type: obstacle.type,
         label: obstacle.label ?? null,
         location: obstacle.location,

@@ -1,13 +1,11 @@
 // src/components/GardenLocationSettings.tsx
 // Search a place name (Open-Meteo geocoding, no API key) or use the browser's
-// location, then save the coordinates against the user.
+// location, then save the coordinates against one specific yard.
 
 import { useState } from 'react';
 import { Loader2, MapPin, Crosshair, Search, X } from 'lucide-react';
-import {
-  userSettingsService,
-  type GardenLocation,
-} from '../services/supabase/userSettings';
+import { yardsService } from '../services/supabase/yards';
+import type { Yard } from '../types';
 
 interface Match {
   name: string;
@@ -32,9 +30,8 @@ const ORIENTATION_OPTIONS: { label: string; deg: number }[] = [
 ];
 
 interface GardenLocationSettingsProps {
-  userId: string;
-  current: GardenLocation | null;
-  onSaved: (garden: GardenLocation) => void;
+  yard: Yard;
+  onSaved: (yard: Yard) => void;
   onClose: () => void;
 }
 
@@ -43,15 +40,18 @@ function describe(m: Match) {
 }
 
 export const GardenLocationSettings = ({
-  userId,
-  current,
+  yard,
   onSaved,
   onClose,
 }: GardenLocationSettingsProps) => {
-  const [query, setQuery] = useState(current?.label ?? '');
+  const [query, setQuery] = useState(yard.label ?? '');
   const [matches, setMatches] = useState<Match[] | null>(null);
-  const [picked, setPicked] = useState<Omit<GardenLocation, 'orientationDeg'> | null>(current);
-  const [orientationDeg, setOrientationDeg] = useState(current?.orientationDeg ?? 0);
+  const [picked, setPicked] = useState<{ label?: string; latitude: number; longitude: number } | null>(
+    yard.latitude != null && yard.longitude != null
+      ? { label: yard.label, latitude: yard.latitude, longitude: yard.longitude }
+      : null,
+  );
+  const [orientationDeg, setOrientationDeg] = useState(yard.orientationDeg ?? 0);
   const [busy, setBusy] = useState<'search' | 'locate' | 'save' | null>(null);
   const [error, setError] = useState('');
 
@@ -108,8 +108,13 @@ export const GardenLocationSettings = ({
     setError('');
     setBusy('save');
     try {
-      const saved = await userSettingsService.saveGardenLocation(userId, { ...picked, orientationDeg });
-      if (saved.garden) onSaved(saved.garden);
+      const saved = await yardsService.update(yard.id, {
+        label: picked.label,
+        latitude: picked.latitude,
+        longitude: picked.longitude,
+        orientationDeg,
+      });
+      onSaved(saved);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save the location.');
@@ -121,7 +126,7 @@ export const GardenLocationSettings = ({
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 sm:items-center">
       <div className="flex max-h-[90vh] w-full max-w-md flex-col rounded-lg bg-white shadow-xl">
         <div className="flex shrink-0 items-center justify-between border-b p-4">
-          <h3 className="text-lg font-bold">Where is your garden?</h3>
+          <h3 className="text-lg font-bold">Where is {yard.name}?</h3>
           <button
             type="button"
             onClick={onClose}

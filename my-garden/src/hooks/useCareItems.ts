@@ -1,7 +1,6 @@
 // src/hooks/useCareItems.ts
 import { create } from 'zustand';
-import type { CareIngredient, CareItem, DraftCareItem, Plant, WeatherData, YardObstacle } from '../types';
-import type { GardenLocation } from '../services/supabase/userSettings';
+import type { CareIngredient, CareItem, DraftCareItem, Plant, WeatherData, Yard, YardObstacle } from '../types';
 import { careItemsService } from '../services/supabase/careItems';
 import { generateCareItems, nextDueFrom } from '../services/care/generateCareItems';
 import { computeRainShelter } from '../utils/rainShelter';
@@ -19,7 +18,7 @@ interface CareItemsState {
     weather: WeatherData | null | undefined,
     userId: string,
     obstacles?: YardObstacle[],
-    garden?: GardenLocation | null,
+    garden?: Yard | null,
   ) => Promise<void>;
 }
 

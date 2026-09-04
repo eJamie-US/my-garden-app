@@ -6,10 +6,11 @@
 // estimate (see utils/sunExposure.ts); position and size only need to be
 // approximate, same as everything else that estimate does.
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Loader2, Pencil, Trash2, X } from 'lucide-react';
 import { yardObstaclesService } from '../services/supabase/yardObstacles';
-import type { ObstacleEdge, ObstacleHeightTier, ObstacleShape, Point, YardObstacle, YardObstacleType } from '../types';
+import { boxFromSection, sectionTransformStyle } from '../utils/sectionView';
+import type { ObstacleEdge, ObstacleHeightTier, ObstacleShape, Point, YardObstacle, YardObstacleType, YardSection } from '../types';
 
 type ShapeKind = 'point' | 'circle' | 'line' | 'rect' | 'triangle';
 
@@ -202,19 +203,31 @@ function ShapeMark({
 
 interface YardObstaclesSettingsProps {
   userId: string;
+  yardId: string;
   yardImageUrl: string;
   obstacles: YardObstacle[];
+  /** Saved zoom regions of this yard's photo (see utils/sectionView.ts) —
+   *  view-only here, for precision while drawing in a busy area. New ones
+   *  are created from the main yard canvas, not this editor. */
+  sections?: YardSection[];
   onSaved: (obstacles: YardObstacle[]) => void;
   onClose: () => void;
 }
 
 export function YardObstaclesSettings({
   userId,
+  yardId,
   yardImageUrl,
   obstacles,
+  sections = [],
   onSaved,
   onClose,
 }: YardObstaclesSettingsProps) {
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
+  const activeSection = sections.find((s) => s.id === activeSectionId) ?? null;
+  const activeBox = activeSection ? boxFromSection(activeSection) : null;
+
   const [type, setType] = useState<YardObstacleType>('tree');
   const [shapeKind, setShapeKind] = useState<ShapeKind>(SUGGESTED_SHAPE.tree);
   const [heightTier, setHeightTier] = useState<ObstacleHeightTier>('medium');
@@ -247,8 +260,13 @@ export function YardObstaclesSettings({
     setOpenEdges((prev) => (prev.includes(edge) ? prev.filter((e) => e !== edge) : [...prev, edge]));
   };
 
+  // Targets contentRef (the element that actually carries the zoom
+  // transform when a section is active), not the click's own currentTarget
+  // — its bounding rect already reflects the zoom, so this always resolves
+  // to true whole-photo percent with no separate remap step. See
+  // GardenCanvas.tsx's toContentPercent for the same trick.
   const toPercent = (e: React.PointerEvent<HTMLDivElement>): Point => {
-    const rect = e.currentTarget.getBoundingClientRect();
+    const rect = contentRef.current?.getBoundingClientRect() ?? e.currentTarget.getBoundingClientRect();
     return {
       x: Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100)),
       y: Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100)),
@@ -319,7 +337,7 @@ export function YardObstaclesSettings({
     setSaving(true);
     setError('');
     try {
-      const created = await yardObstaclesService.create(userId, {
+      const created = await yardObstaclesService.create(userId, yardId, {
         type,
         location: pending.location,
         shape: pending.shape,
@@ -463,6 +481,36 @@ export function YardObstaclesSettings({
             </p>
           )}
 
+          {sections.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setActiveSectionId(null)}
+                className={`rounded-full border px-2.5 py-1 text-xs font-semibold transition ${
+                  !activeSectionId
+                    ? 'border-emerald-500 bg-emerald-100 text-emerald-800'
+                    : 'border-gray-300 bg-white text-gray-600 hover:border-gray-400'
+                }`}
+              >
+                Whole yard
+              </button>
+              {sections.map((section) => (
+                <button
+                  key={section.id}
+                  type="button"
+                  onClick={() => setActiveSectionId(section.id)}
+                  className={`rounded-full border px-2.5 py-1 text-xs font-semibold transition ${
+                    activeSectionId === section.id
+                      ? 'border-emerald-500 bg-emerald-100 text-emerald-800'
+                      : 'border-gray-300 bg-white text-gray-600 hover:border-gray-400'
+                  }`}
+                >
+                  {section.name}
+                </button>
+              ))}
+            </div>
+          )}
+
           <div
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
@@ -470,6 +518,7 @@ export function YardObstaclesSettings({
             className="relative w-full touch-none select-none overflow-hidden rounded-lg border border-gray-200"
             style={{ cursor: pending ? 'default' : 'crosshair' }}
           >
+          <div ref={contentRef} className="relative" style={activeBox ? sectionTransformStyle(activeBox) : undefined}>
             <img src={yardImageUrl} alt="Your yard" className="block h-auto w-full select-none" draggable={false} />
             <svg
               className="pointer-events-none absolute inset-0 h-full w-full"
@@ -540,6 +589,7 @@ export function YardObstaclesSettings({
                 {ICON_BY_TYPE[type]}
               </span>
             )}
+          </div>
           </div>
 
           {draft.mode === 'clicking' && (

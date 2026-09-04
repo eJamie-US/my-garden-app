@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
-import type { CareItem, Plant } from '../types';
+import { Plus, X } from 'lucide-react';
+import type { CareItem, Plant, YardSection } from '../types';
 import { KIND_ICONS, daysUntil, dueLabel, ingredientSummary } from '../utils/careDisplay';
+import { boxFromSection, sectionTransformStyle, type Box } from '../utils/sectionView';
 
 type GardenCanvasProps = {
   yardImageUrl: string;
@@ -9,6 +11,10 @@ type GardenCanvasProps = {
   careItems: CareItem[];
   /** Only badge items of these kinds — empty/omitted shows every kind. */
   kindFilter?: Set<CareItem['kind']>;
+  /** Saved zoom regions of this same photo — see utils/sectionView.ts. */
+  sections: YardSection[];
+  /** Drag out a new one on the whole-yard view; resolves once saved. */
+  onCreateSection: (box: Box, name: string) => Promise<void>;
   /** Empty-spot click: starts the add-plant flow. A click near existing
    *  plant(s) instead reports them, so the caller can offer a chooser. */
   onYardClick: (x: number, y: number, existing: Plant[]) => void;
@@ -168,6 +174,8 @@ export function GardenCanvas({
   plants,
   careItems,
   kindFilter,
+  sections,
+  onCreateSection,
   onYardClick,
   onSelectPlant,
   onMovePlant,
@@ -175,11 +183,30 @@ export function GardenCanvas({
   belowBanner,
 }: GardenCanvasProps) {
   const yardRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
   const draggedRef = useRef(false);
 
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragPos, setDragPos] = useState<Point | null>(null);
+
+  // Which saved zoom region (if any) the view is currently zoomed into —
+  // null means the whole yard. Purely a display transform; see
+  // utils/sectionView.ts — nothing about how plants/obstacles are stored
+  // depends on this.
+  const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
+  const activeSection = sections.find((s) => s.id === activeSectionId) ?? null;
+  const activeBox = activeSection ? boxFromSection(activeSection) : null;
+
+  // Drawing a brand-new section: drag a rectangle on the whole-yard view,
+  // then name it. Reuses the same drag-a-rect gesture as obstacle drawing,
+  // just scoped to this one mode so it can't be confused with the normal
+  // "click empty spot to add a plant" / "drag a marker to move it" gestures.
+  const [addingSection, setAddingSection] = useState(false);
+  const [sectionDraft, setSectionDraft] = useState<{ start: Point; current: Point } | null>(null);
+  const [namingBox, setNamingBox] = useState<Box | null>(null);
+  const [sectionName, setSectionName] = useState('');
+  const [savingSection, setSavingSection] = useState(false);
 
   // Real rendered size of the yard container, kept current across window
   // resizes/layout changes so clustering math (below) works in real pixels
@@ -267,26 +294,76 @@ export function GardenCanvas({
     }
   }
 
-  function handleYardClick(event: MouseEvent<HTMLDivElement>) {
-    const rectangle = event.currentTarget.getBoundingClientRect();
+  /** Whole-photo percent from a raw pointer position, whatever the current
+   *  zoom — contentRef is the element that actually carries the zoom
+   *  transform, so its own bounding rect already reflects it; no separate
+   *  remap step needed (browser geometry does that for free). */
+  function toContentPercent(clientX: number, clientY: number): Point | null {
+    const rect = contentRef.current?.getBoundingClientRect();
+    if (!rect) return null;
+    return {
+      x: clampPercent(((clientX - rect.left) / rect.width) * 100),
+      y: clampPercent(((clientY - rect.top) / rect.height) * 100),
+    };
+  }
 
-    const x = clampPercent(((event.clientX - rectangle.left) / rectangle.width) * 100);
-    const y = clampPercent(((event.clientY - rectangle.top) / rectangle.height) * 100);
-    const size: Size = { width: rectangle.width, height: rectangle.height };
+  function handleYardClick(event: MouseEvent<HTMLDivElement>) {
+    if (addingSection) return; // drawing is handled by the pointer handlers below
+    const p = toContentPercent(event.clientX, event.clientY);
+    if (!p) return;
+    const rect = contentRef.current!.getBoundingClientRect();
+    const size: Size = { width: rect.width, height: rect.height };
 
     const nearby = plants.filter(
-      (plant) => pixelDistance(plant.location, { x, y }, size) <= SPOT_CLICK_TRIGGER_PX,
+      (plant) => pixelDistance(plant.location, p, size) <= SPOT_CLICK_TRIGGER_PX,
     );
-    onYardClick(x, y, nearby);
+    onYardClick(p.x, p.y, nearby);
   }
 
   function positionFromPointer(event: ReactPointerEvent<HTMLButtonElement>) {
-    const rect = yardRef.current?.getBoundingClientRect();
-    if (!rect) return null;
-    return {
-      x: clampPercent(((event.clientX - rect.left) / rect.width) * 100),
-      y: clampPercent(((event.clientY - rect.top) / rect.height) * 100),
-    };
+    return toContentPercent(event.clientX, event.clientY);
+  }
+
+  function handleSectionDrawDown(event: ReactPointerEvent<HTMLDivElement>) {
+    if (!addingSection) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    const p = toContentPercent(event.clientX, event.clientY);
+    if (p) setSectionDraft({ start: p, current: p });
+  }
+
+  function handleSectionDrawMove(event: ReactPointerEvent<HTMLDivElement>) {
+    if (!addingSection || !sectionDraft) return;
+    const p = toContentPercent(event.clientX, event.clientY);
+    if (p) setSectionDraft({ ...sectionDraft, current: p });
+  }
+
+  function handleSectionDrawUp() {
+    if (!addingSection || !sectionDraft) return;
+    const { start, current } = sectionDraft;
+    setSectionDraft(null);
+    const dist = Math.hypot(current.x - start.x, current.y - start.y);
+    if (dist < 3) return; // too small to be a real region — ignore the tap
+    setNamingBox({
+      x0: Math.min(start.x, current.x),
+      y0: Math.min(start.y, current.y),
+      x1: Math.max(start.x, current.x),
+      y1: Math.max(start.y, current.y),
+    });
+    setAddingSection(false);
+  }
+
+  async function saveSectionName() {
+    if (!namingBox) return;
+    const name = sectionName.trim();
+    if (!name) return;
+    setSavingSection(true);
+    try {
+      await onCreateSection(namingBox, name);
+      setNamingBox(null);
+      setSectionName('');
+    } finally {
+      setSavingSection(false);
+    }
   }
 
   function handleMarkerPointerDown(event: ReactPointerEvent<HTMLButtonElement>, plant: Plant) {
@@ -400,17 +477,86 @@ export function GardenCanvas({
           </div>
         )}
 
+        {sections.length > 0 || addingSection ? (
+          <div className="mb-2 flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setActiveSectionId(null)}
+              className={`rounded-full border px-2.5 py-1 text-xs font-semibold transition ${
+                !activeSectionId
+                  ? 'border-emerald-500 bg-emerald-100 text-emerald-800'
+                  : 'border-gray-300 bg-white text-gray-600 hover:border-gray-400'
+              }`}
+            >
+              Whole yard
+            </button>
+            {sections.map((section) => (
+              <button
+                key={section.id}
+                type="button"
+                onClick={() => setActiveSectionId(section.id)}
+                className={`rounded-full border px-2.5 py-1 text-xs font-semibold transition ${
+                  activeSectionId === section.id
+                    ? 'border-emerald-500 bg-emerald-100 text-emerald-800'
+                    : 'border-gray-300 bg-white text-gray-600 hover:border-gray-400'
+                }`}
+              >
+                {section.name}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => {
+                setActiveSectionId(null);
+                setAddingSection((a) => !a);
+              }}
+              className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold transition ${
+                addingSection
+                  ? 'border-emerald-500 bg-emerald-600 text-white'
+                  : 'border-dashed border-gray-300 bg-white text-gray-500 hover:border-gray-400'
+              }`}
+            >
+              {addingSection ? <X size={11} /> : <Plus size={11} />}
+              {addingSection ? 'Drag out the new section…' : 'Add section'}
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setAddingSection(true)}
+            className="mb-2 flex items-center gap-1 rounded-full border border-dashed border-gray-300 bg-white px-2.5 py-1 text-xs font-semibold text-gray-500 hover:border-gray-400"
+          >
+            <Plus size={11} /> Zoom into part of this yard
+          </button>
+        )}
+
         <div
           ref={yardRef}
           className="relative w-full cursor-crosshair overflow-hidden rounded-xl shadow-lg"
           onClick={handleYardClick}
+          onPointerDown={handleSectionDrawDown}
+          onPointerMove={handleSectionDrawMove}
+          onPointerUp={handleSectionDrawUp}
         >
-          <img
-            src={yardImageUrl}
-            alt="Garden yard"
-            className="block h-auto w-full"
-            draggable={false}
-          />
+          <div ref={contentRef} className="relative" style={activeBox ? sectionTransformStyle(activeBox) : undefined}>
+            <img
+              src={yardImageUrl}
+              alt="Garden yard"
+              className="block h-auto w-full"
+              draggable={false}
+            />
+
+            {sectionDraft && (
+              <div
+                className="pointer-events-none absolute border-2 border-dashed border-emerald-500 bg-emerald-500/15"
+                style={{
+                  left: `${Math.min(sectionDraft.start.x, sectionDraft.current.x)}%`,
+                  top: `${Math.min(sectionDraft.start.y, sectionDraft.current.y)}%`,
+                  width: `${Math.abs(sectionDraft.current.x - sectionDraft.start.x)}%`,
+                  height: `${Math.abs(sectionDraft.current.y - sectionDraft.start.y)}%`,
+                }}
+              />
+            )}
 
           {(plants ?? []).map((plant) => {
             const isDragging = draggingId === plant.id;
@@ -478,8 +624,46 @@ export function GardenCanvas({
               </div>
             );
           })}
+          </div>
         </div>
       </section>
+
+      {namingBox && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-xs rounded-lg bg-white p-4 shadow-xl">
+            <h3 className="mb-2 text-sm font-bold text-gray-900">Name this section</h3>
+            <input
+              autoFocus
+              type="text"
+              value={sectionName}
+              onChange={(e) => setSectionName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && saveSectionName()}
+              placeholder="e.g. Back deck, Herb corner"
+              className="mb-3 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setNamingBox(null);
+                  setSectionName('');
+                }}
+                className="flex-1 rounded-lg border border-gray-300 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={saveSectionName}
+                disabled={!sectionName.trim() || savingSection}
+                className="flex-1 rounded-lg bg-emerald-600 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:bg-gray-400"
+              >
+                {savingSection ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

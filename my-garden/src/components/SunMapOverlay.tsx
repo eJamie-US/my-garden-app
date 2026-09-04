@@ -7,8 +7,7 @@
 import { useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import { computeCurrentSunMap, computeMonthSunMap, computeSunMap, type SunMapCell } from '../utils/sunExposure';
-import type { GardenLocation } from '../services/supabase/userSettings';
-import type { YardObstacle } from '../types';
+import type { Yard, YardObstacle } from '../types';
 
 const CLASSIFICATION_STYLE: Record<SunMapCell['classification'], { color: string; label: string }> = {
   'full-sun': { color: 'rgba(251, 191, 36, 0.55)', label: 'Sunny year-round' },
@@ -40,28 +39,29 @@ type Mode = 'year-round' | 'month' | 'now';
 interface SunMapOverlayProps {
   yardImageUrl: string;
   obstacles: YardObstacle[];
-  garden: GardenLocation | null;
+  garden: Yard | null;
   onClose: () => void;
 }
 
 export function SunMapOverlay({ yardImageUrl, obstacles, garden, onClose }: SunMapOverlayProps) {
   const [mode, setMode] = useState<Mode>('year-round');
   const [month, setMonth] = useState(new Date().getMonth() + 1);
+  const located = garden && garden.latitude != null && garden.longitude != null ? garden : null;
 
   const cells = useMemo(() => {
-    if (!garden) return [];
-    return computeSunMap(obstacles, garden.latitude, garden.longitude, garden.orientationDeg, COLS, ROWS);
-  }, [obstacles, garden]);
+    if (!located) return [];
+    return computeSunMap(obstacles, located.latitude!, located.longitude!, located.orientationDeg, COLS, ROWS);
+  }, [obstacles, located]);
 
   const monthCells = useMemo(() => {
-    if (!garden || mode !== 'month') return [];
-    return computeMonthSunMap(obstacles, garden.latitude, garden.longitude, month, garden.orientationDeg, COLS, ROWS);
-  }, [obstacles, garden, mode, month]);
+    if (!located || mode !== 'month') return [];
+    return computeMonthSunMap(obstacles, located.latitude!, located.longitude!, month, located.orientationDeg, COLS, ROWS);
+  }, [obstacles, located, mode, month]);
 
   const current = useMemo(() => {
-    if (!garden || mode !== 'now') return null;
-    return computeCurrentSunMap(obstacles, garden.latitude, garden.longitude, garden.orientationDeg, COLS, ROWS);
-  }, [obstacles, garden, mode]);
+    if (!located || mode !== 'now') return null;
+    return computeCurrentSunMap(obstacles, located.latitude!, located.longitude!, located.orientationDeg, COLS, ROWS);
+  }, [obstacles, located, mode]);
 
   const now = useMemo(
     () => new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
@@ -84,7 +84,7 @@ export function SunMapOverlay({ yardImageUrl, obstacles, garden, onClose }: SunM
         </div>
 
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
-          {!garden ? (
+          {!located ? (
             <p className="text-sm text-gray-600">
               Set your garden location first — the estimate needs it to work out where the sun sits
               through the year.

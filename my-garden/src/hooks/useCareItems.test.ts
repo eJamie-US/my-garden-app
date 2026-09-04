@@ -33,6 +33,7 @@ function makePlant(overrides: Partial<Plant> = {}): Plant {
   return {
     id: 'p1',
     userId: 'u1',
+    yardId: 'y1',
     name: 'Mystery Plant',
     location: { x: 50, y: 50 },
     plantedDate: '2026-01-01',

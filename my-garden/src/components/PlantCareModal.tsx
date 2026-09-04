@@ -8,8 +8,7 @@
 
 import { useMemo, useState } from 'react';
 import { Check, Home, Loader2, Move, Pencil, Sun, Trash2, Umbrella, X } from 'lucide-react';
-import type { CareItem, DraftCareItem, Plant, WeatherData, YardObstacle } from '../types';
-import type { GardenLocation } from '../services/supabase/userSettings';
+import type { CareItem, DraftCareItem, Plant, WeatherData, Yard, YardObstacle } from '../types';
 import { useCareItems } from '../hooks/useCareItems';
 import { careItemsService } from '../services/supabase/careItems';
 import { plantPhotosService } from '../services/supabase/plantPhotos';
@@ -48,7 +47,7 @@ interface PlantCareModalProps {
   /** Powers "regenerate from weather" while editing the care plan. */
   weather?: WeatherData | null;
   /** Powers the sun/shade exposure estimate — omitted (or no garden set) hides that section. */
-  garden?: GardenLocation | null;
+  garden?: Yard | null;
   obstacles?: YardObstacle[];
   onClose: () => void;
   /** Fired after a new photo is saved, so the caller can refetch plants and
@@ -89,7 +88,7 @@ export function PlantCareModal({
   // compute a real sun path from) skip this entirely — no estimate is
   // better than a wrong one.
   const exposure = useMemo(() => {
-    if (plant.indoor || !garden) return null;
+    if (plant.indoor || !garden || garden.latitude == null || garden.longitude == null) return null;
     const bySeason = estimateSeasonalExposure(
       plant.location,
       obstacles,

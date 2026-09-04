@@ -20,8 +20,7 @@ import { generateCareItems } from '../services/care/generateCareItems';
 import { seedPlanService, type SeedPlan } from '../services/seeds/seedPlan';
 import { computeRainShelter, describeRainShelter } from '../utils/rainShelter';
 import { OBSTACLE_TYPE_LABEL } from './YardObstaclesSettings';
-import type { GardenLocation } from '../services/supabase/userSettings';
-import type { CareItem, DraftCareItem, Plant, WeatherData, YardObstacle } from '../types';
+import type { CareItem, DraftCareItem, Plant, WeatherData, Yard, YardObstacle } from '../types';
 
 const SOW_METHOD_LABEL: Record<SeedPlan['method'], string> = {
   'direct-sow': 'Sow directly outdoors',
@@ -36,7 +35,7 @@ interface PlantFormProps {
   /** Powers the automatic rain-shelter check in place of asking — omitted
    *  or empty falls back to the manual "sheltered from rain" checkbox. */
   obstacles?: YardObstacle[];
-  garden?: GardenLocation | null;
+  garden?: Yard | null;
   /** When the flow started from the canvas camera button, open on the photo step. */
   startWithPhoto?: boolean;
   /** Present = edit an existing plant instead of creating one. */
@@ -223,11 +222,12 @@ export const PlantForm = ({
     try {
       if (!user?.id) throw new Error('User not authenticated');
       if (!formData.name.trim()) throw new Error('Plant name is required');
+      if (!isEdit && !garden) throw new Error('No active yard to add this plant to');
 
       setProgressLabel(isEdit ? 'Saving changes…' : 'Saving plant…');
       const created = isEdit && plant
         ? await plantsService.updatePlant(plant.id, { ...formData })
-        : await plantsService.createPlant({ ...formData, userId: user.id, location });
+        : await plantsService.createPlant({ ...formData, userId: user.id, yardId: garden!.id, location });
 
       // Photos need the plant id in their storage path, so they follow the insert.
       // Every capture is a timeline entry; addPhoto also sets it as current.

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from './hooks/useAuth';
 import { usePlants } from './hooks/usePlants';
 import { useCareItems } from './hooks/useCareItems';
@@ -11,7 +11,7 @@ import { AccountMenu } from './components/AccountMenu';
 import { PlantForm } from './components/PlantForm';
 import { DueToday } from './components/DueToday';
 import { RainStatus } from './components/RainStatus';
-import { GardenLocationSettings } from './components/GardenLocationSettings';
+import { YardsSettings } from './components/YardsSettings';
 import { ProfileSettings } from './components/ProfileSettings';
 import { PricingModal } from './components/PricingModal';
 import { PlantCareModal } from './components/PlantCareModal';
@@ -21,12 +21,11 @@ import { GrantAccessModal } from './components/GrantAccessModal';
 import { weatherService } from './services/weather/forecast';
 import { billingService } from './services/supabase/billing';
 import { yardObstaclesService } from './services/supabase/yardObstacles';
-import {
-  userSettingsService,
-  type GardenLocation,
-  type Profile,
-} from './services/supabase/userSettings';
-import type { CareItem, Plant, WeatherData, YardObstacle } from './types';
+import { yardsService } from './services/supabase/yards';
+import { yardSectionsService } from './services/supabase/yardSections';
+import { userSettingsService, type Profile } from './services/supabase/userSettings';
+import type { Box } from './utils/sectionView';
+import type { CareItem, Plant, WeatherData, Yard, YardObstacle, YardSection } from './types';
 
 export default function App() {
   const { user, loading, checkAuth, logout, passwordRecovery, listenForPasswordRecovery } = useAuth();
@@ -39,14 +38,16 @@ export default function App() {
   const isPremium = useIsPremium();
 
   const [showPlantForm, setShowPlantForm] = useState(false);
-  const [showLocation, setShowLocation] = useState(false);
+  const [showYards, setShowYards] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showObstacles, setShowObstacles] = useState(false);
   const [showSunMap, setShowSunMap] = useState(false);
   const [showGrantAccess, setShowGrantAccess] = useState(false);
   const [pricingReason, setPricingReason] = useState<string | null>(null);
-  const [garden, setGarden] = useState<GardenLocation | null>(null);
   const [profile, setProfile] = useState<Profile>({});
+  const [yards, setYards] = useState<Yard[]>([]);
+  const [activeYardId, setActiveYardId] = useState<string | null>(null);
+  const [sections, setSections] = useState<YardSection[]>([]);
   const [obstacles, setObstacles] = useState<YardObstacle[]>([]);
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [selectedPlant, setSelectedPlant] = useState<Plant | null>(null);
@@ -69,6 +70,19 @@ export default function App() {
     plants: Plant[];
   } | null>(null);
 
+  const activeYard = useMemo(() => yards.find((y) => y.id === activeYardId) ?? null, [yards, activeYardId]);
+  // Every plant/obstacle is scoped to one yard — its location only makes
+  // sense relative to that yard's own photo. Fetched once for the whole
+  // account, filtered client-side so switching yards is instant.
+  const activeYardPlants = useMemo(
+    () => plants.filter((p) => p.yardId === activeYardId),
+    [plants, activeYardId],
+  );
+  const activeYardObstacles = useMemo(
+    () => obstacles.filter((o) => o.yardId === activeYardId),
+    [obstacles, activeYardId],
+  );
+
   useEffect(() => {
     checkAuth();
     return listenForPasswordRecovery();
@@ -86,29 +100,51 @@ export default function App() {
     }
   }, [user?.id]);
 
-  // Saved garden location + profile (display name/icon), if the user has set them.
+  // Every yard on the account, plus profile (display name/icon) and which
+  // yard opens by default. A brand-new account (or one that somehow lost
+  // its migration-backfilled yard) gets one created lazily rather than
+  // showing a broken/empty state.
   useEffect(() => {
     if (!user?.id) return;
-    userSettingsService
-      .getSettings(user.id)
-      .then((s) => {
-        setGarden(s?.garden ?? null);
-        setProfile(s?.profile ?? {});
+    Promise.all([yardsService.getForUser(user.id), userSettingsService.getSettings(user.id)])
+      .then(async ([fetchedYards, settings]) => {
+        setProfile(settings?.profile ?? {});
+        let list = fetchedYards;
+        if (list.length === 0) {
+          const created = await yardsService.create(user.id, {});
+          list = [created];
+        }
+        setYards(list);
+        const defaultId = settings?.defaultYardId;
+        setActiveYardId(list.find((y) => y.id === defaultId)?.id ?? list[0].id);
       })
-      .catch((err) => console.error('Settings unavailable:', err));
+      .catch((err) => console.error('Yards/settings unavailable:', err));
   }, [user?.id]);
 
-  // Care generation reads this; without it every plan falls back to baselines.
-  // Saved location wins, then VITE_GARDEN_LAT/LON, then the browser prompt.
+  // That yard's saved zoom sections (see utils/sectionView.ts).
   useEffect(() => {
-    if (!user?.id) return;
-    const fetchWeather = garden
-      ? weatherService.getWeather(garden.latitude, garden.longitude)
-      : weatherService.getWeatherHere();
+    if (!activeYardId) return;
+    yardSectionsService
+      .getForYard(activeYardId)
+      .then(setSections)
+      .catch((err) => console.error('Yard sections unavailable:', err));
+  }, [activeYardId]);
+
+  // Care generation reads this; without it every plan falls back to
+  // baselines. Only the *active* yard's weather is fetched — switching
+  // yards re-fetches for wherever you switch to, rather than eagerly
+  // fetching every yard's weather up front. The active yard's own saved
+  // location wins, then VITE_GARDEN_LAT/LON, then the browser prompt.
+  useEffect(() => {
+    if (!user?.id || !activeYard) return;
+    const fetchWeather =
+      activeYard.latitude != null && activeYard.longitude != null
+        ? weatherService.getWeather(activeYard.latitude, activeYard.longitude)
+        : weatherService.getWeatherHere();
     fetchWeather
       .then(setWeather)
       .catch((err) => console.error('Weather unavailable:', err));
-  }, [user?.id, garden?.latitude, garden?.longitude]);
+  }, [user?.id, activeYard?.id, activeYard?.latitude, activeYard?.longitude]);
 
   // Coming back from Stripe Checkout: the webhook that actually grants the
   // plan can lag a second or two behind the redirect, so refetch once now
@@ -137,19 +173,20 @@ export default function App() {
     if (fresh && fresh !== editingPlant) setEditingPlant(fresh);
   }, [plants, editingPlant]);
 
-  // Re-generate every plant's care plan from the current weather snapshot
-  // once per user per app-open (not on every render/refetch) so due dates,
-  // season, and recent rainfall stay current without nagging Supabase or
-  // the weather API on every plant list refresh. Runs as soon as plants
-  // and weather are both loaded; guarded by user id so logging out and
-  // back in (or switching users) refreshes again.
-  const refreshedForUserRef = useRef<string | null>(null);
+  // Re-generate the active yard's plants' care plans from its current
+  // weather snapshot once per yard per app-open (not on every render/
+  // refetch) so due dates, season, and recent rainfall stay current
+  // without nagging Supabase or the weather API on every refresh. Runs as
+  // soon as that yard's plants and weather are both loaded; keyed by yard
+  // id (not just user id) so switching to a yard that hasn't been visited
+  // yet this session refreshes it too, instead of only ever the first one.
+  const refreshedYardIdsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
-    if (!user?.id || !weather || plants.length === 0) return;
-    if (refreshedForUserRef.current === user.id) return;
-    refreshedForUserRef.current = user.id;
-    refreshFromWeather(plants, weather, user.id, obstacles, garden);
-  }, [user?.id, weather, plants, refreshFromWeather, obstacles, garden]);
+    if (!user?.id || !activeYard || !weather || activeYardPlants.length === 0) return;
+    if (refreshedYardIdsRef.current.has(activeYard.id)) return;
+    refreshedYardIdsRef.current.add(activeYard.id);
+    refreshFromWeather(activeYardPlants, weather, user.id, activeYardObstacles, activeYard);
+  }, [user?.id, activeYard, weather, activeYardPlants, activeYardObstacles, refreshFromWeather]);
 
   if (loading) {
     return (
@@ -217,14 +254,28 @@ export default function App() {
   const handleMovePlant = (plantId: string, x: number, y: number) =>
     updatePlant(plantId, { location: { x, y } });
 
+  const handleCreateSection = async (box: Box, name: string) => {
+    if (!activeYard) return;
+    const created = await yardSectionsService.create(activeYard.id, {
+      name,
+      boxX0: box.x0,
+      boxY0: box.y0,
+      boxX1: box.x1,
+      boxY1: box.y1,
+    });
+    setSections((prev) => [...prev, created]);
+  };
+
   return (
     <div className="min-h-screen w-full">
       {/* Banner (with the account menu overlaid on it), Due Today, the yard, and plant markers */}
       <GardenCanvas
-        plants={plants}
+        plants={activeYardPlants}
         careItems={careItems}
         kindFilter={kindFilter}
-        yardImageUrl="/default-yard.png"
+        yardImageUrl={activeYard?.imageUrl ?? '/default-yard.png'}
+        sections={sections}
+        onCreateSection={handleCreateSection}
         onYardClick={handleCanvasClick}
         onSelectPlant={setSelectedPlant}
         onMovePlant={handleMovePlant}
@@ -240,9 +291,9 @@ export default function App() {
               onKindFilterChange={setKindFilter}
             />
             <RainStatus
-              plants={plants}
-              obstacles={obstacles}
-              garden={garden}
+              plants={activeYardPlants}
+              obstacles={activeYardObstacles}
+              garden={activeYard}
               weather={weather}
               onOpenPlant={(plantId) =>
                 setSelectedPlant(plants.find((p) => p.id === plantId) ?? null)
@@ -255,9 +306,9 @@ export default function App() {
             email={user.email}
             displayName={profile.displayName}
             avatarIcon={profile.avatarIcon}
-            locationLabel={garden?.label}
+            activeYardName={activeYard?.name}
             plan={entitlement.plan}
-            onSetLocation={() => setShowLocation(true)}
+            onShowYards={() => setShowYards(true)}
             onEditProfile={() => setShowProfile(true)}
             onEditObstacles={() => setShowObstacles(true)}
             onShowSunMap={() => setShowSunMap(true)}
@@ -268,12 +319,19 @@ export default function App() {
         }
       />
 
-      {showLocation && (
-        <GardenLocationSettings
+      {showYards && (
+        <YardsSettings
           userId={user.id}
-          current={garden}
-          onSaved={setGarden}
-          onClose={() => setShowLocation(false)}
+          yards={yards}
+          activeYardId={activeYardId}
+          onSaved={setYards}
+          onSwitch={(yardId) => {
+            setActiveYardId(yardId);
+            userSettingsService.setDefaultYard(user.id, yardId).catch((err) =>
+              console.error('Could not save default yard:', err),
+            );
+          }}
+          onClose={() => setShowYards(false)}
         />
       )}
 
@@ -287,21 +345,25 @@ export default function App() {
         />
       )}
 
-      {showObstacles && (
+      {showObstacles && activeYard && (
         <YardObstaclesSettings
           userId={user.id}
-          yardImageUrl="/default-yard.png"
-          obstacles={obstacles}
-          onSaved={setObstacles}
+          yardId={activeYard.id}
+          yardImageUrl={activeYard.imageUrl}
+          obstacles={activeYardObstacles}
+          sections={sections}
+          onSaved={(updated) =>
+            setObstacles((prev) => [...prev.filter((o) => o.yardId !== activeYard.id), ...updated])
+          }
           onClose={() => setShowObstacles(false)}
         />
       )}
 
       {showSunMap && (
         <SunMapOverlay
-          yardImageUrl="/default-yard.png"
-          obstacles={obstacles}
-          garden={garden}
+          yardImageUrl={activeYard?.imageUrl ?? '/default-yard.png'}
+          obstacles={activeYardObstacles}
+          garden={activeYard}
           onClose={() => setShowSunMap(false)}
         />
       )}
@@ -332,7 +394,7 @@ export default function App() {
           plant={selectedPlant}
           userId={user.id}
           weather={weather}
-          garden={garden}
+          garden={activeYard}
           obstacles={obstacles}
           onClose={() => setSelectedPlant(null)}
           onPhotoUploaded={() => fetchPlants(user.id)}
@@ -368,7 +430,7 @@ export default function App() {
                 existingCareItems={careItems.filter((i) => i.plantId === editingPlant.id)}
                 weather={weather}
                 obstacles={obstacles}
-                garden={garden}
+                garden={activeYard}
                 onSuccess={() => {
                   setEditingPlant(null);
                   fetchPlants(user.id);
@@ -402,7 +464,7 @@ export default function App() {
                 location={selectedLocation}
                 weather={weather}
                 obstacles={obstacles}
-                garden={garden}
+                garden={activeYard}
                 onSuccess={() => {
                   closePlantForm();
 

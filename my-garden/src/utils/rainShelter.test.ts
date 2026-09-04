@@ -6,6 +6,7 @@ function porch(overrides: Partial<YardObstacle> = {}): YardObstacle {
   return {
     id: 'o1',
     userId: 'u1',
+    yardId: 'y1',
     type: 'covered-porch',
     location: { x: 30, y: 30 },
     shape: { kind: 'rect', to: { x: 70, y: 70 } },

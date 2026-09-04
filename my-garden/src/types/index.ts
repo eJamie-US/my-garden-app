@@ -3,6 +3,9 @@
 export interface Plant {
   id: string;
   userId: string;
+  /** Which yard this plant belongs to — its `location` is always in that
+   *  yard's one photo's coordinate space. See Yard/YardSection below. */
+  yardId: string;
   name: string;
   commonName?: string;
   species?: string;
@@ -75,6 +78,7 @@ export type ObstacleShape =
 export interface YardObstacle {
   id: string;
   userId: string;
+  yardId: string;
   type: YardObstacleType;
   label?: string;
   /** Same percent-of-yard-photo coordinates as Plant.location. Anchor
@@ -90,6 +94,44 @@ export interface YardObstacle {
    *  or types (a tree or fence has no roof to shelter under in the first
    *  place). A gazebo is just the case where all four are open. */
   openEdges?: ObstacleEdge[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+/* ---------- Yards & sections ---------- */
+
+/**
+ * One physical garden — its own photo, location (for weather/sun/wind),
+ * and its own plants and obstacles. Someone gardening in more than one
+ * place has more than one Yard; everyone starts with exactly one.
+ */
+export interface Yard {
+  id: string;
+  userId: string;
+  name: string;
+  imageUrl: string;
+  label?: string;
+  latitude?: number;
+  longitude?: number;
+  orientationDeg: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * A named, saved zoom/crop of a Yard's one photo — a viewport for placing
+ * or viewing plants/obstacles precisely in a busy area, not a second photo
+ * or a separate set of plants. `box*` is a percent-of-photo rectangle,
+ * same 0-100 units as Plant/YardObstacle locations. See utils/sectionView.ts.
+ */
+export interface YardSection {
+  id: string;
+  yardId: string;
+  name: string;
+  boxX0: number;
+  boxY0: number;
+  boxX1: number;
+  boxY1: number;
   createdAt: string;
   updatedAt: string;
 }

@@ -9,6 +9,7 @@ function obstacle(overrides: Partial<YardObstacle> = {}): YardObstacle {
   return {
     id: 'o1',
     userId: 'u1',
+    yardId: 'y1',
     type: 'tree',
     location: { x: 50, y: 20 }, // north of a plant at (50, 50), orientation 0
     heightTier: 'tall',

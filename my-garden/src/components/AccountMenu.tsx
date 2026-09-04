@@ -4,16 +4,17 @@
 // bar competing with the yard for space.
 
 import { useState } from 'react';
-import { CreditCard, LogOut, MapPin, Sparkles, Sun, Trees, UserCircle, UserPlus } from 'lucide-react';
+import { CreditCard, LogOut, Map, Sparkles, Sun, Trees, UserCircle, UserPlus } from 'lucide-react';
 import type { Plan } from '../services/supabase/billing';
 
 interface AccountMenuProps {
   email: string;
   displayName?: string;
   avatarIcon?: string;
-  locationLabel?: string;
+  /** Name of whichever yard is currently active — shown as the "Yards" entry's subtitle. */
+  activeYardName?: string;
   plan: Plan;
-  onSetLocation: () => void;
+  onShowYards: () => void;
   onEditProfile: () => void;
   onEditObstacles: () => void;
   onShowSunMap: () => void;
@@ -35,9 +36,9 @@ export function AccountMenu({
   email,
   displayName,
   avatarIcon,
-  locationLabel,
+  activeYardName,
   plan,
-  onSetLocation,
+  onShowYards,
   onEditProfile,
   onEditObstacles,
   onShowSunMap,
@@ -116,12 +117,14 @@ export function AccountMenu({
               type="button"
               onClick={() => {
                 setOpen(false);
-                onSetLocation();
+                onShowYards();
               }}
               className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
             >
-              <MapPin size={14} className="shrink-0 text-emerald-600" />
-              <span className="min-w-0 flex-1 truncate">{locationLabel ?? 'Set garden location'}</span>
+              <Map size={14} className="shrink-0 text-emerald-600" />
+              <span className="min-w-0 flex-1 truncate">
+                Yards{activeYardName ? ` · ${activeYardName}` : ''}
+              </span>
             </button>
             <button
               type="button"
