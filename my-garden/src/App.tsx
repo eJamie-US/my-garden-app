@@ -5,6 +5,7 @@ import { useCareItems } from './hooks/useCareItems';
 import { useEntitlement, useIsPremium, FREE_PLANT_LIMIT } from './hooks/useEntitlement';
 import { LoginForm } from './components/Auth/LoginForm';
 import { ResetPasswordForm } from './components/Auth/ResetPasswordForm';
+import { UpdatePrompt } from './components/UpdatePrompt';
 import { GardenCanvas } from './components/GardenCanvas';
 import { GardenSpotModal } from './components/GardenSpotModal';
 import { AccountMenu } from './components/AccountMenu';
@@ -268,6 +269,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen w-full">
+      <UpdatePrompt />
       {/* Banner (with the account menu overlaid on it), Due Today, the yard, and plant markers */}
       <GardenCanvas
         plants={activeYardPlants}

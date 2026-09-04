@@ -6,7 +6,16 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'autoUpdate' silently force-reloads the page the moment it notices
+      // a new deploy — including mid-interaction, wiping out anything
+      // unsaved (e.g. a yard obstacle being drawn). 'prompt' + the
+      // UpdatePrompt component instead lets the person choose when to
+      // reload, via useRegisterSW's onNeedRefresh.
+      registerType: 'prompt',
+      // Registration is now done manually via useRegisterSW (UpdatePrompt.tsx)
+      // instead of the plugin's own auto-injected script, so onNeedRefresh
+      // can actually drive UI.
+      injectRegister: null,
       includeAssets: ['icons/apple-touch-icon.png'],
       manifest: {
         name: 'My Garden',
