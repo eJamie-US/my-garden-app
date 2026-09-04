@@ -4,6 +4,7 @@ import { usePlants } from './hooks/usePlants';
 import { useCareItems } from './hooks/useCareItems';
 import { useEntitlement, useIsPremium, FREE_PLANT_LIMIT } from './hooks/useEntitlement';
 import { LoginForm } from './components/Auth/LoginForm';
+import { ResetPasswordForm } from './components/Auth/ResetPasswordForm';
 import { GardenCanvas } from './components/GardenCanvas';
 import { GardenSpotModal } from './components/GardenSpotModal';
 import { AccountMenu } from './components/AccountMenu';
@@ -27,7 +28,7 @@ import {
 import type { CareItem, Plant, WeatherData, YardObstacle } from './types';
 
 export default function App() {
-  const { user, loading, checkAuth, logout } = useAuth();
+  const { user, loading, checkAuth, logout, passwordRecovery, listenForPasswordRecovery } = useAuth();
   const { plants, fetchPlants, updatePlant, deletePlant } = usePlants();
   const careItems = useCareItems((s) => s.items);
   const fetchCareItems = useCareItems((s) => s.fetchForUser);
@@ -69,6 +70,7 @@ export default function App() {
 
   useEffect(() => {
     checkAuth();
+    return listenForPasswordRecovery();
   }, []);
 
   useEffect(() => {
@@ -159,6 +161,10 @@ export default function App() {
         </div>
       </div>
     );
+  }
+
+  if (passwordRecovery) {
+    return <ResetPasswordForm />;
   }
 
   if (!user) {
