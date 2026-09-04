@@ -16,7 +16,8 @@ import { plantPhotosService } from '../services/supabase/plantPhotos';
 import { generateCareItems, describeFrequency } from '../services/care/generateCareItems';
 import { KIND_ICONS, daysUntil, dueLabel, dueBadgeClass, ingredientSummary } from '../utils/careDisplay';
 import { estimateSeasonalExposure, summarizeExposure, type Season } from '../utils/sunExposure';
-import { computeRainShelter } from '../utils/rainShelter';
+import { computeRainShelter, describeRainShelter } from '../utils/rainShelter';
+import { OBSTACLE_TYPE_LABEL } from './YardObstaclesSettings';
 import { CareItemsEditor } from './CareItemsEditor';
 import { PhotoTimeline } from './PhotoTimeline';
 import { PlantPhotoCapture, type PhotoCaptureValue } from './PlantPhotoCapture';
@@ -266,11 +267,21 @@ export function PlantCareModal({
                     <Sun size={11} className="shrink-0" />
                     {SUN_LABEL[plant.sunRequirement ?? 'partial-shade']}
                     {effectiveRainCovered && (
-                      <>
+                      <span
+                        className="flex items-center gap-1"
+                        title={
+                          shelter
+                            ? describeRainShelter(
+                                shelter,
+                                shelter.obstacle ? OBSTACLE_TYPE_LABEL[shelter.obstacle.type] : '',
+                              )
+                            : undefined
+                        }
+                      >
                         <span aria-hidden>·</span>
                         <Umbrella size={11} className="shrink-0" />
                         Covered
-                      </>
+                      </span>
                     )}
                   </>
                 )}

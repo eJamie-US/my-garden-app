@@ -10,6 +10,7 @@ import { GardenSpotModal } from './components/GardenSpotModal';
 import { AccountMenu } from './components/AccountMenu';
 import { PlantForm } from './components/PlantForm';
 import { DueToday } from './components/DueToday';
+import { RainStatus } from './components/RainStatus';
 import { GardenLocationSettings } from './components/GardenLocationSettings';
 import { ProfileSettings } from './components/ProfileSettings';
 import { PricingModal } from './components/PricingModal';
@@ -228,15 +229,26 @@ export default function App() {
         onSelectPlant={setSelectedPlant}
         onMovePlant={handleMovePlant}
         belowBanner={
-          <DueToday
-            userId={user.id}
-            plants={plants}
-            onOpenPlant={(plantId) =>
-              setSelectedPlant(plants.find((p) => p.id === plantId) ?? null)
-            }
-            kindFilter={kindFilter}
-            onKindFilterChange={setKindFilter}
-          />
+          <>
+            <DueToday
+              userId={user.id}
+              plants={plants}
+              onOpenPlant={(plantId) =>
+                setSelectedPlant(plants.find((p) => p.id === plantId) ?? null)
+              }
+              kindFilter={kindFilter}
+              onKindFilterChange={setKindFilter}
+            />
+            <RainStatus
+              plants={plants}
+              obstacles={obstacles}
+              garden={garden}
+              weather={weather}
+              onOpenPlant={(plantId) =>
+                setSelectedPlant(plants.find((p) => p.id === plantId) ?? null)
+              }
+            />
+          </>
         }
         accountSlot={
           <AccountMenu
