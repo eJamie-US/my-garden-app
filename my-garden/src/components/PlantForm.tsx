@@ -7,18 +7,21 @@
 // then synced into local state with upsertPlantLocal — NOT via the store's
 // own addPlant/updatePlant, which would write to Supabase a second time.
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Camera, ChevronDown, ChevronUp, Loader2, Sprout } from 'lucide-react';
 import { usePlants } from '../hooks/usePlants';
 import { useAuth } from '../hooks/useAuth';
 import { PlantPhotoCapture, type PhotoCaptureValue } from './PlantPhotoCapture';
 import { CareItemsEditor } from './CareItemsEditor';
+import { BestPlacementPrompt } from './BestPlacementPrompt';
 import { plantsService } from '../services/supabase/plants';
 import { plantPhotosService } from '../services/supabase/plantPhotos';
 import { careItemsService } from '../services/supabase/careItems';
 import { generateCareItems } from '../services/care/generateCareItems';
 import { seedPlanService, type SeedPlan } from '../services/seeds/seedPlan';
 import { computeRainShelter, describeRainShelter } from '../utils/rainShelter';
+import { evaluatePlacement } from '../utils/bestPlacement';
+import type { Season } from '../utils/sunExposure';
 import { OBSTACLE_TYPE_LABEL } from './YardObstaclesSettings';
 import type { CareItem, DraftCareItem, Plant, WeatherData, Yard, YardObstacle } from '../types';
 
@@ -36,6 +39,9 @@ interface PlantFormProps {
    *  or empty falls back to the manual "sheltered from rain" checkbox. */
   obstacles?: YardObstacle[];
   garden?: Yard | null;
+  /** Real prevailing rain-wind direction per season, where known — powers
+   *  the year-round rain half of the best-placement suggestion below. */
+  seasonalRainWind?: Partial<Record<Season, number | null>> | null;
   /** When the flow started from the canvas camera button, open on the photo step. */
   startWithPhoto?: boolean;
   /** Present = edit an existing plant instead of creating one. */
@@ -50,6 +56,7 @@ export const PlantForm = ({
   weather,
   obstacles = [],
   garden = null,
+  seasonalRainWind,
   startWithPhoto = false,
   plant = null,
   existingCareItems,
@@ -58,6 +65,12 @@ export const PlantForm = ({
   const isEdit = Boolean(plant);
   const { user } = useAuth();
   const { upsertPlantLocal } = usePlants();
+
+  // Where the plant will actually be saved — starts at the spot tapped on
+  // the canvas, but can move if the best-placement suggestion below is
+  // accepted. Editing an existing plant never relocates it from here.
+  const [effectiveLocation, setEffectiveLocation] = useState(location);
+  const [placementDismissed, setPlacementDismissed] = useState(false);
 
   const [showCapture, setShowCapture] = useState(startWithPhoto);
   const [capture, setCapture] = useState<PhotoCaptureValue | null>(null);
@@ -122,7 +135,7 @@ export const PlantForm = ({
     if (indoor) return true;
     if (obstacles.length === 0) return manualRainCovered;
     return computeRainShelter(
-      { location, mount },
+      { location: effectiveLocation, mount },
       obstacles,
       garden?.orientationDeg ?? 0,
       weather?.windDirection,
@@ -164,12 +177,29 @@ export const PlantForm = ({
   const shelterResult = useMemo(() => {
     if (formData.indoor || obstacles.length === 0) return null;
     return computeRainShelter(
-      { location, mount: formData.mount },
+      { location: effectiveLocation, mount: formData.mount },
       obstacles,
       garden?.orientationDeg ?? 0,
       weather?.windDirection,
     );
-  }, [formData.indoor, formData.mount, obstacles, garden, location, weather?.windDirection]);
+  }, [formData.indoor, formData.mount, obstacles, garden, effectiveLocation, weather?.windDirection]);
+
+  /** Is there somewhere in this yard that suits the chosen sun requirement
+   *  better than the spot just tapped? Add-flow only — moving an existing
+   *  plant around is a deliberate edit, not something to second-guess. */
+  const placementEvaluation = useMemo(() => {
+    if (isEdit || !garden) return null;
+    return evaluatePlacement(effectiveLocation, formData.sunRequirement, obstacles, garden, seasonalRainWind, weather);
+  }, [isEdit, garden, effectiveLocation, formData.sunRequirement, obstacles, seasonalRainWind, weather]);
+
+  // A different sun requirement can change what counts as "better" —
+  // give the suggestion another chance to show rather than staying
+  // dismissed for a choice the person hasn't seen evaluated yet.
+  useEffect(() => {
+    setPlacementDismissed(false);
+  }, [formData.sunRequirement]);
+
+  const showPlacementPrompt = !isEdit && !placementDismissed && Boolean(placementEvaluation?.hasBetter);
 
   /** Seeds have nothing to photograph yet — a sowing plan from just the name,
    *  replacing the generic generated care items with seed/seedling-stage
@@ -227,7 +257,12 @@ export const PlantForm = ({
       setProgressLabel(isEdit ? 'Saving changes…' : 'Saving plant…');
       const created = isEdit && plant
         ? await plantsService.updatePlant(plant.id, { ...formData })
-        : await plantsService.createPlant({ ...formData, userId: user.id, yardId: garden!.id, location });
+        : await plantsService.createPlant({
+            ...formData,
+            userId: user.id,
+            yardId: garden!.id,
+            location: effectiveLocation,
+          });
 
       // Photos need the plant id in their storage path, so they follow the insert.
       // Every capture is a timeline entry; addPhoto also sets it as current.
@@ -288,6 +323,19 @@ export const PlantForm = ({
         <div className="rounded border border-red-400 bg-red-100 p-3 text-sm text-red-700">
           {error}
         </div>
+      )}
+
+      {showPlacementPrompt && placementEvaluation && garden && (
+        <BestPlacementPrompt
+          yardImageUrl={garden.imageUrl}
+          sunRequirement={formData.sunRequirement}
+          evaluation={placementEvaluation}
+          onUseSpot={(spot) => {
+            setEffectiveLocation({ x: spot.x, y: spot.y });
+            setPlacementDismissed(true);
+          }}
+          onDismiss={() => setPlacementDismissed(true)}
+        />
       )}
 
       {capture ? (

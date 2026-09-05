@@ -52,6 +52,12 @@ const SPOT_CLICK_TRIGGER_PX = 32;
 const CLUSTER_SPREAD_PX = 26;
 /** Care badges shown per marker before the rest collapse into "+N". */
 const MAX_VISIBLE_BADGES = 3;
+/** Orbit radius for care badges around a marker, in px — half the marker's
+ *  own size (h-11 w-11 = 44px), so badges sit right on the edge of the
+ *  plant's png, circularly, rather than stacked in a row above it. */
+const BADGE_ORBIT_RADIUS_PX = 22;
+/** Badges start at 12 o'clock and go clockwise around the marker. */
+const BADGE_ANGLE_START = -Math.PI / 2;
 
 function clampPercent(value: number) {
   return Math.max(0, Math.min(100, value));
@@ -130,9 +136,15 @@ function fanOutPositions(
   return positions;
 }
 
-/** One small due-care badge above a marker: hover on desktop, tap on touch. */
+/** One small due-care badge above a marker: hover on desktop, tap on touch.
+ *  Hover and click are tracked as separate flags (open = either one) rather
+ *  than one shared toggle — a real mouse click always fires mouseenter
+ *  right before the click, so a single "setOpen(o => !o)" driven by both
+ *  would flip it open then immediately closed again in one interaction. */
 function CareBadge({ item }: { item: CareItem }) {
-  const [open, setOpen] = useState(false);
+  const [hovering, setHovering] = useState(false);
+  const [clicked, setClicked] = useState(false);
+  const open = hovering || clicked;
   const days = daysUntil(item.nextDueDate);
   const summary = ingredientSummary(item);
   const overdue = days !== null && days < 0;
@@ -143,11 +155,11 @@ function CareBadge({ item }: { item: CareItem }) {
         type="button"
         onClick={(event) => {
           event.stopPropagation();
-          setOpen((o) => !o);
+          setClicked((c) => !c);
         }}
         onPointerDown={(event) => event.stopPropagation()}
-        onMouseEnter={() => setOpen(true)}
-        onMouseLeave={() => setOpen(false)}
+        onMouseEnter={() => setHovering(true)}
+        onMouseLeave={() => setHovering(false)}
         aria-label={`${item.title} — ${dueLabel(days)}`}
         className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] shadow ring-1 ring-white ${
           overdue ? 'bg-red-500' : 'bg-amber-400'
@@ -163,6 +175,47 @@ function CareBadge({ item }: { item: CareItem }) {
           <span className="block font-semibold">{item.title}</span>
           <span className="block text-gray-300">{dueLabel(days)}</span>
           {summary && <span className="block truncate text-gray-300">{summary}</span>}
+        </span>
+      )}
+    </span>
+  );
+}
+
+/** The "+N" badge for care items beyond MAX_VISIBLE_BADGES — same tap/hover
+ *  interaction as CareBadge (see its comment re: separate hover/click flags),
+ *  but lists every remaining item at once. */
+function OverflowBadge({ items }: { items: CareItem[] }) {
+  const [hovering, setHovering] = useState(false);
+  const [clicked, setClicked] = useState(false);
+  const open = hovering || clicked;
+
+  return (
+    <span className="pointer-events-auto relative">
+      <button
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          setClicked((c) => !c);
+        }}
+        onPointerDown={(event) => event.stopPropagation()}
+        onMouseEnter={() => setHovering(true)}
+        onMouseLeave={() => setHovering(false)}
+        aria-label={`${items.length} more care items due`}
+        className="flex h-5 w-5 items-center justify-center rounded-full bg-gray-700 text-[9px] font-bold text-white shadow ring-1 ring-white"
+      >
+        +{items.length}
+      </button>
+      {open && (
+        <span
+          role="tooltip"
+          className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-1 w-36 -translate-x-1/2 space-y-1.5 rounded-md bg-gray-900 px-2 py-1.5 text-[10px] leading-snug text-white shadow-lg"
+        >
+          {items.map((item) => (
+            <span key={item.id} className="block">
+              <span className="block font-semibold">{item.title}</span>
+              <span className="block text-gray-300">{dueLabel(daysUntil(item.nextDueDate))}</span>
+            </span>
+          ))}
         </span>
       )}
     </span>
@@ -186,6 +239,14 @@ export function GardenCanvas({
   const contentRef = useRef<HTMLDivElement>(null);
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
   const draggedRef = useRef(false);
+  // The pointerup that ends a section drag still fires a native click right
+  // after it — by the time that click's handler runs, addingSection has
+  // already flipped back to false (state updates from the pointerup handler
+  // land before the browser dispatches the click), so checking addingSection
+  // alone let that click slip through and open Add Plant. A ref updates
+  // synchronously in the same handler, so it's read correctly regardless of
+  // render timing.
+  const suppressNextClickRef = useRef(false);
 
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragPos, setDragPos] = useState<Point | null>(null);
@@ -308,6 +369,10 @@ export function GardenCanvas({
   }
 
   function handleYardClick(event: MouseEvent<HTMLDivElement>) {
+    if (suppressNextClickRef.current) {
+      suppressNextClickRef.current = false;
+      return; // the click that follows the pointerup ending a section drag
+    }
     if (addingSection) return; // drawing is handled by the pointer handlers below
     const p = toContentPercent(event.clientX, event.clientY);
     if (!p) return;
@@ -343,6 +408,7 @@ export function GardenCanvas({
     setSectionDraft(null);
     const dist = Math.hypot(current.x - start.x, current.y - start.y);
     if (dist < 3) return; // too small to be a real region — ignore the tap
+    suppressNextClickRef.current = true;
     setNamingBox({
       x0: Math.min(start.x, current.x),
       y0: Math.min(start.y, current.y),
@@ -420,10 +486,17 @@ export function GardenCanvas({
             alt="Garden banner"
             className="block h-full w-full object-cover"
           />
+          {/* The title's own descenders/flourish deliberately spill past this
+              clipped photo onto the plain page background below (see the
+              title comment) — without this, that handoff is a hard cut from
+              photo texture to flat page color. A soft fade to the exact page
+              background (#f0fdf4, index.css) makes it read as an intentional
+              vignette instead. */}
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-b from-transparent to-[#f0fdf4]" />
         </div>
 
         <div className="pointer-events-none absolute inset-0 flex items-end justify-center">
-          <div className="absolute h-16 w-56 -translate-y-2 rounded-full bg-yellow-200/25 blur-3xl" />
+          <div className="absolute h-20 w-64 -translate-y-1 rounded-full bg-yellow-200/30 blur-3xl" />
 
           {/* The user's own gold-lettering artwork. It shipped as a flat
               mockup preview (checkerboard baked into the pixels, not a
@@ -566,7 +639,13 @@ export function GardenCanvas({
             const iconSrc = plant.spriteUrl || plant.photoUrl;
             const due = dueByPlant.get(plant.id) ?? [];
             const visibleDue = due.slice(0, MAX_VISIBLE_BADGES);
-            const overflow = due.length - visibleDue.length;
+            const overflowDue = due.slice(MAX_VISIBLE_BADGES);
+            // One slot per visible item, plus one more for "+N" if there's
+            // overflow — laid out clockwise around the marker's edge below.
+            const badgeSlots: ({ kind: 'item'; item: CareItem } | { kind: 'overflow'; items: CareItem[] })[] = [
+              ...visibleDue.map((item) => ({ kind: 'item' as const, item })),
+              ...(overflowDue.length > 0 ? [{ kind: 'overflow' as const, items: overflowDue }] : []),
+            ];
 
             return (
               <div
@@ -608,18 +687,24 @@ export function GardenCanvas({
                     )}
                   </button>
 
-                  {visibleDue.length > 0 && (
-                    <div className="pointer-events-none absolute left-1/2 top-0 flex -translate-x-1/2 -translate-y-[125%] items-center gap-0.5">
-                      {visibleDue.map((item) => (
-                        <CareBadge key={item.id} item={item} />
-                      ))}
-                      {overflow > 0 && (
-                        <span className="rounded-full bg-gray-700 px-1 text-[9px] font-bold text-white shadow ring-1 ring-white">
-                          +{overflow}
-                        </span>
-                      )}
-                    </div>
-                  )}
+                  {badgeSlots.map((slot, i) => {
+                    const angle = BADGE_ANGLE_START + i * ((2 * Math.PI) / badgeSlots.length);
+                    const dx = BADGE_ORBIT_RADIUS_PX * Math.cos(angle);
+                    const dy = BADGE_ORBIT_RADIUS_PX * Math.sin(angle);
+                    return (
+                      <div
+                        key={slot.kind === 'item' ? slot.item.id : 'overflow'}
+                        className="pointer-events-none absolute left-1/2 top-1/2"
+                        style={{ transform: `translate(-50%, -50%) translate(${dx}px, ${dy}px)` }}
+                      >
+                        {slot.kind === 'item' ? (
+                          <CareBadge item={slot.item} />
+                        ) : (
+                          <OverflowBadge items={slot.items} />
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             );

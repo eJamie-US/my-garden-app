@@ -20,6 +20,8 @@ import { YardObstaclesSettings } from './components/YardObstaclesSettings';
 import { SunMapOverlay } from './components/SunMapOverlay';
 import { GrantAccessModal } from './components/GrantAccessModal';
 import { weatherService } from './services/weather/forecast';
+import { getSeasonalRainWindDirections } from './services/weather/climateWind';
+import type { Season } from './utils/sunExposure';
 import { billingService } from './services/supabase/billing';
 import { yardObstaclesService } from './services/supabase/yardObstacles';
 import { yardsService } from './services/supabase/yards';
@@ -52,6 +54,7 @@ export default function App() {
   const [sections, setSections] = useState<YardSection[]>([]);
   const [obstacles, setObstacles] = useState<YardObstacle[]>([]);
   const [weather, setWeather] = useState<WeatherData | null>(null);
+  const [seasonalRainWind, setSeasonalRainWind] = useState<Record<Season, number | null> | null>(null);
   const [selectedPlant, setSelectedPlant] = useState<Plant | null>(null);
   const [editingPlant, setEditingPlant] = useState<Plant | null>(null);
   // Shared between Due Today and the yard map so picking "Water" narrows
@@ -148,6 +151,24 @@ export default function App() {
       .then(setWeather)
       .catch((err) => console.error('Weather unavailable:', err));
   }, [user?.id, activeYard?.id, activeYard?.latitude, activeYard?.longitude]);
+
+  // The real prevailing rain-wind direction per season at this yard's
+  // location (see services/weather/climateWind.ts) — powers the
+  // best-placement suggestion's year-round rain reasoning. Best-effort:
+  // failing to load it just falls back to a direction-agnostic rain check.
+  useEffect(() => {
+    setSeasonalRainWind(null);
+    if (activeYard?.latitude == null || activeYard?.longitude == null) return;
+    let cancelled = false;
+    getSeasonalRainWindDirections(activeYard.latitude, activeYard.longitude)
+      .then((result) => {
+        if (!cancelled) setSeasonalRainWind(result);
+      })
+      .catch((err) => console.error('Seasonal rain-wind climatology unavailable:', err));
+    return () => {
+      cancelled = true;
+    };
+  }, [activeYard?.latitude, activeYard?.longitude]);
 
   // Coming back from Stripe Checkout: the webhook that actually grants the
   // plan can lag a second or two behind the redirect, so refetch once now
@@ -417,10 +438,12 @@ export default function App() {
           userId={user.id}
           weather={weather}
           garden={activeYard}
-          obstacles={obstacles}
+          obstacles={activeYardObstacles}
+          seasonalRainWind={seasonalRainWind}
           onClose={() => setSelectedPlant(null)}
           onPhotoUploaded={() => fetchPlants(user.id)}
           onDeletePlant={deletePlant}
+          onMovePlant={handleMovePlant}
           onEditDetails={(p) => {
             setSelectedPlant(null);
             setEditingPlant(p);
@@ -451,8 +474,9 @@ export default function App() {
                 location={editingPlant.location}
                 existingCareItems={careItems.filter((i) => i.plantId === editingPlant.id)}
                 weather={weather}
-                obstacles={obstacles}
+                obstacles={activeYardObstacles}
                 garden={activeYard}
+                seasonalRainWind={seasonalRainWind}
                 onSuccess={() => {
                   setEditingPlant(null);
                   fetchPlants(user.id);
@@ -485,8 +509,9 @@ export default function App() {
               <PlantForm
                 location={selectedLocation}
                 weather={weather}
-                obstacles={obstacles}
+                obstacles={activeYardObstacles}
                 garden={activeYard}
+                seasonalRainWind={seasonalRainWind}
                 onSuccess={() => {
                   closePlantForm();
 

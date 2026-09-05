@@ -16,8 +16,10 @@ import { generateCareItems, describeFrequency } from '../services/care/generateC
 import { KIND_ICONS, daysUntil, dueLabel, dueBadgeClass, ingredientSummary } from '../utils/careDisplay';
 import { estimateSeasonalExposure, summarizeExposure, type Season } from '../utils/sunExposure';
 import { computeRainShelter, describeRainShelter } from '../utils/rainShelter';
+import { evaluatePlacement } from '../utils/bestPlacement';
 import { OBSTACLE_TYPE_LABEL } from './YardObstaclesSettings';
 import { CareItemsEditor } from './CareItemsEditor';
+import { BestPlacementPrompt } from './BestPlacementPrompt';
 import { PhotoTimeline } from './PhotoTimeline';
 import { PlantPhotoCapture, type PhotoCaptureValue } from './PlantPhotoCapture';
 
@@ -49,6 +51,9 @@ interface PlantCareModalProps {
   /** Powers the sun/shade exposure estimate — omitted (or no garden set) hides that section. */
   garden?: Yard | null;
   obstacles?: YardObstacle[];
+  /** Real prevailing rain-wind direction per season, where known — powers
+   *  the year-round rain half of the best-placement suggestion below. */
+  seasonalRainWind?: Partial<Record<Season, number | null>> | null;
   onClose: () => void;
   /** Fired after a new photo is saved, so the caller can refetch plants and
    *  pick up the new marker icon / current photo. */
@@ -61,6 +66,10 @@ interface PlantCareModalProps {
    *  schedule, notes) — everything about the plant except its care items,
    *  which stay editable right here. */
   onEditDetails?: (plant: Plant) => void;
+  /** Relocates the plant — powers "Use this spot" on the best-placement
+   *  suggestion below. Omitted hides that suggestion entirely, since
+   *  there'd be no way to act on it. */
+  onMovePlant?: (plantId: string, x: number, y: number) => Promise<void>;
 }
 
 export function PlantCareModal({
@@ -69,10 +78,12 @@ export function PlantCareModal({
   weather,
   garden,
   obstacles = [],
+  seasonalRainWind,
   onClose,
   onPhotoUploaded,
   onDeletePlant,
   onEditDetails,
+  onMovePlant,
 }: PlantCareModalProps) {
   const allCareItems = useCareItems((s) => s.items);
   const careLoading = useCareItems((s) => s.loading);
@@ -107,6 +118,31 @@ export function PlantCareModal({
     return computeRainShelter(plant, obstacles, garden?.orientationDeg ?? 0, weather?.windDirection);
   }, [plant, obstacles, garden, weather?.windDirection]);
   const effectiveRainCovered = shelter ? shelter.sheltered : plant.rainCovered;
+
+  // Is there somewhere in this yard that suits this plant's sun needs
+  // better than where it already is? Same scoring as the Add-Plant flow,
+  // just checked against its current spot instead of a freshly-tapped one.
+  const placementEvaluation = useMemo(() => {
+    if (plant.indoor || !garden) return null;
+    return evaluatePlacement(plant.location, plant.sunRequirement, obstacles, garden, seasonalRainWind, weather);
+  }, [plant.indoor, plant.location, plant.sunRequirement, obstacles, garden, seasonalRainWind, weather]);
+
+  const [placementDismissed, setPlacementDismissed] = useState(false);
+  const [moving, setMoving] = useState(false);
+  const [moveError, setMoveError] = useState('');
+
+  const useSuggestedSpot = async (spot: { x: number; y: number }) => {
+    if (!onMovePlant) return;
+    setMoving(true);
+    setMoveError('');
+    try {
+      await onMovePlant(plant.id, spot.x, spot.y);
+      onClose();
+    } catch (err) {
+      setMoveError(err instanceof Error ? err.message : 'Could not move that plant');
+      setMoving(false);
+    }
+  };
 
   const [completing, setCompleting] = useState<string | null>(null);
   const [completeError, setCompleteError] = useState('');
@@ -364,6 +400,23 @@ export function PlantCareModal({
                       No yard obstacles marked yet — this assumes open sky. Mark the house, a
                       covered porch, trees or fences from the account menu for a closer estimate.
                     </p>
+                  )}
+
+                  {onMovePlant && placementEvaluation?.hasBetter && !placementDismissed && garden && (
+                    <div className="mt-2">
+                      {moveError && (
+                        <p className="mb-1.5 text-xs text-red-600">{moveError}</p>
+                      )}
+                      <fieldset disabled={moving} className="disabled:opacity-60">
+                        <BestPlacementPrompt
+                          yardImageUrl={garden.imageUrl}
+                          sunRequirement={plant.sunRequirement ?? 'partial-shade'}
+                          evaluation={placementEvaluation}
+                          onUseSpot={useSuggestedSpot}
+                          onDismiss={() => setPlacementDismissed(true)}
+                        />
+                      </fieldset>
+                    </div>
                   )}
                 </>
               )}
