@@ -47,6 +47,7 @@ export default function App() {
   const [pricingReason, setPricingReason] = useState<string | null>(null);
   const [profile, setProfile] = useState<Profile>({});
   const [yards, setYards] = useState<Yard[]>([]);
+  const [yardsLoading, setYardsLoading] = useState(true);
   const [activeYardId, setActiveYardId] = useState<string | null>(null);
   const [sections, setSections] = useState<YardSection[]>([]);
   const [obstacles, setObstacles] = useState<YardObstacle[]>([]);
@@ -119,7 +120,8 @@ export default function App() {
         const defaultId = settings?.defaultYardId;
         setActiveYardId(list.find((y) => y.id === defaultId)?.id ?? list[0].id);
       })
-      .catch((err) => console.error('Yards/settings unavailable:', err));
+      .catch((err) => console.error('Yards/settings unavailable:', err))
+      .finally(() => setYardsLoading(false));
   }, [user?.id]);
 
   // That yard's saved zoom sections (see utils/sectionView.ts).
@@ -208,6 +210,24 @@ export default function App() {
 
   if (!user) {
     return <LoginForm onAuthSuccess={() => checkAuth()} />;
+  }
+
+  // Every plant/obstacle location only makes sense relative to a specific
+  // yard, so the map (and Add Plant) must not be reachable until that
+  // yard has actually loaded — on a slow connection, rendering the map
+  // early let taps land before `activeYard` existed, failing to save with
+  // "No active yard to add this plant to" at submit time.
+  if (yardsLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-green-50 to-blue-50">
+        <div className="text-center">
+          <div className="mb-4 animate-spin text-6xl">🌱</div>
+          <p className="font-semibold text-gray-600">
+            Loading your garden...
+          </p>
+        </div>
+      </div>
+    );
   }
 
   const openPlantFormAt = (x: number, y: number) => {
