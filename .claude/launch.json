@@ -3,9 +3,7 @@
   "configurations": [
     {
       "name": "my-garden-dev",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--prefix", "my-garden"],
-      "port": 5173
+      "url": "http://localhost:5173"
     }
   ]
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from './hooks/useAuth';
 import { usePlants } from './hooks/usePlants';
 import { useCareItems } from './hooks/useCareItems';
@@ -12,13 +12,8 @@ import { AccountMenu } from './components/AccountMenu';
 import { PlantForm } from './components/PlantForm';
 import { DueToday } from './components/DueToday';
 import { RainStatus } from './components/RainStatus';
-import { YardsSettings } from './components/YardsSettings';
-import { ProfileSettings } from './components/ProfileSettings';
-import { PricingModal } from './components/PricingModal';
+import { FrostWarning } from './components/FrostWarning';
 import { PlantCareModal } from './components/PlantCareModal';
-import { YardObstaclesSettings } from './components/YardObstaclesSettings';
-import { SunMapOverlay } from './components/SunMapOverlay';
-import { GrantAccessModal } from './components/GrantAccessModal';
 import { weatherService } from './services/weather/forecast';
 import { getSeasonalRainWindDirections } from './services/weather/climateWind';
 import type { Season } from './utils/sunExposure';
@@ -29,6 +24,40 @@ import { yardSectionsService } from './services/supabase/yardSections';
 import { userSettingsService, type Profile } from './services/supabase/userSettings';
 import type { Box } from './utils/sectionView';
 import type { CareItem, Plant, WeatherData, Yard, YardObstacle, YardSection } from './types';
+
+// Settings/admin screens — only needed once someone actually opens them from
+// the account menu, not on first paint. Lazy-loading keeps ~1700 lines of
+// (rarely-touched-at-launch) code out of the main bundle; YardObstaclesSettings
+// alone is 800+ lines. Each still needs a plain function wrapper since these
+// are named, not default, exports.
+const YardsSettings = lazy(() =>
+  import('./components/YardsSettings').then((m) => ({ default: m.YardsSettings })),
+);
+const ProfileSettings = lazy(() =>
+  import('./components/ProfileSettings').then((m) => ({ default: m.ProfileSettings })),
+);
+const PricingModal = lazy(() =>
+  import('./components/PricingModal').then((m) => ({ default: m.PricingModal })),
+);
+const YardObstaclesSettings = lazy(() =>
+  import('./components/YardObstaclesSettings').then((m) => ({ default: m.YardObstaclesSettings })),
+);
+const SunMapOverlay = lazy(() =>
+  import('./components/SunMapOverlay').then((m) => ({ default: m.SunMapOverlay })),
+);
+const GrantAccessModal = lazy(() =>
+  import('./components/GrantAccessModal').then((m) => ({ default: m.GrantAccessModal })),
+);
+
+/** Same visual language as the top-level auth loading screen, just small
+ *  enough to sit inside a modal/overlay slot instead of taking the page. */
+function LazyLoadingFallback() {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="animate-spin text-4xl">🌱</div>
+    </div>
+  );
+}
 
 export default function App() {
   const { user, loading, checkAuth, logout, passwordRecovery, listenForPasswordRecovery } = useAuth();
@@ -342,10 +371,18 @@ export default function App() {
                 setSelectedPlant(plants.find((p) => p.id === plantId) ?? null)
               }
             />
+            <FrostWarning
+              plants={activeYardPlants}
+              weather={weather}
+              onOpenPlant={(plantId) =>
+                setSelectedPlant(plants.find((p) => p.id === plantId) ?? null)
+              }
+            />
           </>
         }
         accountSlot={
           <AccountMenu
+            userId={user.id}
             email={user.email}
             displayName={profile.displayName}
             avatarIcon={profile.avatarIcon}
@@ -362,60 +399,62 @@ export default function App() {
         }
       />
 
-      {showYards && (
-        <YardsSettings
-          userId={user.id}
-          yards={yards}
-          activeYardId={activeYardId}
-          onSaved={setYards}
-          onSwitch={(yardId) => {
-            setActiveYardId(yardId);
-            userSettingsService.setDefaultYard(user.id, yardId).catch((err) =>
-              console.error('Could not save default yard:', err),
-            );
-          }}
-          onClose={() => setShowYards(false)}
-        />
-      )}
+      <Suspense fallback={<LazyLoadingFallback />}>
+        {showYards && (
+          <YardsSettings
+            userId={user.id}
+            yards={yards}
+            activeYardId={activeYardId}
+            onSaved={setYards}
+            onSwitch={(yardId) => {
+              setActiveYardId(yardId);
+              userSettingsService.setDefaultYard(user.id, yardId).catch((err) =>
+                console.error('Could not save default yard:', err),
+              );
+            }}
+            onClose={() => setShowYards(false)}
+          />
+        )}
 
-      {showProfile && (
-        <ProfileSettings
-          userId={user.id}
-          current={profile}
-          fallbackInitial={user.email.trim().charAt(0).toUpperCase() || '?'}
-          onSaved={setProfile}
-          onClose={() => setShowProfile(false)}
-        />
-      )}
+        {showProfile && (
+          <ProfileSettings
+            userId={user.id}
+            current={profile}
+            fallbackInitial={user.email.trim().charAt(0).toUpperCase() || '?'}
+            onSaved={setProfile}
+            onClose={() => setShowProfile(false)}
+          />
+        )}
 
-      {showObstacles && activeYard && (
-        <YardObstaclesSettings
-          userId={user.id}
-          yardId={activeYard.id}
-          yardImageUrl={activeYard.imageUrl}
-          obstacles={activeYardObstacles}
-          sections={sections}
-          onSaved={(updated) =>
-            setObstacles((prev) => [...prev.filter((o) => o.yardId !== activeYard.id), ...updated])
-          }
-          onClose={() => setShowObstacles(false)}
-        />
-      )}
+        {showObstacles && activeYard && (
+          <YardObstaclesSettings
+            userId={user.id}
+            yardId={activeYard.id}
+            yardImageUrl={activeYard.imageUrl}
+            obstacles={activeYardObstacles}
+            sections={sections}
+            onSaved={(updated) =>
+              setObstacles((prev) => [...prev.filter((o) => o.yardId !== activeYard.id), ...updated])
+            }
+            onClose={() => setShowObstacles(false)}
+          />
+        )}
 
-      {showSunMap && (
-        <SunMapOverlay
-          yardImageUrl={activeYard?.imageUrl ?? '/default-yard.png'}
-          obstacles={activeYardObstacles}
-          garden={activeYard}
-          onClose={() => setShowSunMap(false)}
-        />
-      )}
+        {showSunMap && (
+          <SunMapOverlay
+            yardImageUrl={activeYard?.imageUrl ?? '/default-yard.png'}
+            obstacles={activeYardObstacles}
+            garden={activeYard}
+            onClose={() => setShowSunMap(false)}
+          />
+        )}
 
-      {showGrantAccess && <GrantAccessModal onClose={() => setShowGrantAccess(false)} />}
+        {showGrantAccess && <GrantAccessModal onClose={() => setShowGrantAccess(false)} />}
 
-      {pricingReason !== null && (
-        <PricingModal reason={pricingReason || undefined} onClose={() => setPricingReason(null)} />
-      )}
+        {pricingReason !== null && (
+          <PricingModal reason={pricingReason || undefined} onClose={() => setPricingReason(null)} />
+        )}
+      </Suspense>
 
       {spotPicker && (
         <GardenSpotModal

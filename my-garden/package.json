@@ -8,10 +8,12 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@imgly/background-removal": "^1.7.0",
+    "@sentry/react": "^10.73.0",
     "@supabase/supabase-js": "^2.112.4",
     "axios": "^1.20.0",
     "jspdf": "^4.2.1",
@@ -21,6 +23,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^26.4.0",
     "@types/react": "^19.1.10",
@@ -28,12 +31,14 @@
     "@vitejs/plugin-react": "^5.0.2",
     "@vitest/ui": "^4.1.11",
     "autoprefixer": "^10.4.21",
+    "dotenv": "^17.4.2",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.11",
     "typescript": "^5.9.2",
     "vite": "^7.1.2",
     "vite-plugin-pwa": "^1.3.0",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.11",
+    "workbox-precaching": "^7.4.1"
   },
   "allowScripts": {
     "core-js@3.50.0": true,
