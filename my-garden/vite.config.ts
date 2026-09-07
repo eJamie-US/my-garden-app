@@ -16,6 +16,14 @@ export default defineConfig({
       // instead of the plugin's own auto-injected script, so onNeedRefresh
       // can actually drive UI.
       injectRegister: null,
+      // 'injectManifest' (a hand-written src/sw.ts) instead of the default
+      // 'generateSW' (an auto-built one) — purely so push/notificationclick
+      // handlers can be added for background notifications. src/sw.ts still
+      // does the same precaching + SKIP_WAITING handling generateSW's own
+      // template did, so the update-prompt behavior above is unchanged.
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       includeAssets: ['icons/apple-touch-icon.png'],
       manifest: {
         name: 'My Garden',
@@ -36,12 +44,24 @@ export default defineConfig({
           },
         ],
       },
-      workbox: {
-        // Plant/garden photos are served straight from Supabase Storage —
-        // deliberately not precached or runtime-cached here, so "offline"
-        // means the shell and static assets, not a stale copy of every
-        // photo ever uploaded.
+      // Same key as before, just under injectManifest instead of workbox —
+      // this still only controls what precacheAndRoute(self.__WB_MANIFEST)
+      // in src/sw.ts sees. Plant/garden photos are served straight from
+      // Supabase Storage — deliberately not precached or runtime-cached
+      // here, so "offline" means the shell and static assets, not a stale
+      // copy of every photo ever uploaded.
+      injectManifest: {
         globPatterns: ['**/*.{js,css,html,svg,woff2}'],
+      },
+      // Lets `npm run dev` register a real service worker too — otherwise
+      // only a production build does, and testing "Enable notifications"
+      // would require a full deploy every time. Dev-mode note: with
+      // strategies: 'injectManifest', Workbox serves src/sw.ts directly
+      // (unbundled) in dev, so it needs a browser with real ES module
+      // service worker support (current Chrome/Edge/Firefox all qualify).
+      devOptions: {
+        enabled: true,
+        type: 'module',
       },
     }),
   ],

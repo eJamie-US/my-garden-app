@@ -4,10 +4,17 @@
 // bar competing with the yard for space.
 
 import { useState } from 'react';
-import { CreditCard, LogOut, Map, Sparkles, Sun, Trees, UserCircle, UserPlus } from 'lucide-react';
+import {
+  Bell, BellOff, CreditCard, Download, LogOut, Loader2, Map, Sparkles, Sun, Trees, UserCircle, UserPlus,
+} from 'lucide-react';
 import type { Plan } from '../services/supabase/billing';
+import { exportGardenData, downloadAsJson } from '../services/export/exportData';
+import {
+  getNotificationPermission, subscribeToPush, unsubscribeFromPush, isPushSupported,
+} from '../services/push/pushSubscriptions';
 
 interface AccountMenuProps {
+  userId: string;
   email: string;
   displayName?: string;
   avatarIcon?: string;
@@ -33,6 +40,7 @@ const PLAN_LABEL: Record<Plan, string> = {
 };
 
 export function AccountMenu({
+  userId,
   email,
   displayName,
   avatarIcon,
@@ -47,8 +55,45 @@ export function AccountMenu({
   onLogout,
 }: AccountMenuProps) {
   const [open, setOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState('');
+  const [notificationsOn, setNotificationsOn] = useState(() => getNotificationPermission() === 'granted');
+  const [notifLoading, setNotifLoading] = useState(false);
+  const [notifError, setNotifError] = useState('');
   const initial = (displayName || email).trim().charAt(0).toUpperCase() || '?';
   const name = displayName || email;
+
+  const handleToggleNotifications = async () => {
+    setNotifLoading(true);
+    setNotifError('');
+    try {
+      if (notificationsOn) {
+        await unsubscribeFromPush(userId);
+        setNotificationsOn(false);
+      } else {
+        await subscribeToPush(userId);
+        setNotificationsOn(true);
+      }
+    } catch (err) {
+      setNotifError(err instanceof Error ? err.message : 'Could not update notifications');
+    } finally {
+      setNotifLoading(false);
+    }
+  };
+
+  const handleExport = async () => {
+    setExporting(true);
+    setExportError('');
+    try {
+      const data = await exportGardenData(userId);
+      downloadAsJson(data, `my-garden-export-${new Date().toISOString().slice(0, 10)}.json`);
+      setOpen(false);
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : 'Could not export your data');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <div className="relative">
@@ -159,6 +204,42 @@ export function AccountMenu({
               <UserPlus size={14} className="shrink-0 text-emerald-600" />
               Grant access
             </button>
+            {isPushSupported() && (
+              <button
+                type="button"
+                onClick={handleToggleNotifications}
+                disabled={notifLoading}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+              >
+                {notifLoading ? (
+                  <Loader2 size={14} className="shrink-0 animate-spin text-emerald-600" />
+                ) : notificationsOn ? (
+                  <Bell size={14} className="shrink-0 text-emerald-600" />
+                ) : (
+                  <BellOff size={14} className="shrink-0 text-emerald-600" />
+                )}
+                {notifLoading ? 'Updating…' : notificationsOn ? 'Notifications on' : 'Enable notifications'}
+              </button>
+            )}
+            {notifError && (
+              <p className="border-t border-gray-100 px-3 py-1.5 text-xs text-red-600">{notifError}</p>
+            )}
+            <button
+              type="button"
+              onClick={handleExport}
+              disabled={exporting}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+            >
+              {exporting ? (
+                <Loader2 size={14} className="shrink-0 animate-spin text-emerald-600" />
+              ) : (
+                <Download size={14} className="shrink-0 text-emerald-600" />
+              )}
+              {exporting ? 'Preparing download…' : 'Download my data'}
+            </button>
+            {exportError && (
+              <p className="border-t border-gray-100 px-3 py-1.5 text-xs text-red-600">{exportError}</p>
+            )}
             <button
               type="button"
               onClick={() => {
