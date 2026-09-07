@@ -1,7 +1,7 @@
 // src/services/supabase/plants.ts
 
 import { supabase } from '../../lib/supabase';
-import type { Plant } from '../../types';
+import type { KnownIssue, Plant } from '../../types';
 import { blobToFile } from '../../utils/imageUtils';
 
 interface PlantRow {
@@ -22,6 +22,7 @@ interface PlantRow {
   rain_covered: boolean | null;
   indoor: boolean | null;
   mount: Plant['mount'] | null;
+  known_issues: KnownIssue[] | null;
   created_at: string;
   updated_at: string;
 }
@@ -52,6 +53,7 @@ function toPlant(row: PlantRow): Plant {
     rainCovered: row.rain_covered ?? false,
     indoor: row.indoor ?? false,
     mount: row.mount ?? 'ground',
+    knownIssues: Array.isArray(row.known_issues) ? row.known_issues : [],
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -76,6 +78,7 @@ function toRow(plant: Partial<Plant>) {
   if (plant.rainCovered !== undefined) row.rain_covered = plant.rainCovered;
   if (plant.indoor !== undefined) row.indoor = plant.indoor;
   if (plant.mount !== undefined) row.mount = plant.mount;
+  if (plant.knownIssues !== undefined) row.known_issues = plant.knownIssues;
   return row;
 }
 

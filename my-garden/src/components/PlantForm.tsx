@@ -14,6 +14,7 @@ import { useAuth } from '../hooks/useAuth';
 import { PlantPhotoCapture, type PhotoCaptureValue } from './PlantPhotoCapture';
 import { CareItemsEditor } from './CareItemsEditor';
 import { BestPlacementPrompt } from './BestPlacementPrompt';
+import { PlantDiagnosisPanel } from './PlantDiagnosisPanel';
 import { plantsService } from '../services/supabase/plants';
 import { plantPhotosService } from '../services/supabase/plantPhotos';
 import { careItemsService } from '../services/supabase/careItems';
@@ -22,7 +23,7 @@ import { seedPlanService, type SeedPlan } from '../services/seeds/seedPlan';
 import { computeRainShelter, describeRainShelter } from '../utils/rainShelter';
 import { evaluatePlacement } from '../utils/bestPlacement';
 import type { Season } from '../utils/sunExposure';
-import { OBSTACLE_TYPE_LABEL } from './YardObstaclesSettings';
+import { OBSTACLE_TYPE_LABEL } from '../utils/obstacleTypes';
 import type { CareItem, DraftCareItem, Plant, WeatherData, Yard, YardObstacle } from '../types';
 
 const SOW_METHOD_LABEL: Record<SeedPlan['method'], string> = {
@@ -71,6 +72,12 @@ export const PlantForm = ({
   // accepted. Editing an existing plant never relocates it from here.
   const [effectiveLocation, setEffectiveLocation] = useState(location);
   const [placementDismissed, setPlacementDismissed] = useState(false);
+  // sunRequirement starts at a hardcoded default ('partial-shade'), not a
+  // real choice — identifying a photo doesn't set it either. Without this,
+  // the suggestion below evaluates (and can show) against that placeholder
+  // the instant the form opens, before the person has said anything about
+  // this plant's actual needs.
+  const [sunRequirementTouched, setSunRequirementTouched] = useState(false);
 
   const [showCapture, setShowCapture] = useState(startWithPhoto);
   const [capture, setCapture] = useState<PhotoCaptureValue | null>(null);
@@ -199,7 +206,8 @@ export const PlantForm = ({
     setPlacementDismissed(false);
   }, [formData.sunRequirement]);
 
-  const showPlacementPrompt = !isEdit && !placementDismissed && Boolean(placementEvaluation?.hasBetter);
+  const showPlacementPrompt =
+    !isEdit && sunRequirementTouched && !placementDismissed && Boolean(placementEvaluation?.hasBetter);
 
   /** Seeds have nothing to photograph yet — a sowing plan from just the name,
    *  replacing the generic generated care items with seed/seedling-stage
@@ -368,7 +376,14 @@ export const PlantForm = ({
             Redo
           </button>
         </div>
-      ) : (
+      ) : null}
+
+      {/* Runs automatically against the captured photo — Add only; an
+          existing plant's health check lives in its own care modal, already
+          wired to its known issues. */}
+      {!isEdit && capture && <PlantDiagnosisPanel photo={capture.photo} />}
+
+      {!capture && (
         <button
           type="button"
           onClick={() => setShowCapture(true)}
@@ -494,6 +509,7 @@ export const PlantForm = ({
           value={formData.sunRequirement}
           onChange={(e) => {
             handleInputChange(e);
+            setSunRequirementTouched(true);
             regenerateCare({
               sunRequirement: e.target.value as typeof formData.sunRequirement,
             });

@@ -32,10 +32,21 @@ export interface Plant {
    *  potted below the roofline, only exposed through a *nearby* open side.
    *  See utils/rainShelter.ts. */
   mount?: 'ground' | 'hanging';
+  /** Ongoing problems the owner has noted by hand — e.g. "spider mites,
+   *  partially treated" — that a single photo might not show clearly
+   *  enough for the AI health check to catch on its own. Passed as context
+   *  into that prompt so it specifically watches for lingering signs. */
+  knownIssues?: KnownIssue[];
   /** Hydrated by careItemsService.getForPlant(); not stored on the plants row. */
   careItems?: CareItem[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface KnownIssue {
+  id: string;
+  label: string;
+  notedAt: string; // ISO 8601
 }
 
 /* ---------- Yard obstacles (sun/shade exposure estimate) ---------- */
@@ -258,6 +269,48 @@ export interface PlantIdResult {
   status: PlantIdStatus;
   candidates: PlantIdCandidate[];
   best?: PlantIdCandidate;
+  message?: string;
+}
+
+/* ---------- Plant health diagnosis ---------- */
+
+export type DiagnosisCategory =
+  | 'sun-damage'
+  | 'not-enough-sun'
+  | 'overwatering'
+  | 'underwatering'
+  | 'pest'
+  | 'disease'
+  | 'needs-trim'
+  | 'needs-fertilizer'
+  | 'needs-repotting'
+  | 'temperature-stress'
+  | 'low-humidity'
+  | 'other';
+
+export interface DiagnosisFinding {
+  category: DiagnosisCategory;
+  /** Short label, e.g. "Aphids" or "Sunburn / leaf scorch". */
+  label: string;
+  confidence: 'low' | 'medium' | 'high';
+  /** What was actually observed in the photo. */
+  observation: string;
+  /** Suggested action — always screened for pet/wildlife safety server-side. */
+  remedy: string;
+}
+
+export type PlantDiagnosisStatus =
+  | 'ok'
+  | 'no-plant-detected'
+  | 'unconfigured'
+  | 'offline'
+  | 'error';
+
+export interface PlantDiagnosisResult {
+  status: PlantDiagnosisStatus;
+  /** Empty when status isn't 'ok', or the AI found nothing wrong. */
+  findings: DiagnosisFinding[];
+  overallHealth?: 'healthy' | 'stressed' | 'unhealthy';
   message?: string;
 }
 

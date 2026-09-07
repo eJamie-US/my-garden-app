@@ -7,9 +7,10 @@
 // plant itself happens by dragging its marker on the canvas, not from here.
 
 import { useMemo, useState } from 'react';
-import { Check, Home, Loader2, Move, Pencil, Sun, Trash2, Umbrella, X } from 'lucide-react';
+import { Check, Home, Loader2, Move, Pencil, Plus, Sun, Trash2, Umbrella, X } from 'lucide-react';
 import type { CareItem, DraftCareItem, Plant, WeatherData, Yard, YardObstacle } from '../types';
 import { useCareItems } from '../hooks/useCareItems';
+import { usePlants } from '../hooks/usePlants';
 import { careItemsService } from '../services/supabase/careItems';
 import { plantPhotosService } from '../services/supabase/plantPhotos';
 import { generateCareItems, describeFrequency } from '../services/care/generateCareItems';
@@ -17,9 +18,10 @@ import { KIND_ICONS, daysUntil, dueLabel, dueBadgeClass, ingredientSummary } fro
 import { estimateSeasonalExposure, summarizeExposure, type Season } from '../utils/sunExposure';
 import { computeRainShelter, describeRainShelter } from '../utils/rainShelter';
 import { evaluatePlacement } from '../utils/bestPlacement';
-import { OBSTACLE_TYPE_LABEL } from './YardObstaclesSettings';
+import { OBSTACLE_TYPE_LABEL } from '../utils/obstacleTypes';
 import { CareItemsEditor } from './CareItemsEditor';
 import { BestPlacementPrompt } from './BestPlacementPrompt';
+import { PlantDiagnosisPanel } from './PlantDiagnosisPanel';
 import { PhotoTimeline } from './PhotoTimeline';
 import { PlantPhotoCapture, type PhotoCaptureValue } from './PlantPhotoCapture';
 
@@ -141,6 +143,44 @@ export function PlantCareModal({
     } catch (err) {
       setMoveError(err instanceof Error ? err.message : 'Could not move that plant');
       setMoving(false);
+    }
+  };
+
+  // Ongoing problems noted by hand (e.g. "spider mites, partially treated")
+  // that a single photo might not show clearly enough on its own — passed
+  // as context into the health check below. Plant.knownIssues itself
+  // updates reactively once saved: App.tsx keeps this modal's `plant` prop
+  // in sync with the shared plants store.
+  const { updatePlant } = usePlants();
+  const [newIssueText, setNewIssueText] = useState('');
+  const [savingIssue, setSavingIssue] = useState(false);
+  const [issueError, setIssueError] = useState('');
+
+  const addKnownIssue = async () => {
+    const label = newIssueText.trim();
+    if (!label) return;
+    setSavingIssue(true);
+    setIssueError('');
+    try {
+      const next = [
+        ...(plant.knownIssues ?? []),
+        { id: `issue-${Date.now().toString(36)}`, label, notedAt: new Date().toISOString() },
+      ];
+      await updatePlant(plant.id, { knownIssues: next });
+      setNewIssueText('');
+    } catch (err) {
+      setIssueError(err instanceof Error ? err.message : 'Could not save that');
+    } finally {
+      setSavingIssue(false);
+    }
+  };
+
+  const removeKnownIssue = async (id: string) => {
+    setIssueError('');
+    try {
+      await updatePlant(plant.id, { knownIssues: (plant.knownIssues ?? []).filter((i) => i.id !== id) });
+    } catch (err) {
+      setIssueError(err instanceof Error ? err.message : 'Could not remove that');
     }
   };
 
@@ -420,6 +460,59 @@ export function PlantCareModal({
                   )}
                 </>
               )}
+
+              <div className="my-4 border-t border-gray-100" />
+              <h4 className="mb-2 text-sm font-semibold text-gray-800">Health check</h4>
+
+              {issueError && <p className="mb-1.5 text-xs text-red-600">{issueError}</p>}
+
+              {plant.knownIssues && plant.knownIssues.length > 0 && (
+                <ul className="mb-1.5 space-y-1">
+                  {plant.knownIssues.map((issue) => (
+                    <li
+                      key={issue.id}
+                      className="flex items-center justify-between gap-2 rounded-md bg-amber-50 px-2 py-1 text-xs text-amber-800"
+                    >
+                      <span className="min-w-0 flex-1 truncate">{issue.label}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeKnownIssue(issue.id)}
+                        className="shrink-0 text-amber-500 hover:text-amber-700"
+                        aria-label={`Remove known issue: ${issue.label}`}
+                      >
+                        <X size={12} />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  addKnownIssue();
+                }}
+                className="mb-2 flex gap-1.5"
+              >
+                <input
+                  type="text"
+                  value={newIssueText}
+                  onChange={(e) => setNewIssueText(e.target.value)}
+                  placeholder="Note a known issue — e.g. spider mites, partially treated"
+                  disabled={savingIssue}
+                  className="min-w-0 flex-1 rounded-md border border-gray-300 px-2 py-1.5 text-xs focus:border-transparent focus:ring-2 focus:ring-green-500 disabled:opacity-60"
+                />
+                <button
+                  type="submit"
+                  disabled={savingIssue || !newIssueText.trim()}
+                  className="flex shrink-0 items-center gap-1 rounded-md bg-gray-700 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-gray-800 disabled:bg-gray-300"
+                >
+                  {savingIssue ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
+                  Add
+                </button>
+              </form>
+
+              <PlantDiagnosisPanel knownIssues={plant.knownIssues?.map((i) => i.label)} />
 
               <div className="my-4 border-t border-gray-100" />
 
