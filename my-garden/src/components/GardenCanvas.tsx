@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
-import { Plus, X } from 'lucide-react';
+import { Eye, EyeOff, Plus, X } from 'lucide-react';
 import type { CareItem, Plant, YardSection } from '../types';
 import { KIND_ICONS, daysUntil, dueLabel, ingredientSummary } from '../utils/careDisplay';
 import { boxFromSection, sectionTransformStyle, type Box } from '../utils/sectionView';
@@ -44,18 +44,24 @@ const DRAG_THRESHOLD = 6;
  * Measuring real pixel distance via the container's tracked size fixes that.
  */
 /** Two markers cluster (fan out into a ring) once their centers are closer
- *  than this — roughly the marker's own diameter, so they'd otherwise overlap. */
-const CLUSTER_TRIGGER_PX = 46;
+ *  than this. Deliberately much smaller than the marker's own diameter (44px):
+ *  this exists to keep plants added at *the same spot* (e.g. several "use
+ *  this suggested spot" adds in a row) individually tappable, not to
+ *  re-arrange anything a person deliberately dragged near — but for a
+ *  while this was 46px (~one full marker width), so dropping a plant
+ *  anywhere near an existing one silently pulled it into a shared ring
+ *  well away from where it was actually dropped, which reads exactly like
+ *  the drag failing and snapping back. A near-exact-overlap threshold still
+ *  catches the original problem without hijacking ordinary close plantings. */
+const CLUSTER_TRIGGER_PX = 18;
 /** A yard click within this many px of a plant counts as "on that plant". */
 const SPOT_CLICK_TRIGGER_PX = 32;
-/** Fan-out ring radius, in real pixels, once markers do need to spread apart. */
-const CLUSTER_SPREAD_PX = 26;
+/** Roughly a marker's own radius, plus a little breathing room — the basis
+ *  for how far apart a fan-out ring needs to space its members (below) so
+ *  their tap targets don't overlap. */
+const MARKER_TOUCH_RADIUS_PX = 26;
 /** Care badges shown per marker before the rest collapse into "+N". */
 const MAX_VISIBLE_BADGES = 3;
-/** Orbit radius for care badges around a marker, in px — half the marker's
- *  own size (h-11 w-11 = 44px), so badges sit right on the edge of the
- *  plant's png, circularly, rather than stacked in a row above it. */
-const BADGE_ORBIT_RADIUS_PX = 22;
 /** Badges start at 12 o'clock and go clockwise around the marker. */
 const BADGE_ANGLE_START = -Math.PI / 2;
 
@@ -120,13 +126,22 @@ function fanOutPositions(
     }
     const cx = cluster.members.reduce((sum, m) => sum + m.location.x, 0) / cluster.members.length;
     const cy = cluster.members.reduce((sum, m) => sum + m.location.y, 0) / cluster.members.length;
+    // A fixed ring radius works for 2-3 members, but packs more of them
+    // tightly enough that adjacent markers' tap targets actually overlap —
+    // which a mis-hit drag lands on the wrong plant. The chord between two
+    // adjacent members of an N-point ring of radius R is 2R·sin(π/N); solving
+    // for the R that keeps that chord at least two touch-radii apart (so
+    // neither marker's own footprint overlaps its neighbor's) scales the
+    // ring out as more plants share a spot, instead of packing them in.
+    const n = cluster.members.length;
+    const spreadPx = MARKER_TOUCH_RADIUS_PX / Math.sin(Math.PI / n);
     // Convert the pixel spread radius to per-axis percent so the ring comes
     // out as an actual circle instead of a squashed ellipse on a non-square
     // yard photo.
-    const spreadXPercent = (CLUSTER_SPREAD_PX / size.width) * 100;
-    const spreadYPercent = (CLUSTER_SPREAD_PX / size.height) * 100;
+    const spreadXPercent = (spreadPx / size.width) * 100;
+    const spreadYPercent = (spreadPx / size.height) * 100;
     cluster.members.forEach((member, index) => {
-      const angle = (2 * Math.PI * index) / cluster.members.length - Math.PI / 2;
+      const angle = (2 * Math.PI * index) / n - Math.PI / 2;
       positions.set(member.id, {
         x: clampPercent(cx + spreadXPercent * Math.cos(angle)),
         y: clampPercent(cy + spreadYPercent * Math.sin(angle)),
@@ -250,6 +265,11 @@ export function GardenCanvas({
 
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragPos, setDragPos] = useState<Point | null>(null);
+
+  // Care badges ring every marker and intercept taps over their own small
+  // area — fine normally, but it makes tapping precisely between two plants
+  // placed close together hard. Hiding them frees that space up.
+  const [showCareBadges, setShowCareBadges] = useState(false);
 
   // Which saved zoom region (if any) the view is currently zoomed into —
   // null means the whole yard. Purely a display transform; see
@@ -482,7 +502,7 @@ export function GardenCanvas({
       <section className="relative z-30 mx-auto h-[100px] w-full max-w-[1600px]">
         <div className="absolute inset-0 overflow-hidden">
           <img
-            src="/garden-banner.png"
+            src="/garden-banner.jpg"
             alt="Garden banner"
             className="block h-full w-full object-cover"
           />
@@ -550,58 +570,78 @@ export function GardenCanvas({
           </div>
         )}
 
-        {sections.length > 0 || addingSection ? (
-          <div className="mb-2 flex flex-wrap items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => setActiveSectionId(null)}
-              className={`rounded-full border px-2.5 py-1 text-xs font-semibold transition ${
-                !activeSectionId
-                  ? 'border-emerald-500 bg-emerald-100 text-emerald-800'
-                  : 'border-gray-300 bg-white text-gray-600 hover:border-gray-400'
-              }`}
-            >
-              Whole yard
-            </button>
-            {sections.map((section) => (
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-1.5">
+          {sections.length > 0 || addingSection ? (
+            <div className="flex flex-wrap items-center gap-1.5">
               <button
-                key={section.id}
                 type="button"
-                onClick={() => setActiveSectionId(section.id)}
+                onClick={() => setActiveSectionId(null)}
                 className={`rounded-full border px-2.5 py-1 text-xs font-semibold transition ${
-                  activeSectionId === section.id
+                  !activeSectionId
                     ? 'border-emerald-500 bg-emerald-100 text-emerald-800'
                     : 'border-gray-300 bg-white text-gray-600 hover:border-gray-400'
                 }`}
               >
-                {section.name}
+                Whole yard
               </button>
-            ))}
+              {sections.map((section) => (
+                <button
+                  key={section.id}
+                  type="button"
+                  onClick={() => setActiveSectionId(section.id)}
+                  className={`rounded-full border px-2.5 py-1 text-xs font-semibold transition ${
+                    activeSectionId === section.id
+                      ? 'border-emerald-500 bg-emerald-100 text-emerald-800'
+                      : 'border-gray-300 bg-white text-gray-600 hover:border-gray-400'
+                  }`}
+                >
+                  {section.name}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveSectionId(null);
+                  setAddingSection((a) => !a);
+                }}
+                className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold transition ${
+                  addingSection
+                    ? 'border-emerald-500 bg-emerald-600 text-white'
+                    : 'border-dashed border-gray-300 bg-white text-gray-500 hover:border-gray-400'
+                }`}
+              >
+                {addingSection ? <X size={11} /> : <Plus size={11} />}
+                {addingSection ? 'Drag out the new section…' : 'Add section'}
+              </button>
+            </div>
+          ) : (
             <button
               type="button"
-              onClick={() => {
-                setActiveSectionId(null);
-                setAddingSection((a) => !a);
-              }}
-              className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold transition ${
-                addingSection
-                  ? 'border-emerald-500 bg-emerald-600 text-white'
-                  : 'border-dashed border-gray-300 bg-white text-gray-500 hover:border-gray-400'
-              }`}
+              onClick={() => setAddingSection(true)}
+              className="flex items-center gap-1 rounded-full border border-dashed border-gray-300 bg-white px-2.5 py-1 text-xs font-semibold text-gray-500 hover:border-gray-400"
             >
-              {addingSection ? <X size={11} /> : <Plus size={11} />}
-              {addingSection ? 'Drag out the new section…' : 'Add section'}
+              <Plus size={11} /> Zoom into part of this yard
             </button>
-          </div>
-        ) : (
+          )}
+
           <button
             type="button"
-            onClick={() => setAddingSection(true)}
-            className="mb-2 flex items-center gap-1 rounded-full border border-dashed border-gray-300 bg-white px-2.5 py-1 text-xs font-semibold text-gray-500 hover:border-gray-400"
+            onClick={() => setShowCareBadges((s) => !s)}
+            title={
+              showCareBadges
+                ? 'Hide care icons — easier to place plants close together'
+                : 'Show care icons'
+            }
+            className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold transition ${
+              showCareBadges
+                ? 'border-gray-300 bg-white text-gray-600 hover:border-gray-400'
+                : 'border-amber-400 bg-amber-100 text-amber-800'
+            }`}
           >
-            <Plus size={11} /> Zoom into part of this yard
+            {showCareBadges ? <EyeOff size={11} /> : <Eye size={11} />}
+            {showCareBadges ? 'Hide care icons' : 'Show care icons'}
           </button>
-        )}
+        </div>
 
         <div
           ref={yardRef}
@@ -653,11 +693,11 @@ export function GardenCanvas({
                 className={`absolute -translate-x-1/2 -translate-y-1/2 ${isDragging ? 'z-20' : 'z-10'}`}
                 style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
               >
-                <div className="relative">
+                <div className="relative [--marker-r:18px] sm:[--marker-r:22px]">
                   <button
                     type="button"
                     aria-label={`${plant.name} — click for care items, drag to move`}
-                    className={`flex h-11 w-11 touch-none select-none items-center justify-center rounded-full transition-transform ${
+                    className={`flex h-9 w-9 touch-none select-none items-center justify-center rounded-full transition-transform sm:h-11 sm:w-11 ${
                       isDragging ? 'scale-125 cursor-grabbing' : 'cursor-grab hover:scale-125'
                     }`}
                     onClick={(event) => event.stopPropagation()}
@@ -687,24 +727,30 @@ export function GardenCanvas({
                     )}
                   </button>
 
-                  {badgeSlots.map((slot, i) => {
-                    const angle = BADGE_ANGLE_START + i * ((2 * Math.PI) / badgeSlots.length);
-                    const dx = BADGE_ORBIT_RADIUS_PX * Math.cos(angle);
-                    const dy = BADGE_ORBIT_RADIUS_PX * Math.sin(angle);
-                    return (
-                      <div
-                        key={slot.kind === 'item' ? slot.item.id : 'overflow'}
-                        className="pointer-events-none absolute left-1/2 top-1/2"
-                        style={{ transform: `translate(-50%, -50%) translate(${dx}px, ${dy}px)` }}
-                      >
-                        {slot.kind === 'item' ? (
-                          <CareBadge item={slot.item} />
-                        ) : (
-                          <OverflowBadge items={slot.items} />
-                        )}
-                      </div>
-                    );
-                  })}
+                  {showCareBadges &&
+                    badgeSlots.map((slot, i) => {
+                      const angle = BADGE_ANGLE_START + i * ((2 * Math.PI) / badgeSlots.length);
+                      // Fixed precision, not raw floats — a value like
+                      // cos(90°) stringifies to exponential notation
+                      // (6.12e-17), which calc() doesn't reliably parse.
+                      const dx = Math.cos(angle).toFixed(4);
+                      const dy = Math.sin(angle).toFixed(4);
+                      return (
+                        <div
+                          key={slot.kind === 'item' ? slot.item.id : 'overflow'}
+                          className="pointer-events-none absolute left-1/2 top-1/2"
+                          style={{
+                            transform: `translate(-50%, -50%) translate(calc(var(--marker-r) * ${dx}), calc(var(--marker-r) * ${dy}))`,
+                          }}
+                        >
+                          {slot.kind === 'item' ? (
+                            <CareBadge item={slot.item} />
+                          ) : (
+                            <OverflowBadge items={slot.items} />
+                          )}
+                        </div>
+                      );
+                    })}
                 </div>
               </div>
             );

@@ -10,24 +10,10 @@ import { useRef, useState } from 'react';
 import { Loader2, Pencil, Trash2, X } from 'lucide-react';
 import { yardObstaclesService } from '../services/supabase/yardObstacles';
 import { boxFromSection, sectionTransformStyle } from '../utils/sectionView';
+import { TYPE_OPTIONS } from '../utils/obstacleTypes';
 import type { ObstacleEdge, ObstacleHeightTier, ObstacleShape, Point, YardObstacle, YardObstacleType, YardSection } from '../types';
 
 type ShapeKind = 'point' | 'circle' | 'line' | 'rect' | 'triangle';
-
-const TYPE_OPTIONS: { value: YardObstacleType; label: string; icon: string }[] = [
-  { value: 'building', label: 'Building', icon: '🏠' },
-  { value: 'covered-porch', label: 'Covered porch/roof', icon: '⛺' },
-  { value: 'gazebo', label: 'Gazebo / carport / open picnic shelter', icon: '🏛️' },
-  { value: 'shade-sail', label: 'Sun tarp / shade sail', icon: '⛱️' },
-  { value: 'tree', label: 'Tree', icon: '🌳' },
-  { value: 'fence', label: 'Fence', icon: '🚧' },
-];
-
-/** Reused wherever an obstacle needs a plain-English label outside this
- *  file — e.g. the rain-shelter readout on the plant form. */
-export const OBSTACLE_TYPE_LABEL: Record<YardObstacleType, string> = Object.fromEntries(
-  TYPE_OPTIONS.map((t) => [t.value, t.label]),
-) as Record<YardObstacleType, string>;
 
 /** Types with an actual roof, whose open sides matter for the rain-shelter
  *  estimate (utils/rainShelter.ts) — only meaningful with a rect shape. */

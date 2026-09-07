@@ -26,17 +26,36 @@ export function boxFromSection(section: Pick<YardSection, 'boxX0' | 'boxY0' | 'b
   };
 }
 
-/** CSS transform that zooms a 100%-square wrapper into just `box` — apply
- *  to the same element that already holds the yard photo + SVG + markers,
- *  with `transform-origin: 0 0` and `overflow: hidden` on its parent. */
+/**
+ * CSS transform that zooms a wrapper into just `box` — apply to the same
+ * element that already holds the yard photo + SVG + markers, with
+ * `transform-origin: 0 0` and `overflow: hidden` on its parent.
+ *
+ * Uses a single uniform scale, not independent X/Y factors: the container
+ * this zooms into keeps the whole photo's own aspect ratio no matter which
+ * section is active (its height is sized to the untransformed photo, and a
+ * transform doesn't affect that layout size), but a hand-drawn box is
+ * rarely square in percent terms. Stretching X and Y independently to force
+ * a non-square box to exactly fill that fixed-aspect frame visibly distorts
+ * the photo — buildings and plants stretch or squash.
+ *
+ * Scales uniformly by whichever axis needs *less* zoom (`contain`-style),
+ * not more (`cover`-style) — there's no panning in this view, just a fixed
+ * transform, so `cover` would crop part of the drawn box off-screen with no
+ * way to reach it (this was tried and reported as "can't scroll to the
+ * other side of the section"). `contain` guarantees the entire drawn box is
+ * always visible, at the cost of showing a bit more than the drawn box
+ * along the other axis rather than exactly the drawn rectangle.
+ */
 export function sectionTransformStyle(box: Box): CSSProperties {
   const width = Math.max(box.x1 - box.x0, 0.01);
   const height = Math.max(box.y1 - box.y0, 0.01);
-  const scaleX = 100 / width;
-  const scaleY = 100 / height;
+  const scale = Math.min(100 / width, 100 / height);
+  const cx = (box.x0 + box.x1) / 2;
+  const cy = (box.y0 + box.y1) / 2;
   return {
     transformOrigin: '0 0',
-    transform: `scale(${scaleX}, ${scaleY}) translate(${-box.x0}%, ${-box.y0}%)`,
+    transform: `scale(${scale}) translate(${50 / scale - cx}%, ${50 / scale - cy}%)`,
   };
 }
 
