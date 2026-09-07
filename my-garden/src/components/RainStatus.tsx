@@ -9,7 +9,7 @@ import { useMemo, useState } from 'react';
 import { CloudRain, Umbrella, X } from 'lucide-react';
 import type { Plant, WeatherData, Yard, YardObstacle } from '../types';
 import { computeRainShelter, describeRainShelter } from '../utils/rainShelter';
-import { OBSTACLE_TYPE_LABEL } from './YardObstaclesSettings';
+import { OBSTACLE_TYPE_LABEL } from '../utils/obstacleTypes';
 
 interface RainStatusProps {
   plants: Plant[];
