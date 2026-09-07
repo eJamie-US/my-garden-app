@@ -77,10 +77,15 @@ Deno.serve(async (req) => {
         .update({ plan: 'free', status: null, current_period_end: null })
         .eq('user_id', target.id);
     } else {
+      // isActive() (src/services/supabase/billing.ts) treats 'lifetime' as
+      // always active regardless of status, but a 'premium' grant needs
+      // status 'active' — the same value a real Stripe subscription gets
+      // from the webhook — or it reads identically to the free plan despite
+      // `plan` being set correctly.
       await admin
         .from('billing_customers')
         .upsert(
-          { user_id: target.id, plan, status: null, current_period_end: null },
+          { user_id: target.id, plan, status: 'active', current_period_end: null },
           { onConflict: 'user_id' },
         );
     }
