@@ -85,7 +85,7 @@ export function AccountMenu({
     setExporting(true);
     setExportError('');
     try {
-      const data = await exportGardenData(userId);
+      const data = await exportGardenData();
       downloadAsJson(data, `my-garden-export-${new Date().toISOString().slice(0, 10)}.json`);
       setOpen(false);
     } catch (err) {

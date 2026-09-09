@@ -53,15 +53,34 @@ Deno.serve(async (req) => {
     const today = new Date().toISOString().slice(0, 10);
     // Same "no due date counts as due now" rule daysUntil()/careDisplay.ts
     // uses client-side, so this matches what Due Today actually shows.
+    // Joined through plants → yard_id (not grouped by the item's own
+    // user_id) so a shared yard's due count fans out to every member, not
+    // just whoever happened to add that particular plant.
     const { data: dueItems, error: dueError } = await admin
       .from('care_items')
-      .select('user_id')
+      .select('plant_id, plants(yard_id)')
       .or(`next_due_date.lte.${today},next_due_date.is.null`);
     if (dueError) throw dueError;
 
-    const countByUser = new Map<string, number>();
+    const countByYard = new Map<string, number>();
     for (const item of dueItems ?? []) {
-      countByUser.set(item.user_id, (countByUser.get(item.user_id) ?? 0) + 1);
+      const yardId = (item.plants as { yard_id: string } | null)?.yard_id;
+      if (!yardId) continue;
+      countByYard.set(yardId, (countByYard.get(yardId) ?? 0) + 1);
+    }
+
+    const countByUser = new Map<string, number>();
+    if (countByYard.size > 0) {
+      const { data: members, error: membersError } = await admin
+        .from('yard_members')
+        .select('yard_id, user_id')
+        .in('yard_id', [...countByYard.keys()]);
+      if (membersError) throw membersError;
+
+      for (const member of members ?? []) {
+        const count = countByYard.get(member.yard_id) ?? 0;
+        countByUser.set(member.user_id, (countByUser.get(member.user_id) ?? 0) + count);
+      }
     }
     if (countByUser.size === 0) {
       return new Response(JSON.stringify({ sent: 0 }), {

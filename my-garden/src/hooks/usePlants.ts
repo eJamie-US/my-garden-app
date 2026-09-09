@@ -33,7 +33,7 @@ export const usePlants = create<PlantStore>((set, get) => ({
   fetchPlants: async (userId: string) => {
     set({ loading: true, error: null });
     try {
-      const plants = await plantsService.getPlants(userId);
+      const plants = await plantsService.getPlants();
       set({ plants, loading: false });
     } catch (err) {
       set({

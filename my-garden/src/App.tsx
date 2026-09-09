@@ -1,4 +1,5 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { useAuth } from './hooks/useAuth';
 import { usePlants } from './hooks/usePlants';
 import { useCareItems } from './hooks/useCareItems';
@@ -79,6 +80,12 @@ export default function App() {
   const [profile, setProfile] = useState<Profile>({});
   const [yards, setYards] = useState<Yard[]>([]);
   const [yardsLoading, setYardsLoading] = useState(true);
+  // Surfaced instead of silently leaving an empty-looking yard when this
+  // fetch fails — a stale/expired session is the usual cause, confirmed by
+  // reproducing it directly with an actually-expired token; a fresh one
+  // works fine, so retrying (or logging in again) genuinely fixes it rather
+  // than being a dead end.
+  const [yardsError, setYardsError] = useState<string | null>(null);
   const [activeYardId, setActiveYardId] = useState<string | null>(null);
   const [sections, setSections] = useState<YardSection[]>([]);
   const [obstacles, setObstacles] = useState<YardObstacle[]>([]);
@@ -128,7 +135,7 @@ export default function App() {
       fetchCareItems(user.id);
       fetchEntitlement(user.id);
       yardObstaclesService
-        .getForUser(user.id)
+        .getForUser()
         .then(setObstacles)
         .catch((err) => console.error('Yard obstacles unavailable:', err));
     }
@@ -138,22 +145,36 @@ export default function App() {
   // yard opens by default. A brand-new account (or one that somehow lost
   // its migration-backfilled yard) gets one created lazily rather than
   // showing a broken/empty state.
-  useEffect(() => {
+  const loadYards = useCallback(() => {
     if (!user?.id) return;
-    Promise.all([yardsService.getForUser(user.id), userSettingsService.getSettings(user.id)])
+    setYardsLoading(true);
+    setYardsError(null);
+    Promise.all([yardsService.getAccessible(), userSettingsService.getSettings(user.id)])
       .then(async ([fetchedYards, settings]) => {
         setProfile(settings?.profile ?? {});
         let list = fetchedYards;
         if (list.length === 0) {
-          const created = await yardsService.create(user.id, {});
+          const created = await yardsService.create({});
           list = [created];
         }
         setYards(list);
         const defaultId = settings?.defaultYardId;
         setActiveYardId(list.find((y) => y.id === defaultId)?.id ?? list[0].id);
       })
-      .catch((err) => console.error('Yards/settings unavailable:', err))
+      .catch((err) => {
+        console.error('Yards/settings unavailable:', err);
+        setYardsError(
+          err instanceof Error && err.message ? err.message : "Couldn't load your yard.",
+        );
+      })
       .finally(() => setYardsLoading(false));
+  }, [user?.id]);
+
+  useEffect(() => {
+    loadYards();
+    // loadYards is stable per user?.id (its own useCallback dep), so this
+    // only actually re-fires on a real user change, same as before.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
   // That yard's saved zoom sections (see utils/sectionView.ts).
@@ -337,6 +358,22 @@ export default function App() {
     setSections((prev) => [...prev, created]);
   };
 
+  const handleDeleteSection = (sectionId: string) => {
+    // Optimistic — it's just a saved crop rectangle, not something plants or
+    // obstacles depend on, so there's nothing else to reconcile on success.
+    setSections((prev) => prev.filter((s) => s.id !== sectionId));
+    yardSectionsService.remove(sectionId).catch((err) => {
+      console.error('Could not delete section:', err);
+      // Put it back — the delete didn't actually happen.
+      if (activeYardId) {
+        yardSectionsService
+          .getForYard(activeYardId)
+          .then(setSections)
+          .catch((refetchErr) => console.error('Yard sections unavailable:', refetchErr));
+      }
+    });
+  };
+
   return (
     <div className="min-h-screen w-full">
       <UpdatePrompt />
@@ -348,11 +385,27 @@ export default function App() {
         yardImageUrl={activeYard?.imageUrl ?? '/default-yard.png'}
         sections={sections}
         onCreateSection={handleCreateSection}
+        onDeleteSection={handleDeleteSection}
         onYardClick={handleCanvasClick}
         onSelectPlant={setSelectedPlant}
         onMovePlant={handleMovePlant}
         belowBanner={
           <>
+            {yardsError && !yardsLoading && (
+              <div className="mb-2 flex items-center justify-between gap-2 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-700">
+                <span className="flex items-center gap-1.5">
+                  <AlertTriangle size={14} className="shrink-0" />
+                  Couldn't load your yard — {yardsError}
+                </span>
+                <button
+                  type="button"
+                  onClick={loadYards}
+                  className="flex shrink-0 items-center gap-1 font-semibold underline"
+                >
+                  <RefreshCw size={12} /> Try again
+                </button>
+              </div>
+            )}
             <DueToday
               userId={user.id}
               plants={plants}

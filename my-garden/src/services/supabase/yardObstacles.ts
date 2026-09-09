@@ -34,11 +34,12 @@ function toObstacle(row: YardObstacleRow): YardObstacle {
 }
 
 export const yardObstaclesService = {
-  async getForUser(userId: string): Promise<YardObstacle[]> {
+  /** Every obstacle across every yard I have access to — RLS (not a
+   *  user_id filter) decides that, same reasoning as yardsService.getAccessible. */
+  async getForUser(): Promise<YardObstacle[]> {
     const { data, error } = await supabase
       .from('yard_obstacles')
       .select('*')
-      .eq('user_id', userId)
       .order('created_at', { ascending: true });
 
     if (error) throw error;

@@ -63,11 +63,12 @@ export const plantPhotosService = {
     return (data as PlantPhotoRow[] | null)?.map(toPlantPhoto) ?? [];
   },
 
-  async getLatestForUser(userId: string): Promise<Map<string, PlantPhoto>> {
+  /** Every yard I have access to — RLS (not a user_id filter) decides
+   *  that, same reasoning as yardsService.getAccessible. */
+  async getLatestForUser(): Promise<Map<string, PlantPhoto>> {
     const { data, error } = await supabase
       .from('plant_photos')
       .select('*')
-      .eq('user_id', userId)
       .order('taken_at', { ascending: false });
 
     if (error) throw error;

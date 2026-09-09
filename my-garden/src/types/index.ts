@@ -129,6 +129,19 @@ export interface Yard {
   updatedAt: string;
 }
 
+/** One person's access to a shared yard — 'owner' can rename/delete the
+ *  yard, replace its photo, and manage membership; 'editor' can do
+ *  everything else (plants, obstacles, sections, care items, photos). */
+export type YardRole = 'owner' | 'editor';
+
+export interface YardMember {
+  userId: string;
+  role: YardRole;
+  email: string;
+  displayName?: string;
+  avatarIcon?: string;
+}
+
 /**
  * A named, saved zoom/crop of a Yard's one photo — a viewport for placing
  * or viewing plants/obstacles precisely in a busy area, not a second photo
@@ -311,6 +324,27 @@ export interface PlantDiagnosisResult {
   /** Empty when status isn't 'ok', or the AI found nothing wrong. */
   findings: DiagnosisFinding[];
   overallHealth?: 'healthy' | 'stressed' | 'unhealthy';
+  message?: string;
+}
+
+/** General species knowledge for a plant already in the garden — distinct
+ *  from a seed-sowing plan (starting a NEW plant) and a photo diagnosis
+ *  (THIS plant's current condition). Same answer for every plant of a
+ *  given species, so it's server-cached by species — see
+ *  supabase/functions/plant-tips. */
+export interface PlantTips {
+  propagationMethod: string;
+  propagationSeason: string;
+  pruningSeason: string;
+  idealTempRange: string;
+  notes: string;
+}
+
+export type PlantTipsStatus = 'ok' | 'not-a-plant' | 'unconfigured' | 'offline' | 'error';
+
+export interface PlantTipsResult {
+  status: PlantTipsStatus;
+  tips?: PlantTips;
   message?: string;
 }
 

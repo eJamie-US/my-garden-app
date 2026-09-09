@@ -33,34 +33,39 @@ function toYard(row: YardRow): Yard {
 }
 
 export const yardsService = {
-  async getForUser(userId: string): Promise<Yard[]> {
+  /** Every yard I have access to — owned or shared with me. RLS (not a
+   *  user_id filter here) is what actually decides that: a plain `select`
+   *  already only returns rows I'm a yard_members row for, which is exactly
+   *  "mine or shared with me," so there's nothing left to filter client-side. */
+  async getAccessible(): Promise<Yard[]> {
     const { data, error } = await supabase
       .from('yards')
       .select('*')
-      .eq('user_id', userId)
       .order('created_at', { ascending: true });
 
     if (error) throw error;
     return (data as YardRow[] | null)?.map(toYard) ?? [];
   },
 
+  /** Goes through the create_yard_with_owner RPC, not a plain insert —
+   *  inserting the yard row and its own owner membership row has to happen
+   *  together. A plain client insert-then-select (what supabase-js's
+   *  `.insert().select()` does by default) 403s here: the RETURNING
+   *  clause's implicit read-back is itself subject to yards' SELECT policy
+   *  (membership required), and no membership row exists yet at that exact
+   *  moment. The RPC does both inserts server-side in one transaction —
+   *  either both rows exist or neither does. */
   async create(
-    userId: string,
     yard: Partial<Pick<Yard, 'name' | 'imageUrl' | 'label' | 'latitude' | 'longitude' | 'orientationDeg'>>,
   ): Promise<Yard> {
-    const { data, error } = await supabase
-      .from('yards')
-      .insert({
-        user_id: userId,
-        name: yard.name?.trim() || 'My Garden',
-        image_url: yard.imageUrl ?? '/default-yard.png',
-        label: yard.label ?? null,
-        latitude: yard.latitude ?? null,
-        longitude: yard.longitude ?? null,
-        orientation_deg: yard.orientationDeg ?? 0,
-      })
-      .select()
-      .single();
+    const { data, error } = await supabase.rpc('create_yard_with_owner', {
+      p_name: yard.name?.trim() || 'My Garden',
+      p_image_url: yard.imageUrl ?? '/default-yard.png',
+      p_label: yard.label ?? null,
+      p_latitude: yard.latitude ?? null,
+      p_longitude: yard.longitude ?? null,
+      p_orientation_deg: yard.orientationDeg ?? 0,
+    });
 
     if (error) throw error;
     return toYard(data as YardRow);

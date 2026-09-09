@@ -26,12 +26,12 @@ export interface GardenDataExport {
   careItems: CareItem[];
 }
 
-export async function exportGardenData(userId: string): Promise<GardenDataExport> {
+export async function exportGardenData(): Promise<GardenDataExport> {
   const [yards, obstacles, plants, careItems] = await Promise.all([
-    yardsService.getForUser(userId),
-    yardObstaclesService.getForUser(userId),
-    plantsService.getPlants(userId),
-    careItemsService.getForUser(userId),
+    yardsService.getAccessible(),
+    yardObstaclesService.getForUser(),
+    plantsService.getPlants(),
+    careItemsService.getForUser(),
   ]);
 
   const sectionsByYard = await Promise.all(yards.map((y) => yardSectionsService.getForYard(y.id)));

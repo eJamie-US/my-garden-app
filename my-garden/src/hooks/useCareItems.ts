@@ -75,7 +75,7 @@ export const useCareItems = create<CareItemsState>((set, get) => ({
   fetchForUser: async (userId: string) => {
     set({ loading: true, error: null });
     try {
-      const items = await careItemsService.getForUser(userId);
+      const items = await careItemsService.getForUser();
       set({ items, loading: false });
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Failed to load care items', loading: false });

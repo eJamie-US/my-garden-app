@@ -83,11 +83,12 @@ function toRow(plant: Partial<Plant>) {
 }
 
 export const plantsService = {
-  async getPlants(userId: string): Promise<Plant[]> {
+  /** Every plant across every yard I have access to — RLS (not a user_id
+   *  filter) decides that, same reasoning as yardsService.getAccessible. */
+  async getPlants(): Promise<Plant[]> {
     const { data, error } = await supabase
       .from('plants')
       .select('*')
-      .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
     if (error) throw error;

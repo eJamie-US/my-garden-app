@@ -70,11 +70,12 @@ export const careItemsService = {
     return (data as CareItemRow[] | null)?.map(toCareItem) ?? [];
   },
 
-  async getForUser(userId: string): Promise<CareItem[]> {
+  /** Every care item across every yard I have access to — RLS (not a
+   *  user_id filter) decides that, same reasoning as yardsService.getAccessible. */
+  async getForUser(): Promise<CareItem[]> {
     const { data, error } = await supabase
       .from('care_items')
       .select('*')
-      .eq('user_id', userId)
       .order('next_due_date', { ascending: true, nullsFirst: false });
 
     if (error) throw error;
