@@ -47,10 +47,17 @@ export function boxFromSection(section: Pick<YardSection, 'boxX0' | 'boxY0' | 'b
  * always visible, at the cost of showing a bit more than the drawn box
  * along the other axis rather than exactly the drawn rectangle.
  */
-export function sectionTransformStyle(box: Box): CSSProperties {
+/** The uniform scale factor sectionTransformStyle applies for `box` —
+ *  exposed on its own so callers can counteract it (e.g. keeping a marker's
+ *  on-screen size constant regardless of zoom) without redoing this math. */
+export function sectionZoomScale(box: Box): number {
   const width = Math.max(box.x1 - box.x0, 0.01);
   const height = Math.max(box.y1 - box.y0, 0.01);
-  const scale = Math.min(100 / width, 100 / height);
+  return Math.min(100 / width, 100 / height);
+}
+
+export function sectionTransformStyle(box: Box): CSSProperties {
+  const scale = sectionZoomScale(box);
   const cx = (box.x0 + box.x1) / 2;
   const cy = (box.y0 + box.y1) / 2;
   return {
@@ -60,13 +67,45 @@ export function sectionTransformStyle(box: Box): CSSProperties {
 }
 
 /** A point captured inside a zoomed viewport (percent of the *visible*
- *  area) back to true whole-photo percent coordinates. */
+ *  area) back to true whole-photo percent coordinates — the exact inverse
+ *  of toViewportPercent below (and note: NOT simply box-relative percent —
+ *  that only agrees with this for a box that's square-in-percent, since
+ *  sectionTransformStyle's "contain" scaling can leave slack on one axis). */
 export function toYardPercent(localPoint: Point, box: Box): Point {
-  const width = box.x1 - box.x0;
-  const height = box.y1 - box.y0;
+  const scale = sectionZoomScale(box);
+  const cx = (box.x0 + box.x1) / 2;
+  const cy = (box.y0 + box.y1) / 2;
   return {
-    x: box.x0 + (localPoint.x / 100) * width,
-    y: box.y0 + (localPoint.y / 100) * height,
+    x: (localPoint.x - 50) / scale + cx,
+    y: (localPoint.y - 50) / scale + cy,
+  };
+}
+
+/**
+ * Whole-photo percent → percent of the visible (post-zoom) viewport —
+ * the exact inverse of the `scale(...) translate(...)` sectionTransformStyle
+ * applies, so a marker positioned with this lands exactly where the CSS
+ * transform would have visually put it.
+ *
+ * Markers used to just sit inside the same transformed wrapper as the photo,
+ * letting the CSS transform reposition (and resize) them "for free". That
+ * relied on nested `transform: scale()` (the photo's zoom, and a counter-
+ * scale on each marker to cancel out the size blow-up) composing reliably
+ * across browsers — Chrome and Samsung Internet on Android turned out to
+ * disagree about that badly enough that markers came out scattered in one
+ * and invisible in the other. Computing the on-screen position in plain JS
+ * math instead, and rendering markers in an unscaled sibling layer, sidesteps
+ * that entirely: no nested transforms, just a left/top percent that already
+ * accounts for the zoom.
+ */
+export function toViewportPercent(point: Point, box: Box | null): Point {
+  if (!box) return point;
+  const scale = sectionZoomScale(box);
+  const cx = (box.x0 + box.x1) / 2;
+  const cy = (box.y0 + box.y1) / 2;
+  return {
+    x: scale * point.x + 50 - scale * cx,
+    y: scale * point.y + 50 - scale * cy,
   };
 }
 

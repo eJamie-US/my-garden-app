@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEven
 import { Eye, EyeOff, Plus, X } from 'lucide-react';
 import type { CareItem, Plant, YardSection } from '../types';
 import { KIND_ICONS, daysUntil, dueLabel, ingredientSummary } from '../utils/careDisplay';
-import { boxFromSection, sectionTransformStyle, type Box } from '../utils/sectionView';
+import { boxFromSection, sectionTransformStyle, toViewportPercent, toYardPercent, type Box } from '../utils/sectionView';
 
 type GardenCanvasProps = {
   yardImageUrl: string;
@@ -15,6 +15,10 @@ type GardenCanvasProps = {
   sections: YardSection[];
   /** Drag out a new one on the whole-yard view; resolves once saved. */
   onCreateSection: (box: Box, name: string) => Promise<void>;
+  /** Omit to hide the delete affordance entirely (e.g. read-only contexts).
+   *  Only removes the saved zoom/crop — plants and obstacles inside it are
+   *  untouched, since a section never owns them. */
+  onDeleteSection?: (sectionId: string) => void;
   /** Empty-spot click: starts the add-plant flow. A click near existing
    *  plant(s) instead reports them, so the caller can offer a chooser. */
   onYardClick: (x: number, y: number, existing: Plant[]) => void;
@@ -54,6 +58,23 @@ const DRAG_THRESHOLD = 6;
  *  the drag failing and snapping back. A near-exact-overlap threshold still
  *  catches the original problem without hijacking ordinary close plantings. */
 const CLUSTER_TRIGGER_PX = 18;
+/** A real-pixel threshold alone isn't resolution-independent — the same two
+ *  deliberately-planted-nearby spots (a few percent of the photo apart) sit
+ *  comfortably far apart in pixels on a wide desktop container, but the
+ *  *same* percent gap shrinks to fewer real pixels on a narrow phone screen,
+ *  small enough to dip under CLUSTER_TRIGGER_PX and false-positive into a
+ *  shared ring — confirmed happening for two real, intentionally-separate
+ *  plants at mobile widths. Requiring the percent gap *itself* to also be
+ *  tiny keeps "same spot" meaning the same thing regardless of screen size.
+ *
+ *  Set tight (0.5%, not the original 1.5%) on purpose: a densely-planted
+ *  real yard can easily have two distinct plants 1% of the photo apart —
+ *  with markers this small, letting them render at their own true positions
+ *  and visually overlap/touch reads better than snapping them apart into a
+ *  ring, which looks like the app moved a plant nobody touched. The ring is
+ *  now reserved for genuinely-identical-spot placements (e.g. repeated "use
+ *  this suggested spot" clicks), not merely-close ones. */
+const CLUSTER_TRIGGER_PERCENT = 0.5;
 /** A yard click within this many px of a plant counts as "on that plant". */
 const SPOT_CLICK_TRIGGER_PX = 32;
 /** Roughly a marker's own radius, plus a little breathing room — the basis
@@ -100,6 +121,7 @@ function pixelDistance(a: Point, b: Point, size: Size) {
 function fanOutPositions(
   items: { id: string; location: Point }[],
   size: Size,
+  box: Box | null,
 ): Map<string, Point> {
   // Container not measured yet (first paint, before the ResizeObserver
   // fires) — show real locations rather than clustering with a guessed scale.
@@ -107,14 +129,34 @@ function fanOutPositions(
     return new Map(items.map((item) => [item.id, item.location]));
   }
 
-  const clusters: { centroid: Point; members: { id: string; location: Point }[] }[] = [];
+  // Cluster in on-screen (post-zoom) percent, not raw whole-photo percent —
+  // "close together" has to mean close together as actually shown right now,
+  // and `size` (the container's own unzoomed pixel box) already corresponds
+  // 1:1 with that 0-100% screen range regardless of which section is active.
+  const screenItems = items.map((item) => ({
+    id: item.id,
+    location: item.location,
+    screen: toViewportPercent(item.location, box),
+  }));
 
-  for (const item of items) {
-    const home = clusters.find((c) => pixelDistance(c.centroid, item.location, size) <= CLUSTER_TRIGGER_PX);
+  const clusters: { centroid: Point; locationCentroid: Point; members: typeof screenItems }[] = [];
+
+  for (const item of screenItems) {
+    // Both checks have to agree this is "the same spot": real on-screen
+    // pixels (via centroid/size) catches true overlaps without the
+    // aspect-ratio distortion a raw percent check alone would have, while
+    // the percent check (against the original whole-photo location, not the
+    // zoomed/screen-mapped one) keeps that meaning independent of how wide
+    // the container currently is or how zoomed in the active section is.
+    const home = clusters.find(
+      (c) =>
+        pixelDistance(c.centroid, item.screen, size) <= CLUSTER_TRIGGER_PX &&
+        distance(c.locationCentroid, item.location) <= CLUSTER_TRIGGER_PERCENT,
+    );
     if (home) {
       home.members.push(item);
     } else {
-      clusters.push({ centroid: item.location, members: [item] });
+      clusters.push({ centroid: item.screen, locationCentroid: item.location, members: [item] });
     }
   }
 
@@ -124,8 +166,8 @@ function fanOutPositions(
       positions.set(cluster.members[0].id, cluster.members[0].location);
       continue;
     }
-    const cx = cluster.members.reduce((sum, m) => sum + m.location.x, 0) / cluster.members.length;
-    const cy = cluster.members.reduce((sum, m) => sum + m.location.y, 0) / cluster.members.length;
+    const cx = cluster.members.reduce((sum, m) => sum + m.screen.x, 0) / cluster.members.length;
+    const cy = cluster.members.reduce((sum, m) => sum + m.screen.y, 0) / cluster.members.length;
     // A fixed ring radius works for 2-3 members, but packs more of them
     // tightly enough that adjacent markers' tap targets actually overlap —
     // which a mis-hit drag lands on the wrong plant. The chord between two
@@ -142,10 +184,14 @@ function fanOutPositions(
     const spreadYPercent = (spreadPx / size.height) * 100;
     cluster.members.forEach((member, index) => {
       const angle = (2 * Math.PI * index) / n - Math.PI / 2;
-      positions.set(member.id, {
+      const screenPos = {
         x: clampPercent(cx + spreadXPercent * Math.cos(angle)),
         y: clampPercent(cy + spreadYPercent * Math.sin(angle)),
-      });
+      };
+      // Ring positions are computed in screen percent — convert back to
+      // whole-photo percent before storing, same space as everything else
+      // a plant's location is ever expressed in (including what gets saved).
+      positions.set(member.id, box ? toYardPercent(screenPos, box) : screenPos);
     });
   }
   return positions;
@@ -244,6 +290,7 @@ export function GardenCanvas({
   kindFilter,
   sections,
   onCreateSection,
+  onDeleteSection,
   onYardClick,
   onSelectPlant,
   onMovePlant,
@@ -278,6 +325,7 @@ export function GardenCanvas({
   const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
   const activeSection = sections.find((s) => s.id === activeSectionId) ?? null;
   const activeBox = activeSection ? boxFromSection(activeSection) : null;
+  const [confirmingDeleteSectionId, setConfirmingDeleteSectionId] = useState<string | null>(null);
 
   // Drawing a brand-new section: drag a rectangle on the whole-yard view,
   // then name it. Reuses the same drag-a-rect gesture as obstacle drawing,
@@ -335,8 +383,8 @@ export function GardenCanvas({
       id: p.id,
       location: optimisticPositions.get(p.id) ?? p.location,
     }));
-    return fanOutPositions(effective, containerSize);
-  }, [plants, optimisticPositions, containerSize]);
+    return fanOutPositions(effective, containerSize, activeBox);
+  }, [plants, optimisticPositions, containerSize, activeBox]);
 
   const dueByPlant = useMemo(() => {
     const map = new Map<string, CareItem[]>();
@@ -584,20 +632,57 @@ export function GardenCanvas({
               >
                 Whole yard
               </button>
-              {sections.map((section) => (
-                <button
-                  key={section.id}
-                  type="button"
-                  onClick={() => setActiveSectionId(section.id)}
-                  className={`rounded-full border px-2.5 py-1 text-xs font-semibold transition ${
-                    activeSectionId === section.id
-                      ? 'border-emerald-500 bg-emerald-100 text-emerald-800'
-                      : 'border-gray-300 bg-white text-gray-600 hover:border-gray-400'
-                  }`}
-                >
-                  {section.name}
-                </button>
-              ))}
+              {sections.map((section) =>
+                confirmingDeleteSectionId === section.id ? (
+                  <span
+                    key={section.id}
+                    className="flex items-center gap-1.5 rounded-full border border-red-300 bg-red-50 px-2.5 py-1 text-xs"
+                  >
+                    <span className="text-red-700">Delete "{section.name}"?</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onDeleteSection?.(section.id);
+                        if (activeSectionId === section.id) setActiveSectionId(null);
+                        setConfirmingDeleteSectionId(null);
+                      }}
+                      className="rounded-full bg-red-600 px-2 py-0.5 font-semibold text-white hover:bg-red-700"
+                    >
+                      Delete
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmingDeleteSectionId(null)}
+                      className="rounded-full border border-gray-300 bg-white px-2 py-0.5 font-semibold text-gray-700 hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                  </span>
+                ) : (
+                  <span
+                    key={section.id}
+                    className={`flex items-center gap-1 rounded-full border pl-2.5 pr-1 py-1 text-xs font-semibold transition ${
+                      activeSectionId === section.id
+                        ? 'border-emerald-500 bg-emerald-100 text-emerald-800'
+                        : 'border-gray-300 bg-white text-gray-600 hover:border-gray-400'
+                    }`}
+                  >
+                    <button type="button" onClick={() => setActiveSectionId(section.id)}>
+                      {section.name}
+                    </button>
+                    {onDeleteSection && (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmingDeleteSectionId(section.id)}
+                        aria-label={`Delete section: ${section.name}`}
+                        className="rounded-full p-0.5 text-current opacity-50 hover:bg-black/10 hover:opacity-100"
+                      >
+                        <X size={11} />
+                      </button>
+                    )}
+                  </span>
+                ),
+              )}
               <button
                 type="button"
                 onClick={() => {
@@ -670,10 +755,24 @@ export function GardenCanvas({
                 }}
               />
             )}
+          </div>
 
+          {/* Markers deliberately live OUTSIDE contentRef's zoom transform,
+              in their own unscaled sibling layer positioned via plain percent
+              math (toViewportPercent) instead of riding along inside the
+              transformed wrapper. They used to sit inside it (position
+              zoomed "for free") with a counter-scale to cancel out the
+              resulting size blow-up — nested CSS transforms like that turned
+              out to render inconsistently enough across real mobile browsers
+              that markers came out scattered on one (Samsung Internet) and
+              invisible on another (Chrome/Android), even though desktop was
+              always fine. Plain left/top percent has no such cross-browser
+              risk. */}
+          <div className="pointer-events-none absolute inset-0">
           {(plants ?? []).map((plant) => {
             const isDragging = draggingId === plant.id;
-            const pos = isDragging && dragPos ? dragPos : visualPositions.get(plant.id) ?? plant.location;
+            const rawPos = isDragging && dragPos ? dragPos : visualPositions.get(plant.id) ?? plant.location;
+            const pos = toViewportPercent(rawPos, activeBox);
             // Real plant image wins (cut-out sprite first, then the raw photo);
             // the emoji is only a fallback for plants with no photo yet.
             const iconSrc = plant.spriteUrl || plant.photoUrl;
@@ -690,14 +789,14 @@ export function GardenCanvas({
             return (
               <div
                 key={plant.id}
-                className={`absolute -translate-x-1/2 -translate-y-1/2 ${isDragging ? 'z-20' : 'z-10'}`}
+                className={`pointer-events-auto absolute -translate-x-1/2 -translate-y-1/2 ${isDragging ? 'z-20' : 'z-10'}`}
                 style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
               >
-                <div className="relative [--marker-r:18px] sm:[--marker-r:22px]">
+                <div className="relative [--marker-r:10px] sm:[--marker-r:22px]">
                   <button
                     type="button"
                     aria-label={`${plant.name} — click for care items, drag to move`}
-                    className={`flex h-9 w-9 touch-none select-none items-center justify-center rounded-full transition-transform sm:h-11 sm:w-11 ${
+                    className={`flex h-5 w-5 touch-none select-none items-center justify-center rounded-full transition-transform sm:h-11 sm:w-11 ${
                       isDragging ? 'scale-125 cursor-grabbing' : 'cursor-grab hover:scale-125'
                     }`}
                     onClick={(event) => event.stopPropagation()}
@@ -721,7 +820,7 @@ export function GardenCanvas({
                         }`}
                       />
                     ) : (
-                      <span className={`text-3xl drop-shadow-md ${isDragging ? 'drop-shadow-xl' : ''}`}>
+                      <span className={`text-sm drop-shadow-md sm:text-3xl ${isDragging ? 'drop-shadow-xl' : ''}`}>
                         🌱
                       </span>
                     )}

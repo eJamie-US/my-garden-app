@@ -36,6 +36,26 @@ const SHAPE_OPTIONS: { value: ShapeKind; label: string; hint: string }[] = [
   { value: 'triangle', label: 'Triangle', hint: 'Click and drag out from a corner to size it.' },
 ];
 
+type HandleKey = 'location' | 'to' | 'b' | 'c' | 'radius';
+
+/** Every draggable point for a shape, in its current position — 'location'
+ *  is always first and is handled by the obstacle's own marker button
+ *  (already draggable while editing), not a separate handle element. */
+function shapeHandles(location: Point, shape: ObstacleShape | undefined): { key: HandleKey; point: Point }[] {
+  const handles: { key: HandleKey; point: Point }[] = [{ key: 'location', point: location }];
+  if (!shape) return handles;
+  if (shape.kind === 'circle') {
+    // A point due right of center, on the circle's edge — dragging it
+    // changes the radius without moving the center.
+    handles.push({ key: 'radius', point: { x: location.x + shape.radius, y: location.y } });
+  } else if (shape.kind === 'line' || shape.kind === 'rect') {
+    handles.push({ key: 'to', point: shape.to });
+  } else {
+    handles.push({ key: 'b', point: shape.b }, { key: 'c', point: shape.c });
+  }
+  return handles;
+}
+
 /** Upward-pointing triangle inscribed in the box between two drag points —
  *  apex at the top, base spanning the bottom, regardless of drag direction. */
 function boundingTriangle(start: Point, current: Point): { location: Point; b: Point; c: Point } {
@@ -225,13 +245,17 @@ export function YardObstaclesSettings({
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [error, setError] = useState('');
 
-  // Editing an already-placed obstacle's type/height/open-edges. Its
-  // position and shape stay put — reposition or resize by deleting and
-  // redrawing instead, which keeps this to a plain "fix the details" flow.
+  // Editing an already-placed obstacle: type/height/open-edges, plus its
+  // position and shape — editLocation/editShape are a live working copy so
+  // dragging a handle updates the preview instantly without writing to the
+  // DB on every pixel of movement; Save persists them together.
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editType, setEditType] = useState<YardObstacleType>('tree');
   const [editHeightTier, setEditHeightTier] = useState<ObstacleHeightTier>('medium');
   const [editOpenEdges, setEditOpenEdges] = useState<ObstacleEdge[]>([]);
+  const [editLocation, setEditLocation] = useState<Point | null>(null);
+  const [editShape, setEditShape] = useState<ObstacleShape | undefined>(undefined);
+  const [draggingHandle, setDraggingHandle] = useState<HandleKey | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
   const editingObstacle = obstacles.find((o) => o.id === editingId) ?? null;
 
@@ -251,7 +275,7 @@ export function YardObstaclesSettings({
   // — its bounding rect already reflects the zoom, so this always resolves
   // to true whole-photo percent with no separate remap step. See
   // GardenCanvas.tsx's toContentPercent for the same trick.
-  const toPercent = (e: React.PointerEvent<HTMLDivElement>): Point => {
+  const toPercent = (e: React.PointerEvent<Element>): Point => {
     const rect = contentRef.current?.getBoundingClientRect() ?? e.currentTarget.getBoundingClientRect();
     return {
       x: Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100)),
@@ -367,32 +391,44 @@ export function YardObstaclesSettings({
   };
 
   const startEditing = (obstacle: YardObstacle) => {
+    // A stray re-click on the marker while already editing it (e.g. the
+    // click that follows a drag's pointerup) would otherwise reset any
+    // not-yet-saved handle drag back to the obstacle's stored position.
+    if (editingId === obstacle.id) return;
     cancelDraft();
     setEditingId(obstacle.id);
     setEditType(obstacle.type);
     setEditHeightTier(obstacle.heightTier);
     setEditOpenEdges(obstacle.openEdges ?? []);
+    setEditLocation(obstacle.location);
+    setEditShape(obstacle.shape);
     setError('');
   };
 
   const cancelEditing = () => {
     setEditingId(null);
+    setEditLocation(null);
+    setEditShape(undefined);
+    setDraggingHandle(null);
     setError('');
   };
 
   const saveEdit = async () => {
-    if (!editingObstacle) return;
+    if (!editingObstacle || !editLocation) return;
     setSavingEdit(true);
     setError('');
     try {
       const updated = await yardObstaclesService.update(editingObstacle.id, {
         type: editType,
         heightTier: editHeightTier,
-        openEdges:
-          ROOFED_TYPES.has(editType) && editingObstacle.shape?.kind === 'rect' ? editOpenEdges : undefined,
+        openEdges: ROOFED_TYPES.has(editType) && editShape?.kind === 'rect' ? editOpenEdges : undefined,
+        location: editLocation,
+        shape: editShape,
       });
       onSaved(obstacles.map((o) => (o.id === updated.id ? updated : o)));
       setEditingId(null);
+      setEditLocation(null);
+      setEditShape(undefined);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not update that obstacle');
     } finally {
@@ -462,8 +498,8 @@ export function YardObstaclesSettings({
           {!pending && !editingId && <p className="text-xs text-gray-500">{hint}</p>}
           {editingId && (
             <p className="text-xs text-gray-500">
-              Editing this obstacle's type, height, and open sides — to move or resize it, delete
-              it and redraw instead.
+              Drag its marker to move it, or the small squares to resize — changes show live, Save
+              to keep them.
             </p>
           )}
 
@@ -511,14 +547,17 @@ export function YardObstaclesSettings({
               viewBox="0 0 100 100"
               preserveAspectRatio="none"
             >
-              {obstacles.map((o) => (
-                <ShapeMark
-                  key={o.id}
-                  location={o.location}
-                  shape={o.shape}
-                  {...(o.id === editingId ? PENDING_STYLE : OBSTACLE_STYLE)}
-                />
-              ))}
+              {obstacles.map((o) => {
+                const isEditing = o.id === editingId;
+                return (
+                  <ShapeMark
+                    key={o.id}
+                    location={isEditing && editLocation ? editLocation : o.location}
+                    shape={isEditing ? editShape : o.shape}
+                    {...(isEditing ? PENDING_STYLE : OBSTACLE_STYLE)}
+                  />
+                );
+              })}
               {pending && <ShapeMark location={pending.location} shape={pending.shape} {...PENDING_STYLE} />}
               {draft.mode === 'dragging' && shapeKind === 'circle' && (
                 <ShapeMark
@@ -545,28 +584,95 @@ export function YardObstaclesSettings({
                 />
               )}
             </svg>
-            {obstacles.map((o) => (
-              <button
-                key={o.id}
-                type="button"
-                onPointerDown={(e) => {
-                  // Otherwise this bubbles to the draw surface underneath
-                  // and starts placing a brand-new obstacle right here.
-                  e.stopPropagation();
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  startEditing(o);
-                }}
-                className={`absolute flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white text-sm shadow ring-1 transition hover:ring-2 ${
-                  o.id === editingId ? 'ring-2 ring-emerald-500' : 'ring-gray-300 hover:ring-emerald-400'
-                }`}
-                style={{ left: `${o.location.x}%`, top: `${o.location.y}%` }}
-                title={`Edit ${o.label || TYPE_OPTIONS.find((t) => t.value === o.type)?.label} (${o.heightTier})`}
-              >
-                {ICON_BY_TYPE[o.type]}
-              </button>
-            ))}
+            {obstacles.map((o) => {
+              const isEditing = o.id === editingId;
+              const loc = isEditing && editLocation ? editLocation : o.location;
+              return (
+                <button
+                  key={o.id}
+                  type="button"
+                  onPointerDown={(e) => {
+                    // Otherwise this bubbles to the draw surface underneath
+                    // and starts placing a brand-new obstacle right here.
+                    e.stopPropagation();
+                    // Only draggable once already selected for editing — a
+                    // plain tap on an unselected marker should just select
+                    // it (below), not immediately start moving it.
+                    if (isEditing) {
+                      e.currentTarget.setPointerCapture(e.pointerId);
+                      setDraggingHandle('location');
+                    }
+                  }}
+                  onPointerMove={(e) => {
+                    if (!isEditing || draggingHandle !== 'location') return;
+                    e.stopPropagation();
+                    setEditLocation(toPercent(e));
+                  }}
+                  onPointerUp={(e) => {
+                    if (!isEditing) return;
+                    e.stopPropagation();
+                    setDraggingHandle(null);
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    startEditing(o);
+                  }}
+                  className={`absolute flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white text-sm shadow ring-1 transition hover:ring-2 ${
+                    isEditing ? 'cursor-move ring-2 ring-emerald-500' : 'ring-gray-300 hover:ring-emerald-400'
+                  }`}
+                  style={{ left: `${loc.x}%`, top: `${loc.y}%` }}
+                  title={
+                    isEditing
+                      ? 'Drag to move'
+                      : `Edit ${o.label || TYPE_OPTIONS.find((t) => t.value === o.type)?.label} (${o.heightTier})`
+                  }
+                >
+                  {ICON_BY_TYPE[o.type]}
+                </button>
+              );
+            })}
+            {editingObstacle && editLocation && (
+              <>
+                {shapeHandles(editLocation, editShape)
+                  .filter((h) => h.key !== 'location')
+                  .map((h) => (
+                    <button
+                      key={h.key}
+                      type="button"
+                      onPointerDown={(e) => {
+                        e.stopPropagation();
+                        e.currentTarget.setPointerCapture(e.pointerId);
+                        setDraggingHandle(h.key);
+                      }}
+                      onPointerMove={(e) => {
+                        if (draggingHandle !== h.key) return;
+                        e.stopPropagation();
+                        const p = toPercent(e);
+                        setEditShape((prev) => {
+                          if (!prev) return prev;
+                          if (h.key === 'to' && (prev.kind === 'line' || prev.kind === 'rect')) {
+                            return { ...prev, to: p };
+                          }
+                          if (h.key === 'b' && prev.kind === 'triangle') return { ...prev, b: p };
+                          if (h.key === 'c' && prev.kind === 'triangle') return { ...prev, c: p };
+                          if (h.key === 'radius' && prev.kind === 'circle') {
+                            return { ...prev, radius: Math.max(0.5, Math.hypot(p.x - editLocation.x, p.y - editLocation.y)) };
+                          }
+                          return prev;
+                        });
+                      }}
+                      onPointerUp={(e) => {
+                        e.stopPropagation();
+                        setDraggingHandle(null);
+                      }}
+                      aria-label={`Resize handle (${h.key})`}
+                      title="Drag to resize"
+                      className="absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 cursor-move rounded-sm border-2 border-white bg-emerald-600 shadow ring-1 ring-emerald-800"
+                      style={{ left: `${h.point.x}%`, top: `${h.point.y}%` }}
+                    />
+                  ))}
+              </>
+            )}
             {pending && (
               <span
                 className="absolute flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 animate-pulse items-center justify-center rounded-full bg-white text-sm shadow ring-2 ring-emerald-500"
