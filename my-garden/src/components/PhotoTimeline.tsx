@@ -68,13 +68,39 @@ export function PhotoTimeline({
 
   const remove = async (photo: PlantPhoto) => {
     const previous = photos;
-    setPhotos((current) => current.filter((p) => p.id !== photo.id));
+    const remaining = previous.filter((p) => p.id !== photo.id);
+    const wasMarker = photo.photoUrl === currentPhotoUrl;
+    setPhotos(remaining);
     setSelected((i) => Math.max(0, Math.min(i, previous.length - 2)));
     try {
       await plantPhotosService.deletePhoto(photo);
     } catch (err) {
       setPhotos(previous);
       setError(err instanceof Error ? err.message : 'Could not delete that photo');
+      return;
+    }
+
+    // Deleting the plant's current marker photo would otherwise leave
+    // plants.photo_url/sprite_url pointing at now-gone storage files —
+    // fall back to whatever's newest among what's left, or clear the
+    // marker entirely if that was the only photo. The photo itself is
+    // already gone at this point either way, so this is best-effort:
+    // a failure here shouldn't look like the delete itself failed.
+    if (wasMarker) {
+      try {
+        const fallback = remaining[remaining.length - 1];
+        if (fallback) {
+          await plantsService.updatePlant(plantId, {
+            photoUrl: fallback.photoUrl,
+            spriteUrl: fallback.spriteUrl ?? fallback.photoUrl,
+          });
+        } else {
+          await plantsService.clearPhoto(plantId);
+        }
+        onPlantUpdated?.();
+      } catch (err) {
+        console.error('Could not update the marker photo after deleting it:', err);
+      }
     }
   };
 

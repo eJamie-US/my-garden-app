@@ -131,6 +131,25 @@ export const plantsService = {
     return toPlant(data as PlantRow);
   },
 
+  /** Resets the marker/thumbnail back to no-photo. A separate method
+   *  because toRow's `!== undefined` check (so a partial updatePlant call
+   *  can't accidentally null out a column it didn't mean to touch) means
+   *  updatePlant itself has no way to ask for a column to be cleared — a
+   *  bare `{ photoUrl: undefined }` is indistinguishable from "don't
+   *  touch this". Used when the plant's current photo is deleted and no
+   *  other photo is left to fall back to. */
+  async clearPhoto(id: string): Promise<Plant> {
+    const { data, error } = await supabase
+      .from('plants')
+      .update({ photo_url: null, sprite_url: null })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return toPlant(data as PlantRow);
+  },
+
   /**
    * DB rows (care_items, plant_photos) cascade automatically, but Storage
    * isn't part of Postgres, so nothing deletes the photo files on its own —
