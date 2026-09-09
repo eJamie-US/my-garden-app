@@ -282,6 +282,7 @@ export const PlantForm = ({
             sprite: capture.spriteIsCutout ? capture.sprite : null,
             identifiedSpecies: capture.chosen?.scientificName,
             identifiedScore: capture.chosen?.score,
+            takenAt: capture.takenAt?.toISOString(),
           });
         } catch (uploadErr) {
           // A failed upload must not lose the plant the user just added.

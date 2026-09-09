@@ -22,6 +22,7 @@ import { OBSTACLE_TYPE_LABEL } from '../utils/obstacleTypes';
 import { CareItemsEditor } from './CareItemsEditor';
 import { BestPlacementPrompt } from './BestPlacementPrompt';
 import { PlantDiagnosisPanel } from './PlantDiagnosisPanel';
+import { PlantTipsPanel } from './PlantTipsPanel';
 import { PhotoTimeline } from './PhotoTimeline';
 import { PlantPhotoCapture, type PhotoCaptureValue } from './PlantPhotoCapture';
 
@@ -156,6 +157,11 @@ export function PlantCareModal({
   const [savingIssue, setSavingIssue] = useState(false);
   const [issueError, setIssueError] = useState('');
 
+  // Set right after a newly-noted issue saves, so the health check below
+  // runs immediately against the plant's existing photo instead of sitting
+  // as an inert label until someone thinks to check it separately.
+  const [autoCheckPhoto, setAutoCheckPhoto] = useState<Blob | undefined>(undefined);
+
   const addKnownIssue = async () => {
     const label = newIssueText.trim();
     if (!label) return;
@@ -168,6 +174,15 @@ export function PlantCareModal({
       ];
       await updatePlant(plant.id, { knownIssues: next });
       setNewIssueText('');
+      if (plant.photoUrl) {
+        try {
+          const res = await fetch(plant.photoUrl);
+          setAutoCheckPhoto(await res.blob());
+        } catch {
+          // No existing photo reachable — the label itself still saved fine,
+          // just leave the health check in its normal self-serve state.
+        }
+      }
     } catch (err) {
       setIssueError(err instanceof Error ? err.message : 'Could not save that');
     } finally {
@@ -285,6 +300,7 @@ export function PlantCareModal({
         sprite: value.spriteIsCutout ? value.sprite : null,
         identifiedSpecies: value.chosen?.scientificName,
         identifiedScore: value.chosen?.score,
+        takenAt: value.takenAt?.toISOString(),
       });
       setPhotoRefreshKey((k) => k + 1);
       onPhotoUploaded?.();
@@ -512,7 +528,15 @@ export function PlantCareModal({
                 </button>
               </form>
 
-              <PlantDiagnosisPanel knownIssues={plant.knownIssues?.map((i) => i.label)} />
+              <PlantDiagnosisPanel
+                photo={autoCheckPhoto}
+                knownIssues={plant.knownIssues?.map((i) => i.label)}
+                allowManualPhoto
+              />
+
+              <div className="my-4 border-t border-gray-100" />
+              <h4 className="mb-2 text-sm font-semibold text-gray-800">Plant tips</h4>
+              <PlantTipsPanel plantName={plant.species || plant.name} />
 
               <div className="my-4 border-t border-gray-100" />
 

@@ -12,6 +12,7 @@ import {
   preload as preloadBackgroundRemoval,
 } from '../services/vision/backgroundRemoval';
 import { fileToDataUrl, resizeImage } from '../utils/imageUtils';
+import { readExifDate } from '../utils/exifDate';
 
 export interface PhotoCaptureValue {
   /** Downscaled JPEG of what the user shot. */
@@ -23,6 +24,11 @@ export interface PhotoCaptureValue {
   spriteIsCutout: boolean;
   identification?: PlantIdResult;
   chosen?: PlantIdCandidate;
+  /** When the photo was actually taken, from its EXIF data — undefined
+   *  when there's none (a live-camera capture has no EXIF at all; a chosen
+   *  file might not either), in which case the caller should fall back to
+   *  "now" rather than leaving the photo undated. */
+  takenAt?: Date;
 }
 
 interface PlantPhotoCaptureProps {
@@ -40,6 +46,7 @@ export function PlantPhotoCapture({
   onSkipIdentification,
 }: PlantPhotoCaptureProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraFileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const objectUrls = useRef<string[]>([]);
@@ -47,6 +54,7 @@ export function PlantPhotoCapture({
   const [stage, setStage] = useState<Stage>('capture');
   const [photo, setPhoto] = useState<Blob | null>(null);
   const [photoUrl, setPhotoUrl] = useState<string>('');
+  const [takenAt, setTakenAt] = useState<Date | undefined>(undefined);
   const [result, setResult] = useState<PlantIdResult | null>(null);
   const [chosenIndex, setChosenIndex] = useState(0);
   const [cutoutProgress, setCutoutProgress] = useState({ fraction: 0, label: '' });
@@ -88,6 +96,9 @@ export function PlantPhotoCapture({
     setCutoutWarning('');
 
     try {
+      // Read EXIF from the original file — resizeImage below re-encodes via
+      // canvas, which strips all metadata, so this only works done first.
+      setTakenAt((await readExifDate(blob)) ?? undefined);
       const shrunk = await resizeImage(blob, 1280, 1280, 0.88);
       setPhoto(shrunk);
       setPhotoUrl(track(URL.createObjectURL(shrunk)));
@@ -118,8 +129,13 @@ export function PlantPhotoCapture({
   const openCamera = async () => {
     setError('');
     if (!navigator.mediaDevices?.getUserMedia) {
-      // No camera API at all — fall back to the gallery/file picker.
-      fileInputRef.current?.click();
+      // getUserMedia needs a secure context (HTTPS, or localhost) — on a
+      // plain-HTTP origin (e.g. testing over LAN by IP) it doesn't exist at
+      // all. Falls back to a *camera-hinted* file input rather than the
+      // plain gallery one below, so the phone still opens its camera app
+      // directly instead of a generic "choose an app" picker that can land
+      // on whatever's set as the default (Google Photos, in one report).
+      cameraFileInputRef.current?.click();
       return;
     }
     try {
@@ -180,12 +196,14 @@ export function PlantPhotoCapture({
       spriteIsCutout: outcome.ok,
       identification: result ?? undefined,
       chosen: result?.candidates[chosenIndex],
+      takenAt,
     });
   };
 
   const retake = () => {
     setPhoto(null);
     setPhotoUrl('');
+    setTakenAt(undefined);
     setResult(null);
     setCutoutWarning('');
     setStage('capture');
@@ -200,6 +218,19 @@ export function PlantPhotoCapture({
           ref={fileInputRef}
           type="file"
           accept="image/*"
+          className="hidden"
+          onChange={(e) => handleFile(e.target.files?.[0])}
+        />
+        {/* Separate from the plain gallery input above — `capture` is what
+            actually gets a phone to open its camera app directly instead of
+            a generic "choose an app" picker, for the (live-camera-API-less)
+            fallback path only. Never add it to the gallery input; that one's
+            the deliberate "pick an existing photo" choice. */}
+        <input
+          ref={cameraFileInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
           className="hidden"
           onChange={(e) => handleFile(e.target.files?.[0])}
         />

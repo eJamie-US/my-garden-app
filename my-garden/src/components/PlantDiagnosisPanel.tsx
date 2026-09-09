@@ -52,19 +52,27 @@ const HEALTH_LABEL: Record<NonNullable<PlantDiagnosisResult['overallHealth']>, {
 };
 
 interface PlantDiagnosisPanelProps {
-  /** When provided, diagnosis runs automatically against this photo and no
-   *  upload button is shown — used right after Add Plant's own photo
-   *  capture, so a new plant gets checked without a second upload. Omit
-   *  entirely for the standalone "diagnose an existing plant" use, which
-   *  shows its own picker. */
+  /** When provided, diagnosis runs automatically against this photo. Used
+   *  right after Add Plant's own photo capture (so a new plant gets checked
+   *  without a second upload) and when a known issue is newly noted on an
+   *  existing plant (checked against its stored photo). Omit entirely for
+   *  the standalone "diagnose an existing plant" use, which shows its own
+   *  picker with nothing to auto-run. */
   photo?: Blob;
   /** Plant.knownIssues labels — passed as context so the model specifically
    *  checks for lingering signs of something already suspected/partially
    *  treated, instead of judging the photo fresh with no history. */
   knownIssues?: string[];
+  /** Keep the manual upload button visible even while auto-running against
+   *  `photo` — the known-issues auto-check reuses the plant's existing
+   *  stored photo, which might not clearly show the newly-noted problem, so
+   *  a fresh photo should still be one tap away. The Add Plant flow doesn't
+   *  set this: that photo is already fresh, a second upload would be
+   *  redundant. */
+  allowManualPhoto?: boolean;
 }
 
-export function PlantDiagnosisPanel({ photo, knownIssues }: PlantDiagnosisPanelProps = {}) {
+export function PlantDiagnosisPanel({ photo, knownIssues, allowManualPhoto }: PlantDiagnosisPanelProps = {}) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<PlantDiagnosisResult | null>(null);
@@ -94,7 +102,7 @@ export function PlantDiagnosisPanel({ photo, knownIssues }: PlantDiagnosisPanelP
 
   return (
     <div className="space-y-2">
-      {photo == null ? (
+      {photo == null || allowManualPhoto ? (
         <>
           <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
           <button
@@ -104,7 +112,7 @@ export function PlantDiagnosisPanel({ photo, knownIssues }: PlantDiagnosisPanelP
             className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-emerald-300 bg-emerald-50 py-2.5 text-sm font-semibold text-emerald-800 hover:border-emerald-500 hover:bg-emerald-100 disabled:opacity-60"
           >
             {loading ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
-            {loading ? 'Checking the photo…' : 'Diagnose from a photo'}
+            {loading ? 'Checking the photo…' : photo != null ? 'Check a different photo' : 'Diagnose from a photo'}
           </button>
         </>
       ) : (
