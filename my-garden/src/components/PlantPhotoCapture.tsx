@@ -4,6 +4,7 @@
 // the user can always continue by hand with the photo they took.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Camera, ImagePlus, RefreshCw, X, Check, AlertTriangle } from 'lucide-react';
 import type { PlantIdCandidate, PlantIdResult } from '../types';
 import { plantIdService, LOW_CONFIDENCE_THRESHOLD } from '../services/plantid/identify';
@@ -22,6 +23,11 @@ export interface PhotoCaptureValue {
   sprite: Blob;
   spritePreviewUrl: string;
   spriteIsCutout: boolean;
+  /** Why the cut-out didn't happen — undefined when spriteIsCutout is true.
+   *  Set on every failure path (timeout, unsupported browser, network/CDN
+   *  error) so a caller can tell the person why they got the full photo
+   *  instead of a silhouette, rather than leaving them to guess. */
+  spriteWarning?: string;
   identification?: PlantIdResult;
   chosen?: PlantIdCandidate;
   /** When the photo was actually taken, from its EXIF data — undefined
@@ -45,6 +51,7 @@ export function PlantPhotoCapture({
   onCancel,
   onSkipIdentification,
 }: PlantPhotoCaptureProps) {
+  const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraFileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -58,7 +65,6 @@ export function PlantPhotoCapture({
   const [result, setResult] = useState<PlantIdResult | null>(null);
   const [chosenIndex, setChosenIndex] = useState(0);
   const [cutoutProgress, setCutoutProgress] = useState({ fraction: 0, label: '' });
-  const [cutoutWarning, setCutoutWarning] = useState<string>('');
   const [permissionDenied, setPermissionDenied] = useState(false);
   const [error, setError] = useState('');
 
@@ -93,7 +99,6 @@ export function PlantPhotoCapture({
 
   const processImage = async (blob: Blob) => {
     setError('');
-    setCutoutWarning('');
 
     try {
       // Read EXIF from the original file — resizeImage below re-encodes via
@@ -109,7 +114,7 @@ export function PlantPhotoCapture({
       setChosenIndex(0);
       setStage('review');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not read that photo.');
+      setError(err instanceof Error ? err.message : t('plantPhotoCapture.couldNotReadPhoto'));
       setStage('capture');
     }
   };
@@ -117,7 +122,7 @@ export function PlantPhotoCapture({
   const handleFile = (file: File | undefined) => {
     if (!file) return;
     if (!file.type.startsWith('image/')) {
-      setError('That file is not an image.');
+      setError(t('plantPhotoCapture.notAnImage'));
       return;
     }
     void processImage(file);
@@ -167,7 +172,7 @@ export function PlantPhotoCapture({
         stopStream();
         if (blob) void processImage(blob);
         else {
-          setError('Could not capture that photo.');
+          setError(t('plantPhotoCapture.couldNotCapturePhoto'));
           setStage('capture');
         }
       },
@@ -179,21 +184,25 @@ export function PlantPhotoCapture({
   const buildSprite = async () => {
     if (!photo) return;
     setStage('cutout');
-    setCutoutProgress({ fraction: 0.02, label: 'Starting' });
+    setCutoutProgress({ fraction: 0.02, label: t('plantPhotoCapture.starting') });
 
     const outcome = await removeBackground(photo, {
       onProgress: (fraction, label) => setCutoutProgress({ fraction, label }),
     });
 
-    if (!outcome.ok) setCutoutWarning(outcome.message ?? '');
-
     const spriteUrl = track(URL.createObjectURL(outcome.blob));
+    // onComplete fires synchronously and the caller (PlantForm/
+    // PlantCareModal) responds by unmounting this component in the same
+    // tick — any local state set for a failure here would never get a
+    // chance to paint. spriteWarning carries the reason forward instead,
+    // so whichever screen comes next can show it.
     onComplete({
       photo,
       photoPreviewUrl: photoUrl,
       sprite: outcome.blob,
       spritePreviewUrl: spriteUrl,
       spriteIsCutout: outcome.ok,
+      spriteWarning: outcome.ok ? undefined : outcome.message,
       identification: result ?? undefined,
       chosen: result?.candidates[chosenIndex],
       takenAt,
@@ -205,7 +214,6 @@ export function PlantPhotoCapture({
     setPhotoUrl('');
     setTakenAt(undefined);
     setResult(null);
-    setCutoutWarning('');
     setStage('capture');
   };
 
@@ -244,11 +252,10 @@ export function PlantPhotoCapture({
         {permissionDenied && (
           <div className="rounded-lg border border-amber-300 bg-amber-50 p-3">
             <p className="flex items-center gap-2 text-sm font-semibold text-amber-900">
-              <AlertTriangle size={15} /> Camera blocked
+              <AlertTriangle size={15} /> {t('plantPhotoCapture.cameraBlocked')}
             </p>
             <p className="mt-1 text-xs text-amber-800">
-              Your browser refused camera access. Allow it in the address-bar
-              settings, or choose an existing photo instead.
+              {t('plantPhotoCapture.cameraBlockedDetail')}
             </p>
           </div>
         )}
@@ -259,14 +266,14 @@ export function PlantPhotoCapture({
             onClick={openCamera}
             className="flex min-h-[92px] flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-emerald-300 bg-emerald-50 p-3 text-sm font-semibold text-emerald-800 transition hover:border-emerald-500 hover:bg-emerald-100"
           >
-            <Camera size={22} /> Take a photo
+            <Camera size={22} /> {t('plantPhotoCapture.takePhoto')}
           </button>
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
             className="flex min-h-[92px] flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-3 text-sm font-semibold text-gray-700 transition hover:border-gray-500 hover:bg-gray-100"
           >
-            <ImagePlus size={22} /> Choose a file
+            <ImagePlus size={22} /> {t('plantPhotoCapture.chooseFile')}
           </button>
         </div>
 
@@ -276,7 +283,7 @@ export function PlantPhotoCapture({
             onClick={onCancel}
             className="w-full text-xs text-gray-500 underline hover:text-gray-700"
           >
-            Skip the photo
+            {t('plantPhotoCapture.skipPhoto')}
           </button>
         )}
       </div>
@@ -297,14 +304,14 @@ export function PlantPhotoCapture({
             onClick={cancelLiveCamera}
             className="flex-1 rounded-lg border border-gray-300 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
           >
-            Cancel
+            {t('plantPhotoCapture.cancel')}
           </button>
           <button
             type="button"
             onClick={snapPhoto}
             className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-emerald-600 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
           >
-            <Camera size={16} /> Capture
+            <Camera size={16} /> {t('plantPhotoCapture.capture')}
           </button>
         </div>
       </div>
@@ -319,13 +326,13 @@ export function PlantPhotoCapture({
         {photoUrl && (
           <img
             src={photoUrl}
-            alt="Captured plant"
+            alt={t('plantPhotoCapture.capturedPlantAlt')}
             className="h-44 w-full rounded-lg object-cover"
           />
         )}
         <div className="flex items-center gap-3 rounded-lg bg-emerald-50 p-3">
           <RefreshCw size={18} className="animate-spin text-emerald-700" />
-          <p className="text-sm font-medium text-emerald-900">Identifying your plant…</p>
+          <p className="text-sm font-medium text-emerald-900">{t('plantPhotoCapture.identifyingPlant')}</p>
         </div>
       </div>
     );
@@ -339,13 +346,13 @@ export function PlantPhotoCapture({
         {photoUrl && (
           <img
             src={photoUrl}
-            alt="Captured plant"
+            alt={t('plantPhotoCapture.capturedPlantAlt')}
             className="h-44 w-full rounded-lg object-cover"
           />
         )}
         <div className="rounded-lg bg-emerald-50 p-3">
           <p className="text-sm font-medium text-emerald-900">
-            {cutoutProgress.label || 'Cutting out the background'}…
+            {cutoutProgress.label || t('plantPhotoCapture.cuttingOutBackground')}…
           </p>
           <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-emerald-200">
             <div
@@ -354,14 +361,9 @@ export function PlantPhotoCapture({
             />
           </div>
           <p className="mt-2 text-xs text-emerald-800">
-            This runs on your device, so the first one can take a moment.
+            {t('plantPhotoCapture.runsOnDevice')}
           </p>
         </div>
-        {cutoutWarning && (
-          <p className="rounded border border-amber-300 bg-amber-50 p-2 text-xs text-amber-800">
-            {cutoutWarning}
-          </p>
-        )}
       </div>
     );
   }
@@ -377,7 +379,7 @@ export function PlantPhotoCapture({
       {photoUrl && (
         <img
           src={photoUrl}
-          alt="Captured plant"
+          alt={t('plantPhotoCapture.capturedPlantAlt')}
           className="h-44 w-full rounded-lg object-cover"
         />
       )}
@@ -392,12 +394,12 @@ export function PlantPhotoCapture({
         >
           <p className="flex items-center gap-2 text-sm font-semibold text-gray-900">
             <AlertTriangle size={15} />
-            {status === 'low-confidence' && 'Not sure about this one'}
-            {status === 'no-match' && 'No match found'}
-            {status === 'rejected' && 'Photo not accepted'}
-            {status === 'unconfigured' && 'Identification unavailable'}
-            {status === 'offline' && "You're offline"}
-            {status === 'error' && 'Identification failed'}
+            {status === 'low-confidence' && t('plantPhotoCapture.statusLowConfidence')}
+            {status === 'no-match' && t('plantPhotoCapture.statusNoMatch')}
+            {status === 'rejected' && t('plantPhotoCapture.statusRejected')}
+            {status === 'unconfigured' && t('plantPhotoCapture.statusUnconfigured')}
+            {status === 'offline' && t('plantPhotoCapture.statusOffline')}
+            {status === 'error' && t('plantPhotoCapture.statusError')}
           </p>
           <p className="mt-1 text-xs text-gray-700">{result.message}</p>
         </div>
@@ -460,14 +462,14 @@ export function PlantPhotoCapture({
           onClick={retake}
           className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-gray-300 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
         >
-          <RefreshCw size={14} /> Retake
+          <RefreshCw size={14} /> {t('plantPhotoCapture.retake')}
         </button>
         <button
           type="button"
           onClick={buildSprite}
           className="flex-1 rounded-lg bg-emerald-600 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
         >
-          {candidates.length ? 'Use this plant' : 'Continue by hand'}
+          {candidates.length ? t('plantPhotoCapture.useThisPlant') : t('plantPhotoCapture.continueByHand')}
         </button>
       </div>
 
@@ -477,7 +479,7 @@ export function PlantPhotoCapture({
           onClick={() => onSkipIdentification(photo, photoUrl)}
           className="flex w-full items-center justify-center gap-1 text-xs text-gray-500 underline hover:text-gray-700"
         >
-          <X size={12} /> Keep the photo, skip the cut-out
+          <X size={12} /> {t('plantPhotoCapture.keepPhotoSkipCutout')}
         </button>
       )}
     </div>
