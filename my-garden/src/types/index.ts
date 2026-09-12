@@ -338,6 +338,15 @@ export interface PlantTips {
   pruningSeason: string;
   idealTempRange: string;
   notes: string;
+  /** General-purpose, open-ended — not just propagation/pruning. Which
+   *  months (1-12, Northern Hemisphere reference) each applies. */
+  seasonalTasks: SeasonalTask[];
+}
+
+export interface SeasonalTask {
+  task: string;
+  months: number[];
+  note: string;
 }
 
 export type PlantTipsStatus = 'ok' | 'not-a-plant' | 'unconfigured' | 'offline' | 'error';

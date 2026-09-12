@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Eye, EyeOff, Plus, X } from 'lucide-react';
 import type { CareItem, Plant, YardSection } from '../types';
 import { KIND_ICONS, daysUntil, dueLabel, ingredientSummary } from '../utils/careDisplay';
@@ -203,6 +204,7 @@ function fanOutPositions(
  *  right before the click, so a single "setOpen(o => !o)" driven by both
  *  would flip it open then immediately closed again in one interaction. */
 function CareBadge({ item }: { item: CareItem }) {
+  const { t } = useTranslation();
   const [hovering, setHovering] = useState(false);
   const [clicked, setClicked] = useState(false);
   const open = hovering || clicked;
@@ -221,7 +223,7 @@ function CareBadge({ item }: { item: CareItem }) {
         onPointerDown={(event) => event.stopPropagation()}
         onMouseEnter={() => setHovering(true)}
         onMouseLeave={() => setHovering(false)}
-        aria-label={`${item.title} — ${dueLabel(days)}`}
+        aria-label={`${item.title} — ${dueLabel(t, days)}`}
         className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] shadow ring-1 ring-white ${
           overdue ? 'bg-red-500' : 'bg-amber-400'
         }`}
@@ -234,7 +236,7 @@ function CareBadge({ item }: { item: CareItem }) {
           className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-1 w-36 -translate-x-1/2 rounded-md bg-gray-900 px-2 py-1.5 text-[10px] leading-snug text-white shadow-lg"
         >
           <span className="block font-semibold">{item.title}</span>
-          <span className="block text-gray-300">{dueLabel(days)}</span>
+          <span className="block text-gray-300">{dueLabel(t, days)}</span>
           {summary && <span className="block truncate text-gray-300">{summary}</span>}
         </span>
       )}
@@ -246,6 +248,7 @@ function CareBadge({ item }: { item: CareItem }) {
  *  interaction as CareBadge (see its comment re: separate hover/click flags),
  *  but lists every remaining item at once. */
 function OverflowBadge({ items }: { items: CareItem[] }) {
+  const { t } = useTranslation();
   const [hovering, setHovering] = useState(false);
   const [clicked, setClicked] = useState(false);
   const open = hovering || clicked;
@@ -261,7 +264,7 @@ function OverflowBadge({ items }: { items: CareItem[] }) {
         onPointerDown={(event) => event.stopPropagation()}
         onMouseEnter={() => setHovering(true)}
         onMouseLeave={() => setHovering(false)}
-        aria-label={`${items.length} more care items due`}
+        aria-label={t('gardenCanvas.moreDue', { count: items.length })}
         className="flex h-5 w-5 items-center justify-center rounded-full bg-gray-700 text-[9px] font-bold text-white shadow ring-1 ring-white"
       >
         +{items.length}
@@ -274,7 +277,7 @@ function OverflowBadge({ items }: { items: CareItem[] }) {
           {items.map((item) => (
             <span key={item.id} className="block">
               <span className="block font-semibold">{item.title}</span>
-              <span className="block text-gray-300">{dueLabel(daysUntil(item.nextDueDate))}</span>
+              <span className="block text-gray-300">{dueLabel(t, daysUntil(item.nextDueDate))}</span>
             </span>
           ))}
         </span>
@@ -297,6 +300,7 @@ export function GardenCanvas({
   accountSlot,
   belowBanner,
 }: GardenCanvasProps) {
+  const { t } = useTranslation();
   const yardRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -418,7 +422,9 @@ export function GardenCanvas({
         return next;
       });
       setMoveError(
-        `Couldn't move ${plant.name}${err instanceof Error && err.message ? ` — ${err.message}` : '.'}`,
+        err instanceof Error && err.message
+          ? t('gardenCanvas.moveFailedReason', { name: plant.name, reason: err.message })
+          : t('gardenCanvas.moveFailed', { name: plant.name }),
       );
     }
   }
@@ -547,54 +553,110 @@ export function GardenCanvas({
           clipped and sits in a raised stacking context, so accountSlot's
           dropdown (which is taller than the 100px banner) can extend below
           it instead of being cut off. */}
-      <section className="relative z-30 mx-auto h-[100px] w-full max-w-[1600px]">
+      {/* mb-8 guarantees clearance below the section's own 100px box for
+          the title's own spilling descenders (see below) — those overflow
+          the section unclipped, and without this margin they'd crowd or
+          visually merge into whatever renders right after (Due Today's
+          card) instead of resting on the page background as intended. */}
+      <section className="relative z-30 mx-auto mb-8 h-[100px] w-full max-w-[1600px]">
         <div className="absolute inset-0 overflow-hidden">
           <img
             src="/garden-banner.jpg"
-            alt="Garden banner"
+            alt={t('gardenCanvas.bannerAlt')}
             className="block h-full w-full object-cover"
           />
           {/* The title's own descenders/flourish deliberately spill past this
               clipped photo onto the plain page background below (see the
               title comment) — without this, that handoff is a hard cut from
               photo texture to flat page color. A soft fade to the exact page
-              background (#f0fdf4, index.css) makes it read as an intentional
+              background (#f4fbf4, styles.css) makes it read as an intentional
               vignette instead. */}
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-b from-transparent to-[#f0fdf4]" />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-b from-transparent to-[#f4fbf4]" />
         </div>
 
         <div className="pointer-events-none absolute inset-0 flex items-end justify-center">
-          <div className="absolute h-20 w-64 -translate-y-1 rounded-full bg-yellow-200/30 blur-3xl" />
+          {/* Two layered glows — a big soft one plus a smaller, brighter
+              core right behind the letters — read as "glowing" rather
+              than the single flat blur a single layer gives. */}
+          <div className="absolute h-24 w-80 -translate-y-2 rounded-full bg-yellow-200/40 blur-[50px]" />
+          <div className="absolute h-14 w-52 -translate-y-2 rounded-full bg-yellow-300/60 blur-3xl" />
 
-          {/* The user's own gold-lettering artwork. It shipped as a flat
-              mockup preview (checkerboard baked into the pixels, not a
-              real alpha channel) — the transparent version was rebuilt
-              from it, so a CSS drop-shadow here is what grounds it on the
-              banner instead of a shadow baked into the art.
+          {/* Real text, not baked pixel art — a requirement for
+              translating the rest of the app (a PNG can't be swapped
+              per-locale) though the name itself always stays "My Garden"
+              regardless of language, by design (kept as a brand name, the
+              way Spotify/Duolingo don't translate theirs either). Great
+              Vibes was already imported (unused) from an earlier,
+              abandoned attempt at exactly this; background-clip:text plus a
+              drop-shadow gives the gold-on-dark-photo look the previous
+              3D-chrome PNG had, at a fraction of the visual weight — no
+              bevel, no sparkle overlay, just a gradient and a shadow.
+              Small leaf accents echo the original artwork's leaf
+              flourishes without trying to recreate their full 3D detail. */}
+          <div className="relative flex translate-y-[18px] items-center sm:translate-y-[30px]">
+            <svg
+              viewBox="0 0 24 24"
+              className="absolute -left-3 -top-3 h-6 w-6 -rotate-[25deg] sm:-left-5 sm:-top-5 sm:h-9 sm:w-9"
+              style={{ filter: 'drop-shadow(0 2px 3px rgba(40, 25, 5, 0.5))' }}
+            >
+              <defs>
+                <linearGradient id="leafGold" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#fffbe0" />
+                  <stop offset="45%" stopColor="#ffd966" />
+                  <stop offset="100%" stopColor="#e0a530" />
+                </linearGradient>
+              </defs>
+              <path
+                d="M12 2C12 2 3 7 3 14.5C3 19.2 7 22 12 22C17 22 21 19.2 21 14.5C21 7 12 2 12 2Z"
+                fill="url(#leafGold)"
+              />
+              <path d="M12 4.5V20" stroke="rgba(160, 115, 20, 0.45)" strokeWidth="1" />
+            </svg>
 
-              The letters' own baseline sits well above the PNG's bottom
-              edge — below it, the "y"/"G" descender loops reach down to
-              about 18% of the image's height from the bottom, and a small
-              leaf flourish off to the side reaches further still, to about
-              6% from the bottom. Sizing and nudging by the image's outer
-              box alone would put the whole word too high — this pushes it
-              down by the measured baseline-to-image-bottom offset (~25% of
-              the image's height) so the baseline itself lands on the
-              banner's bottom edge, with the loops and that flourish
-              spilling past it. The extra height beyond the 100px banner is
-              what keeps the top of the lettering poking above it too.
-              Smaller below the `sm` breakpoint: at that width the banner
-              itself is only as wide as the screen, and the full-size title
-              runs into accountSlot's chip in the corner. */}
-          <img
-            src="/my-garden-title.png"
-            alt="My Garden"
-            className="relative h-[64px] w-auto max-w-[80%] translate-y-[16px] select-none sm:h-[108px] sm:max-w-[85%] sm:translate-y-[27px]"
-            style={{
-              filter: 'drop-shadow(0 3px 5px rgba(40, 25, 5, 0.55)) drop-shadow(0 1px 2px rgba(40, 25, 5, 0.4))',
-            }}
-            draggable={false}
-          />
+            <h1
+              // leading-none (line-height: 1) used to size this box so
+              // tightly that the CSS `filter` below — which computes its
+              // effect region from the element's own box — clipped off the
+              // top of Great Vibes' tall capital swashes (the loop on "M"
+              // and "G") instead of letting them spill past it the way
+              // `overflow: visible` normally would. A generous line-height
+              // gives the box enough headroom that the filter's region
+              // comfortably contains the full glyph ink; confirmed by
+              // toggling the filter on/off directly in the browser, which
+              // reproduced (and fixed) the clipping independent of the
+              // gradient-fill/background-clip technique below. 1.2 is the
+              // smallest value that stayed clip-free in testing (1.0 clips
+              // the swash tops; much above 1.2 pads visible dead space
+              // between the text and Due Today below, since the box still
+              // bottom-anchors at the same spot — line-height only grows it
+              // upward — so a bigger value doesn't move the text, it just
+              // adds empty line-box room around it).
+              className="select-none whitespace-nowrap text-[44px] leading-[1.2] sm:text-[76px]"
+              style={{
+                fontFamily: "'Great Vibes', cursive",
+                backgroundImage:
+                  'linear-gradient(180deg, #fffbe0 0%, #ffe985 22%, #ffc933 48%, #fff3a0 62%, #e8a93c 100%)',
+                WebkitBackgroundClip: 'text',
+                backgroundClip: 'text',
+                color: 'transparent',
+                filter: 'drop-shadow(0 3px 5px rgba(40, 25, 5, 0.55)) drop-shadow(0 1px 2px rgba(40, 25, 5, 0.4))',
+              }}
+            >
+              My Garden
+            </h1>
+
+            <svg
+              viewBox="0 0 24 24"
+              className="absolute -right-2 bottom-1 h-5 w-5 rotate-[20deg] sm:-right-3 sm:bottom-2 sm:h-7 sm:w-7"
+              style={{ filter: 'drop-shadow(0 2px 3px rgba(40, 25, 5, 0.5))' }}
+            >
+              <path
+                d="M12 2C12 2 3 7 3 14.5C3 19.2 7 22 12 22C17 22 21 19.2 21 14.5C21 7 12 2 12 2Z"
+                fill="url(#leafGold)"
+              />
+              <path d="M12 4.5V20" stroke="rgba(160, 115, 20, 0.45)" strokeWidth="1" />
+            </svg>
+          </div>
         </div>
 
         {accountSlot && (
@@ -613,7 +675,7 @@ export function GardenCanvas({
               onClick={() => setMoveError(null)}
               className="shrink-0 font-semibold underline"
             >
-              Dismiss
+              {t('gardenCanvas.dismiss')}
             </button>
           </div>
         )}
@@ -630,7 +692,7 @@ export function GardenCanvas({
                     : 'border-gray-300 bg-white text-gray-600 hover:border-gray-400'
                 }`}
               >
-                Whole yard
+                {t('gardenCanvas.wholeYard')}
               </button>
               {sections.map((section) =>
                 confirmingDeleteSectionId === section.id ? (
@@ -638,7 +700,9 @@ export function GardenCanvas({
                     key={section.id}
                     className="flex items-center gap-1.5 rounded-full border border-red-300 bg-red-50 px-2.5 py-1 text-xs"
                   >
-                    <span className="text-red-700">Delete "{section.name}"?</span>
+                    <span className="text-red-700">
+                      {t('gardenCanvas.deleteSectionConfirm', { name: section.name })}
+                    </span>
                     <button
                       type="button"
                       onClick={() => {
@@ -648,14 +712,14 @@ export function GardenCanvas({
                       }}
                       className="rounded-full bg-red-600 px-2 py-0.5 font-semibold text-white hover:bg-red-700"
                     >
-                      Delete
+                      {t('gardenCanvas.delete')}
                     </button>
                     <button
                       type="button"
                       onClick={() => setConfirmingDeleteSectionId(null)}
                       className="rounded-full border border-gray-300 bg-white px-2 py-0.5 font-semibold text-gray-700 hover:bg-gray-50"
                     >
-                      Cancel
+                      {t('gardenCanvas.cancel')}
                     </button>
                   </span>
                 ) : (
@@ -674,7 +738,7 @@ export function GardenCanvas({
                       <button
                         type="button"
                         onClick={() => setConfirmingDeleteSectionId(section.id)}
-                        aria-label={`Delete section: ${section.name}`}
+                        aria-label={t('gardenCanvas.deleteSectionAria', { name: section.name })}
                         className="rounded-full p-0.5 text-current opacity-50 hover:bg-black/10 hover:opacity-100"
                       >
                         <X size={11} />
@@ -696,7 +760,7 @@ export function GardenCanvas({
                 }`}
               >
                 {addingSection ? <X size={11} /> : <Plus size={11} />}
-                {addingSection ? 'Drag out the new section…' : 'Add section'}
+                {addingSection ? t('gardenCanvas.drawingNewSection') : t('gardenCanvas.addSection')}
               </button>
             </div>
           ) : (
@@ -705,7 +769,7 @@ export function GardenCanvas({
               onClick={() => setAddingSection(true)}
               className="flex items-center gap-1 rounded-full border border-dashed border-gray-300 bg-white px-2.5 py-1 text-xs font-semibold text-gray-500 hover:border-gray-400"
             >
-              <Plus size={11} /> Zoom into part of this yard
+              <Plus size={11} /> {t('gardenCanvas.zoomIntoYard')}
             </button>
           )}
 
@@ -714,8 +778,8 @@ export function GardenCanvas({
             onClick={() => setShowCareBadges((s) => !s)}
             title={
               showCareBadges
-                ? 'Hide care icons — easier to place plants close together'
-                : 'Show care icons'
+                ? t('gardenCanvas.hideCareIconsTitle')
+                : t('gardenCanvas.showCareIconsTitle')
             }
             className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold transition ${
               showCareBadges
@@ -724,7 +788,7 @@ export function GardenCanvas({
             }`}
           >
             {showCareBadges ? <EyeOff size={11} /> : <Eye size={11} />}
-            {showCareBadges ? 'Hide care icons' : 'Show care icons'}
+            {showCareBadges ? t('gardenCanvas.hideCareIcons') : t('gardenCanvas.showCareIcons')}
           </button>
         </div>
 
@@ -739,7 +803,7 @@ export function GardenCanvas({
           <div ref={contentRef} className="relative" style={activeBox ? sectionTransformStyle(activeBox) : undefined}>
             <img
               src={yardImageUrl}
-              alt="Garden yard"
+              alt={t('gardenCanvas.yardAlt')}
               className="block h-auto w-full"
               draggable={false}
             />
@@ -795,7 +859,7 @@ export function GardenCanvas({
                 <div className="relative [--marker-r:10px] sm:[--marker-r:22px]">
                   <button
                     type="button"
-                    aria-label={`${plant.name} — click for care items, drag to move`}
+                    aria-label={t('gardenCanvas.markerAria', { name: plant.name })}
                     className={`flex h-5 w-5 touch-none select-none items-center justify-center rounded-full transition-transform sm:h-11 sm:w-11 ${
                       isDragging ? 'scale-125 cursor-grabbing' : 'cursor-grab hover:scale-125'
                     }`}
@@ -861,14 +925,14 @@ export function GardenCanvas({
       {namingBox && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-xs rounded-lg bg-white p-4 shadow-xl">
-            <h3 className="mb-2 text-sm font-bold text-gray-900">Name this section</h3>
+            <h3 className="mb-2 text-sm font-bold text-gray-900">{t('gardenCanvas.nameSection')}</h3>
             <input
               autoFocus
               type="text"
               value={sectionName}
               onChange={(e) => setSectionName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && saveSectionName()}
-              placeholder="e.g. Back deck, Herb corner"
+              placeholder={t('gardenCanvas.sectionNamePlaceholder')}
               className="mb-3 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
             />
             <div className="flex gap-2">
@@ -880,7 +944,7 @@ export function GardenCanvas({
                 }}
                 className="flex-1 rounded-lg border border-gray-300 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
               >
-                Cancel
+                {t('gardenCanvas.cancel')}
               </button>
               <button
                 type="button"
@@ -888,7 +952,7 @@ export function GardenCanvas({
                 disabled={!sectionName.trim() || savingSection}
                 className="flex-1 rounded-lg bg-emerald-600 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:bg-gray-400"
               >
-                {savingSection ? 'Saving…' : 'Save'}
+                {savingSection ? t('gardenCanvas.saving') : t('gardenCanvas.save')}
               </button>
             </div>
           </div>
