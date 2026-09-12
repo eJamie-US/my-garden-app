@@ -21,6 +21,22 @@ const AI_URL = 'https://api.mistral.ai/v1/chat/completions';
 // ai-seed-plan) is text-only.
 const AI_MODEL = Deno.env.get('MISTRAL_VISION_MODEL') || 'pixtral-12b-2409';
 
+// Keep in sync with SUPPORTED_LOCALES in src/i18n.ts — small enough right
+// now to duplicate rather than share a file across the Vite/Deno boundary.
+const LANGUAGE_NAMES: Record<string, string> = {
+  en: 'English',
+  es: 'Spanish',
+  zh: 'Chinese (Simplified)',
+  pt: 'Portuguese',
+  fr: 'French',
+  de: 'German',
+  ja: 'Japanese',
+  it: 'Italian',
+  ko: 'Korean',
+  pl: 'Polish',
+  nl: 'Dutch',
+};
+
 // Kept in sync with parseDiagnosis() in plantDiagnosis.ts — that's what
 // actually validates this shape once it comes back.
 const SCHEMA_PROMPT = `You are a horticulturist doing a thorough visual health check on a photo of a houseplant or garden plant. Examine it carefully for every one of these categories of ailment before answering — most photos will only show one or two, but check for all of them:
@@ -87,7 +103,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { imageBase64, mimeType, knownIssues } = await req.json();
+    const { imageBase64, mimeType, knownIssues, locale } = await req.json();
     if (typeof imageBase64 !== 'string' || !imageBase64) {
       return new Response(JSON.stringify({ error: 'imageBase64 required' }), {
         status: 400,
@@ -95,6 +111,7 @@ Deno.serve(async (req) => {
       });
     }
     const mime = typeof mimeType === 'string' && mimeType ? mimeType : 'image/jpeg';
+    const language = LANGUAGE_NAMES[locale] ?? LANGUAGE_NAMES.en;
 
     // Plain labels the owner noted by hand on this plant (Plant.knownIssues)
     // — a partially-treated problem can look ambiguous in a single photo,
@@ -106,6 +123,11 @@ Deno.serve(async (req) => {
     const knownIssuesPrompt = issues.length
       ? `\n\nThe owner has noted these known/suspected issues on this specific plant, which may be partially treated: ${issues.join('; ')}. Look carefully for any remaining signs of these specifically, in addition to anything else you notice.`
       : '';
+    // "overallHealth", "category", and "confidence" are fixed enums the
+    // client matches literally (see parseDiagnosis() in plantDiagnosis.ts)
+    // — translating them would silently break parsing for every non-English
+    // locale, so they're called out by name to stay in English regardless.
+    const languagePrompt = `\n\nRespond in ${language}, using natural, fluent, locale-appropriate gardening terminology for "label", "observation", and "remedy" in each finding. Leave "overallHealth" (healthy/stressed/unhealthy), "category", and "confidence" (low/medium/high) exactly as their English enum values regardless of language — those are read by code, not shown translated.`;
 
     const aiResponse = await fetch(AI_URL, {
       method: 'POST',
@@ -119,7 +141,7 @@ Deno.serve(async (req) => {
           {
             role: 'user',
             content: [
-              { type: 'text', text: SCHEMA_PROMPT + knownIssuesPrompt },
+              { type: 'text', text: SCHEMA_PROMPT + knownIssuesPrompt + languagePrompt },
               { type: 'image_url', image_url: `data:${mime};base64,${imageBase64}` },
             ],
           },
