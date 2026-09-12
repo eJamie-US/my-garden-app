@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "io.github.ejamieus.mygarden",
+        "sha256_cert_fingerprints": ["D5:0A:5E:E1:9F:C5:77:2C:E1:1B:9F:3E:4E:C6:95:54:96:EE:59:AC:B0:0A:A5:57:DE:55:A4:7D:49:D6:0A:EB"]
+      }
+    }]
