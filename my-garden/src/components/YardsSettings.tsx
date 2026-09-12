@@ -7,6 +7,7 @@
 // row on the yard canvas/obstacle editor.)
 
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Check, Loader2, MapPin, Pencil, Plus, Trash2, Upload, Users, X } from 'lucide-react';
 import { yardsService } from '../services/supabase/yards';
 import { yardMembersService } from '../services/supabase/yardMembers';
@@ -24,6 +25,7 @@ interface YardsSettingsProps {
 }
 
 export function YardsSettings({ userId, yards, activeYardId, onSaved, onSwitch, onClose }: YardsSettingsProps) {
+  const { t } = useTranslation();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [nameDraft, setNameDraft] = useState('');
@@ -78,7 +80,7 @@ export function YardsSettings({ userId, yards, activeYardId, onSaved, onSwitch, 
       const updated = await yardsService.update(yard.id, { name });
       onSaved(yards.map((y) => (y.id === yard.id ? updated : y)));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not rename that yard');
+      setError(err instanceof Error ? err.message : t('yardsSettings.couldNotRename'));
     } finally {
       setBusyId(null);
     }
@@ -93,7 +95,7 @@ export function YardsSettings({ userId, yards, activeYardId, onSaved, onSwitch, 
       const updated = await yardsService.update(yard.id, { imageUrl });
       onSaved(yards.map((y) => (y.id === yard.id ? updated : y)));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not upload that photo');
+      setError(err instanceof Error ? err.message : t('yardsSettings.couldNotUploadPhoto'));
     } finally {
       setBusyId(null);
     }
@@ -109,7 +111,7 @@ export function YardsSettings({ userId, yards, activeYardId, onSaved, onSwitch, 
       if (yard.id === activeYardId && remaining[0]) onSwitch(remaining[0].id);
       setConfirmingDeleteId(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not delete that yard');
+      setError(err instanceof Error ? err.message : t('yardsSettings.couldNotDeleteYard'));
     } finally {
       setBusyId(null);
     }
@@ -124,7 +126,7 @@ export function YardsSettings({ userId, yards, activeYardId, onSaved, onSwitch, 
   };
 
   const addYard = async () => {
-    const name = addingName.trim() || 'New Garden';
+    const name = addingName.trim() || t('yardsSettings.newGarden');
     setAdding(true);
     setError('');
     try {
@@ -133,7 +135,7 @@ export function YardsSettings({ userId, yards, activeYardId, onSaved, onSwitch, 
       setAddingName('');
       onSwitch(created.id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not add that yard');
+      setError(err instanceof Error ? err.message : t('yardsSettings.couldNotAddYard'));
     } finally {
       setAdding(false);
     }
@@ -143,12 +145,12 @@ export function YardsSettings({ userId, yards, activeYardId, onSaved, onSwitch, 
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 sm:items-center">
       <div className="flex max-h-[90vh] w-full max-w-lg flex-col rounded-lg bg-white shadow-xl">
         <div className="flex shrink-0 items-center justify-between border-b p-4">
-          <h3 className="text-lg font-bold">Your yards</h3>
+          <h3 className="text-lg font-bold">{t('yardsSettings.title')}</h3>
           <button
             type="button"
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700"
-            aria-label="Close yards"
+            aria-label={t('yardsSettings.closeAria')}
           >
             <X size={20} />
           </button>
@@ -156,8 +158,7 @@ export function YardsSettings({ userId, yards, activeYardId, onSaved, onSwitch, 
 
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
           <p className="text-sm text-gray-600">
-            Gardening in more than one place? Each yard has its own photo, location/weather,
-            plants and obstacles. Switch between them any time.
+            {t('yardsSettings.description')}
           </p>
 
           {error && (
@@ -208,12 +209,12 @@ export function YardsSettings({ userId, yards, activeYardId, onSaved, onSwitch, 
                       )}
                       <p className="flex items-center gap-1 truncate text-xs text-gray-500">
                         <MapPin size={10} className="shrink-0" />
-                        {yard.label || 'No location set'}
+                        {yard.label || t('yardsSettings.noLocationSet')}
                       </p>
                     </div>
                     {isActive ? (
                       <span className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-800">
-                        <Check size={12} /> Active
+                        <Check size={12} /> {t('yardsSettings.active')}
                       </span>
                     ) : (
                       <button
@@ -221,7 +222,7 @@ export function YardsSettings({ userId, yards, activeYardId, onSaved, onSwitch, 
                         onClick={() => onSwitch(yard.id)}
                         className="shrink-0 rounded-md border border-gray-300 px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
                       >
-                        Switch to
+                        {t('yardsSettings.switchTo')}
                       </button>
                     )}
                   </div>
@@ -243,14 +244,14 @@ export function YardsSettings({ userId, yards, activeYardId, onSaved, onSwitch, 
                           className="flex items-center gap-1 rounded-md border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                         >
                           {isBusy ? <Loader2 size={11} className="animate-spin" /> : <Upload size={11} />}
-                          Replace photo
+                          {t('yardsSettings.replacePhoto')}
                         </button>
                         <button
                           type="button"
                           onClick={() => setEditingLocationYard(yard)}
                           className="flex items-center gap-1 rounded-md border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50"
                         >
-                          <MapPin size={11} /> Location
+                          <MapPin size={11} /> {t('yardsSettings.location')}
                         </button>
                       </>
                     )}
@@ -259,27 +260,27 @@ export function YardsSettings({ userId, yards, activeYardId, onSaved, onSwitch, 
                       onClick={() => setSharingYard(yard)}
                       className="flex items-center gap-1 rounded-md border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50"
                     >
-                      <Users size={11} /> Shared
+                      <Users size={11} /> {t('yardsSettings.shared')}
                     </button>
                     <div className="ml-auto">
                       {isOwner ? (
                         confirmingDeleteId === yard.id ? (
                           <span className="flex items-center gap-1.5 text-xs">
-                            <span className="text-gray-600">Delete — and everything in it?</span>
+                            <span className="text-gray-600">{t('yardsSettings.deleteConfirm')}</span>
                             <button
                               type="button"
                               onClick={() => remove(yard)}
                               disabled={isBusy}
                               className="rounded-md bg-red-600 px-2 py-1 font-semibold text-white hover:bg-red-700 disabled:bg-gray-400"
                             >
-                              {isBusy ? <Loader2 size={11} className="animate-spin" /> : 'Delete'}
+                              {isBusy ? <Loader2 size={11} className="animate-spin" /> : t('yardsSettings.delete')}
                             </button>
                             <button
                               type="button"
                               onClick={() => setConfirmingDeleteId(null)}
                               className="rounded-md border border-gray-300 px-2 py-1 font-semibold text-gray-700 hover:bg-gray-50"
                             >
-                              Cancel
+                              {t('yardsSettings.cancel')}
                             </button>
                           </span>
                         ) : (
@@ -287,7 +288,7 @@ export function YardsSettings({ userId, yards, activeYardId, onSaved, onSwitch, 
                             <button
                               type="button"
                               onClick={() => setConfirmingDeleteId(yard.id)}
-                              aria-label={`Delete ${yard.name}`}
+                              aria-label={t('yardsSettings.deleteYardAria', { name: yard.name })}
                               className="p-1 text-gray-400 hover:text-red-600"
                             >
                               <Trash2 size={13} />
@@ -295,7 +296,7 @@ export function YardsSettings({ userId, yards, activeYardId, onSaved, onSwitch, 
                           )
                         )
                       ) : (
-                        <span className="text-xs text-gray-400">Shared with you</span>
+                        <span className="text-xs text-gray-400">{t('yardsSettings.sharedWithYou')}</span>
                       )}
                     </div>
                   </div>
@@ -310,7 +311,7 @@ export function YardsSettings({ userId, yards, activeYardId, onSaved, onSwitch, 
               value={addingName}
               onChange={(e) => setAddingName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && addYard()}
-              placeholder="e.g. Community plot, Mom's yard"
+              placeholder={t('yardsSettings.addYardPlaceholder')}
               className="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm"
             />
             <button
@@ -320,7 +321,7 @@ export function YardsSettings({ userId, yards, activeYardId, onSaved, onSwitch, 
               className="flex shrink-0 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:bg-gray-400"
             >
               {adding ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
-              Add
+              {t('yardsSettings.add')}
             </button>
           </div>
         </div>
@@ -331,7 +332,7 @@ export function YardsSettings({ userId, yards, activeYardId, onSaved, onSwitch, 
             onClick={onClose}
             className="flex-1 rounded-lg bg-green-500 py-2 text-sm font-semibold text-white hover:bg-green-600"
           >
-            Done
+            {t('yardsSettings.done')}
           </button>
         </div>
       </div>

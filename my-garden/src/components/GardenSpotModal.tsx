@@ -2,6 +2,7 @@
 // Shown when you click the yard near one or more existing plants: pick which
 // one you meant, or plant something new in the same spot.
 
+import { useTranslation } from 'react-i18next';
 import type { Plant } from '../types';
 import { X, Plus } from 'lucide-react';
 
@@ -14,6 +15,7 @@ interface GardenSpotModalProps {
 }
 
 export function GardenSpotModal({ plants, onSelectPlant, onAddNew, onClose }: GardenSpotModalProps) {
+  const { t } = useTranslation();
   const single = plants.length === 1;
 
   return (
@@ -21,13 +23,13 @@ export function GardenSpotModal({ plants, onSelectPlant, onAddNew, onClose }: Ga
       <div className="flex max-h-[90vh] w-full max-w-sm flex-col rounded-lg bg-white shadow-xl">
         <div className="flex shrink-0 items-center justify-between border-b p-4">
           <h3 className="text-lg font-bold text-gray-900">
-            {single ? 'Already something here' : `${plants.length} plants here`}
+            {single ? t('gardenSpot.alreadyHere') : t('gardenSpot.plantsHere', { count: plants.length })}
           </h3>
           <button
             type="button"
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700"
-            aria-label="Close"
+            aria-label={t('gardenSpot.close')}
           >
             <X size={20} />
           </button>
@@ -35,9 +37,7 @@ export function GardenSpotModal({ plants, onSelectPlant, onAddNew, onClose }: Ga
 
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
           <p className="text-xs text-gray-500">
-            {single
-              ? "Open it, or plant something else in the same spot."
-              : 'Pick one to open, or plant something else in the same spot.'}
+            {single ? t('gardenSpot.openOrPlantSingle') : t('gardenSpot.openOrPlantMultiple')}
           </p>
 
           <ul className="space-y-1.5">
@@ -82,7 +82,7 @@ export function GardenSpotModal({ plants, onSelectPlant, onAddNew, onClose }: Ga
             onClick={onAddNew}
             className="flex w-full items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-gray-300 py-2.5 text-sm font-semibold text-gray-600 hover:border-emerald-400 hover:text-emerald-700"
           >
-            <Plus size={15} /> Add another plant here
+            <Plus size={15} /> {t('gardenSpot.addAnother')}
           </button>
         </div>
       </div>

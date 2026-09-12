@@ -19,6 +19,22 @@ import { requirePremium } from '../_shared/entitlement.ts';
 const AI_URL = 'https://api.mistral.ai/v1/chat/completions';
 const AI_MODEL = Deno.env.get('MISTRAL_MODEL') || 'mistral-small-latest';
 
+// Keep in sync with SUPPORTED_LOCALES in src/i18n.ts — small enough right
+// now to duplicate rather than share a file across the Vite/Deno boundary.
+const LANGUAGE_NAMES: Record<string, string> = {
+  en: 'English',
+  es: 'Spanish',
+  zh: 'Chinese (Simplified)',
+  pt: 'Portuguese',
+  fr: 'French',
+  de: 'German',
+  ja: 'Japanese',
+  it: 'Italian',
+  ko: 'Korean',
+  pl: 'Polish',
+  nl: 'Dutch',
+};
+
 // Kept byte-for-byte identical to the prompt seedPlan.ts used to send
 // client-side — parsePlan()'s expectations on the client are unchanged.
 const SCHEMA_PROMPT = `You are a horticulturist. Given a plant name, return ONLY a JSON object, no prose and no code fence:
@@ -67,7 +83,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { plantName } = await req.json();
+    const { plantName, locale } = await req.json();
     const name = typeof plantName === 'string' ? plantName.trim() : '';
     if (!name) {
       return new Response(JSON.stringify({ error: 'plantName required' }), {
@@ -75,6 +91,12 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+    const language = LANGUAGE_NAMES[locale] ?? LANGUAGE_NAMES.en;
+    // "method" is a fixed enum parsePlan() matches against literally
+    // (direct-sow/start-indoors/either) — translating it would break
+    // parsing, so it's called out by name to stay in English regardless
+    // of the rest of the response's language.
+    const languagePrompt = `\n\nRespond in ${language}: translate "steps" and "notes" (and "species"' common-name portion, if it includes one — keep any botanical/Latin name as-is) into natural, fluent, locale-appropriate gardening language. Leave the "method" field exactly as one of direct-sow/start-indoors/either in English regardless — it's read by code, not shown translated.`;
 
     const aiResponse = await fetch(AI_URL, {
       method: 'POST',
@@ -85,7 +107,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         model: AI_MODEL,
         messages: [
-          { role: 'system', content: SCHEMA_PROMPT },
+          { role: 'system', content: SCHEMA_PROMPT + languagePrompt },
           { role: 'user', content: `Plant name: ${name}` },
         ],
       }),

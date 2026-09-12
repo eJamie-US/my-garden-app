@@ -6,6 +6,9 @@ export interface Profile {
   displayName?: string;
   /** A single emoji, picked from a small curated set — see ProfileSettings. */
   avatarIcon?: string;
+  /** ISO 639-1 code, e.g. 'en', 'es'. Always set (defaults to 'en' at the
+   *  DB level) — see src/i18n.ts's SUPPORTED_LOCALES for the current list. */
+  locale?: string;
 }
 
 export interface UserSettings {
@@ -22,6 +25,7 @@ interface UserSettingsRow {
   default_yard_id: string | null;
   display_name: string | null;
   avatar_icon: string | null;
+  locale: string;
   created_at: string;
   updated_at: string;
 }
@@ -33,6 +37,7 @@ function toSettings(row: UserSettingsRow): UserSettings {
     profile: {
       displayName: row.display_name ?? undefined,
       avatarIcon: row.avatar_icon ?? undefined,
+      locale: row.locale,
     },
   };
 }
@@ -50,18 +55,21 @@ export const userSettingsService = {
     return data ? toSettings(data as UserSettingsRow) : null;
   },
 
-  /** Upserts on user_id, since a settings row may not exist yet. */
+  /** Upserts on user_id, since a settings row may not exist yet. Locale is
+   *  only written when explicitly provided — omitting it (e.g. when just
+   *  changing the display name) leaves the DB's own default/existing value
+   *  alone rather than stomping it back to 'en'. */
   async saveProfile(userId: string, profile: Profile): Promise<UserSettings> {
+    const patch: Record<string, unknown> = {
+      user_id: userId,
+      display_name: profile.displayName?.trim() || null,
+      avatar_icon: profile.avatarIcon ?? null,
+    };
+    if (profile.locale !== undefined) patch.locale = profile.locale;
+
     const { data, error } = await supabase
       .from('user_settings')
-      .upsert(
-        {
-          user_id: userId,
-          display_name: profile.displayName?.trim() || null,
-          avatar_icon: profile.avatarIcon ?? null,
-        },
-        { onConflict: 'user_id' },
-      )
+      .upsert(patch, { onConflict: 'user_id' })
       .select()
       .single();
 

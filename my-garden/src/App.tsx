@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { useAuth } from './hooks/useAuth';
 import { usePlants } from './hooks/usePlants';
@@ -23,6 +24,7 @@ import { yardObstaclesService } from './services/supabase/yardObstacles';
 import { yardsService } from './services/supabase/yards';
 import { yardSectionsService } from './services/supabase/yardSections';
 import { userSettingsService, type Profile } from './services/supabase/userSettings';
+import { setAppLanguage } from './i18n';
 import type { Box } from './utils/sectionView';
 import type { CareItem, Plant, WeatherData, Yard, YardObstacle, YardSection } from './types';
 
@@ -61,6 +63,7 @@ function LazyLoadingFallback() {
 }
 
 export default function App() {
+  const { t } = useTranslation();
   const { user, loading, checkAuth, logout, passwordRecovery, listenForPasswordRecovery } = useAuth();
   const { plants, fetchPlants, updatePlant, deletePlant } = usePlants();
   const careItems = useCareItems((s) => s.items);
@@ -152,6 +155,7 @@ export default function App() {
     Promise.all([yardsService.getAccessible(), userSettingsService.getSettings(user.id)])
       .then(async ([fetchedYards, settings]) => {
         setProfile(settings?.profile ?? {});
+        if (settings?.profile.locale) setAppLanguage(settings.profile.locale);
         let list = fetchedYards;
         if (list.length === 0) {
           const created = await yardsService.create({});
@@ -164,7 +168,7 @@ export default function App() {
       .catch((err) => {
         console.error('Yards/settings unavailable:', err);
         setYardsError(
-          err instanceof Error && err.message ? err.message : "Couldn't load your yard.",
+          err instanceof Error && err.message ? err.message : t('app.couldNotLoadYard'),
         );
       })
       .finally(() => setYardsLoading(false));
@@ -268,7 +272,7 @@ export default function App() {
         <div className="text-center">
           <div className="mb-4 animate-spin text-6xl">🌱</div>
           <p className="font-semibold text-gray-600">
-            Loading your garden...
+            {t('app.loadingGarden')}
           </p>
         </div>
       </div>
@@ -294,7 +298,7 @@ export default function App() {
         <div className="text-center">
           <div className="mb-4 animate-spin text-6xl">🌱</div>
           <p className="font-semibold text-gray-600">
-            Loading your garden...
+            {t('app.loadingGarden')}
           </p>
         </div>
       </div>
@@ -303,9 +307,7 @@ export default function App() {
 
   const openPlantFormAt = (x: number, y: number) => {
     if (!isPremium && plants.length >= FREE_PLANT_LIMIT) {
-      setPricingReason(
-        `The free plan is limited to ${FREE_PLANT_LIMIT} plants — upgrade for unlimited plants.`,
-      );
+      setPricingReason(t('app.freePlanLimit', { limit: FREE_PLANT_LIMIT }));
       return;
     }
     setSelectedLocation({ x, y });
@@ -395,20 +397,22 @@ export default function App() {
               <div className="mb-2 flex items-center justify-between gap-2 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-700">
                 <span className="flex items-center gap-1.5">
                   <AlertTriangle size={14} className="shrink-0" />
-                  Couldn't load your yard — {yardsError}
+                  {t('app.couldNotLoadYardWithReason', { reason: yardsError })}
                 </span>
                 <button
                   type="button"
                   onClick={loadYards}
                   className="flex shrink-0 items-center gap-1 font-semibold underline"
                 >
-                  <RefreshCw size={12} /> Try again
+                  <RefreshCw size={12} /> {t('app.tryAgain')}
                 </button>
               </div>
             )}
             <DueToday
               userId={user.id}
               plants={plants}
+              garden={activeYard}
+              plan={entitlement.plan}
               onOpenPlant={(plantId) =>
                 setSelectedPlant(plants.find((p) => p.id === plantId) ?? null)
               }
@@ -548,13 +552,13 @@ export default function App() {
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 sm:items-center">
           <div className="flex max-h-[90vh] w-full max-w-md flex-col rounded-lg bg-white shadow-xl">
             <div className="flex shrink-0 items-center justify-between border-b p-4">
-              <h3 className="text-lg font-bold">Edit {editingPlant.name}</h3>
+              <h3 className="text-lg font-bold">{t('app.editPlant', { name: editingPlant.name })}</h3>
 
               <button
                 type="button"
                 onClick={() => setEditingPlant(null)}
                 className="text-xl text-gray-500 hover:text-gray-700"
-                aria-label="Close edit plant form"
+                aria-label={t('app.closeEditPlantForm')}
               >
                 ✕
               </button>
@@ -585,13 +589,13 @@ export default function App() {
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 sm:items-center">
           <div className="flex max-h-[90vh] w-full max-w-md flex-col rounded-lg bg-white shadow-xl">
             <div className="flex shrink-0 items-center justify-between border-b p-4">
-              <h3 className="text-lg font-bold">Add Plant</h3>
+              <h3 className="text-lg font-bold">{t('app.addPlant')}</h3>
 
               <button
                 type="button"
                 onClick={closePlantForm}
                 className="text-xl text-gray-500 hover:text-gray-700"
-                aria-label="Close add plant form"
+                aria-label={t('app.closeAddPlantForm')}
               >
                 ✕
               </button>

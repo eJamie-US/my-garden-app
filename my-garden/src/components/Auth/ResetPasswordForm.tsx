@@ -5,9 +5,11 @@
 // landing in the app for real.
 
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../hooks/useAuth';
 
 export function ResetPasswordForm() {
+  const { t } = useTranslation();
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [mismatch, setMismatch] = useState(false);
@@ -35,13 +37,13 @@ export function ResetPasswordForm() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-green-50 to-blue-50">
       <div className="w-full max-w-md rounded-lg bg-white p-8 shadow-lg">
-        <h1 className="mb-2 text-center text-3xl font-bold text-green-700">🌱 Garden App</h1>
-        <p className="mb-8 text-center text-gray-600">Choose a new password</p>
+        <h1 className="mb-2 text-center text-3xl font-bold text-green-700">🌱 {t('login.appName')}</h1>
+        <p className="mb-8 text-center text-gray-600">{t('resetPassword.tagline')}</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="new-password" className="mb-1 block text-sm font-medium text-gray-700">
-              New password
+              {t('resetPassword.newPassword')}
             </label>
             <input
               id="new-password"
@@ -57,7 +59,7 @@ export function ResetPasswordForm() {
 
           <div>
             <label htmlFor="confirm-password" className="mb-1 block text-sm font-medium text-gray-700">
-              Confirm password
+              {t('resetPassword.confirmPassword')}
             </label>
             <input
               id="confirm-password"
@@ -73,7 +75,7 @@ export function ResetPasswordForm() {
 
           {mismatch && (
             <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-              Those passwords don't match.
+              {t('resetPassword.mismatch')}
             </div>
           )}
           {error && (
@@ -87,7 +89,7 @@ export function ResetPasswordForm() {
             disabled={saving}
             className="w-full rounded-lg bg-green-600 px-4 py-2 font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {saving ? 'Saving…' : 'Set new password'}
+            {saving ? t('resetPassword.saving') : t('resetPassword.setNewPassword')}
           </button>
         </form>
       </div>

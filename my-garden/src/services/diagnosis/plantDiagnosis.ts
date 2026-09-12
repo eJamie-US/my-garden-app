@@ -11,6 +11,7 @@
 import type { DiagnosisCategory, DiagnosisFinding, PlantDiagnosisResult } from '../../types';
 import { fileToBase64, resizeImage } from '../../utils/imageUtils';
 import { supabase } from '../../lib/supabase';
+import i18n from '../../i18n';
 
 const CATEGORIES: DiagnosisCategory[] = [
   'sun-damage', 'not-enough-sun', 'overwatering', 'underwatering', 'pest', 'disease',
@@ -41,7 +42,7 @@ export function parseDiagnosis(raw: string): PlantDiagnosisResult | null {
     return {
       status: 'no-plant-detected',
       findings: [],
-      message: "Couldn't see a plant clearly in that photo — try a closer, well-lit shot.",
+      message: i18n.t('plantDiagnosisService.noPlantDetected'),
     };
   }
 
@@ -86,7 +87,7 @@ export const plantDiagnosisService = {
       return {
         status: 'offline',
         findings: [],
-        message: "You're offline — try diagnosing again once you reconnect.",
+        message: i18n.t('plantDiagnosisService.offline'),
       };
     }
 
@@ -96,47 +97,47 @@ export const plantDiagnosisService = {
 
       const { data, error } = await supabase.functions.invoke<{ text?: string; error?: string }>(
         'ai-plant-diagnosis',
-        { body: { imageBase64, mimeType: 'image/jpeg', knownIssues }, signal },
+        { body: { imageBase64, mimeType: 'image/jpeg', knownIssues, locale: i18n.language }, signal },
       );
 
       if (error) {
         const funcStatus = (error as any)?.context?.status as number | undefined;
         if (funcStatus === 401) {
-          return { status: 'error', findings: [], message: 'Please sign in again.' };
+          return { status: 'error', findings: [], message: i18n.t('plantDiagnosisService.signInAgain') };
         }
         if (funcStatus === 501) {
           return {
             status: 'unconfigured',
             findings: [],
-            message: 'Plant diagnosis isn’t set up yet.',
+            message: i18n.t('plantDiagnosisService.notSetUpYet'),
           };
         }
         if (funcStatus === 402) {
           return {
             status: 'unconfigured',
             findings: [],
-            message: 'Plant diagnosis is a premium feature — upgrade for an AI health check.',
+            message: i18n.t('plantDiagnosisService.premiumFeature'),
           };
         }
         console.error('plant-diagnosis function unreachable', error);
         return {
           status: 'error',
           findings: [],
-          message: "Couldn't reach plant diagnosis right now.",
+          message: i18n.t('plantDiagnosisService.couldNotReach'),
         };
       }
 
       if (!data?.text) {
-        return { status: 'error', findings: [], message: 'Diagnosis failed.' };
+        return { status: 'error', findings: [], message: i18n.t('plantDiagnosisService.failed') };
       }
-      return parseDiagnosis(data.text) ?? { status: 'error', findings: [], message: 'Diagnosis failed.' };
+      return parseDiagnosis(data.text) ?? { status: 'error', findings: [], message: i18n.t('plantDiagnosisService.failed') };
     } catch (err) {
       if (signal?.aborted) throw err;
       console.error('Plant diagnosis failed', err);
       return {
         status: 'error',
         findings: [],
-        message: err instanceof Error ? err.message : 'Diagnosis failed.',
+        message: err instanceof Error ? err.message : i18n.t('plantDiagnosisService.failed'),
       };
     }
   },

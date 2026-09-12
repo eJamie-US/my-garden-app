@@ -8,6 +8,7 @@
 
 import type { CareIngredient, DraftCareItem } from '../../types';
 import { supabase } from '../../lib/supabase';
+import i18n from '../../i18n';
 
 let seq = 0;
 const uid = (p: string) => `${p}-${Date.now().toString(36)}-${seq++}`;
@@ -159,7 +160,7 @@ function fallbackPlan(plantName: string): SeedPlan {
     source: 'fallback',
     notes:
       entry === GENERIC_FALLBACK
-        ? `No specific sowing data for "${plantName}" — these are general seed-raising defaults. Check the packet and adjust.`
+        ? i18n.t('seedPlanService.noSpecificData', { name: plantName })
         : undefined,
   };
 }
@@ -234,7 +235,7 @@ export const seedPlanService = {
     try {
       const { data, error } = await supabase.functions.invoke<{ text?: string; error?: string }>(
         'ai-seed-plan',
-        { body: { plantName: name }, signal },
+        { body: { plantName: name, locale: i18n.language }, signal },
       );
 
       if (error || !data || data.error || !data.text) {

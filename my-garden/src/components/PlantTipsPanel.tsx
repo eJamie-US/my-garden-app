@@ -6,6 +6,7 @@
 // care modal anywhere is instant after the first lookup for it.
 
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Info, Loader2, Scissors, Sprout, Thermometer } from 'lucide-react';
 import { plantTipsService } from '../services/tips/plantTips';
 import type { PlantTipsResult } from '../types';
@@ -17,6 +18,7 @@ interface PlantTipsPanelProps {
 }
 
 export function PlantTipsPanel({ plantName }: PlantTipsPanelProps) {
+  const { t } = useTranslation();
   const [result, setResult] = useState<PlantTipsResult | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -49,7 +51,7 @@ export function PlantTipsPanel({ plantName }: PlantTipsPanelProps) {
   if (loading) {
     return (
       <p className="flex items-center gap-2 text-xs text-gray-500">
-        <Loader2 size={13} className="animate-spin" /> Looking up plant tips…
+        <Loader2 size={13} className="animate-spin" /> {t('plantTips.looking')}
       </p>
     );
   }
@@ -71,9 +73,9 @@ export function PlantTipsPanel({ plantName }: PlantTipsPanelProps) {
           <Sprout size={14} />
         </span>
         <div className="min-w-0 flex-1 text-xs">
-          <span className="font-semibold text-gray-900">Propagation</span>
+          <span className="font-semibold text-gray-900">{t('plantTips.propagation')}</span>
           <p className="mt-0.5 text-gray-600">{tips.propagationMethod}</p>
-          <p className="text-emerald-700">Best time: {tips.propagationSeason}</p>
+          <p className="text-emerald-700">{t('plantTips.bestTime', { season: tips.propagationSeason })}</p>
         </div>
       </div>
       <div className="flex gap-2">
@@ -81,7 +83,7 @@ export function PlantTipsPanel({ plantName }: PlantTipsPanelProps) {
           <Scissors size={14} />
         </span>
         <div className="min-w-0 flex-1 text-xs">
-          <span className="font-semibold text-gray-900">Pruning</span>
+          <span className="font-semibold text-gray-900">{t('plantTips.pruning')}</span>
           <p className="mt-0.5 text-gray-600">{tips.pruningSeason}</p>
         </div>
       </div>
@@ -90,7 +92,7 @@ export function PlantTipsPanel({ plantName }: PlantTipsPanelProps) {
           <Thermometer size={14} />
         </span>
         <div className="min-w-0 flex-1 text-xs">
-          <span className="font-semibold text-gray-900">Ideal temperature</span>
+          <span className="font-semibold text-gray-900">{t('plantTips.idealTemp')}</span>
           <p className="mt-0.5 text-gray-600">{tips.idealTempRange}</p>
         </div>
       </div>

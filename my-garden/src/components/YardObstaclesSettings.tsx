@@ -7,10 +7,12 @@
 // approximate, same as everything else that estimate does.
 
 import { useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { Loader2, Pencil, Trash2, X } from 'lucide-react';
 import { yardObstaclesService } from '../services/supabase/yardObstacles';
 import { boxFromSection, sectionTransformStyle } from '../utils/sectionView';
-import { TYPE_OPTIONS } from '../utils/obstacleTypes';
+import { typeOptions } from '../utils/obstacleTypes';
 import type { ObstacleEdge, ObstacleHeightTier, ObstacleShape, Point, YardObstacle, YardObstacleType, YardSection } from '../types';
 
 type ShapeKind = 'point' | 'circle' | 'line' | 'rect' | 'triangle';
@@ -19,22 +21,26 @@ type ShapeKind = 'point' | 'circle' | 'line' | 'rect' | 'triangle';
  *  estimate (utils/rainShelter.ts) — only meaningful with a rect shape. */
 const ROOFED_TYPES = new Set<YardObstacleType>(['building', 'covered-porch', 'gazebo']);
 
-const EDGE_OPTIONS: { value: ObstacleEdge; label: string }[] = [
-  { value: 'top', label: 'Top' },
-  { value: 'right', label: 'Right' },
-  { value: 'bottom', label: 'Bottom' },
-  { value: 'left', label: 'Left' },
-];
+function edgeOptions(t: TFunction): { value: ObstacleEdge; label: string }[] {
+  return [
+    { value: 'top', label: t('yardObstacles.edgeTop') },
+    { value: 'right', label: t('yardObstacles.edgeRight') },
+    { value: 'bottom', label: t('yardObstacles.edgeBottom') },
+    { value: 'left', label: t('yardObstacles.edgeLeft') },
+  ];
+}
 
 const ALL_EDGES: ObstacleEdge[] = ['top', 'right', 'bottom', 'left'];
 
-const SHAPE_OPTIONS: { value: ShapeKind; label: string; hint: string }[] = [
-  { value: 'point', label: 'Just a point', hint: 'Click a spot to place it.' },
-  { value: 'circle', label: 'Circle', hint: 'Click and drag out from the center to size it.' },
-  { value: 'line', label: 'Line', hint: 'Click two points — start, then end.' },
-  { value: 'rect', label: 'Rectangle', hint: 'Click and drag from one corner to the opposite corner.' },
-  { value: 'triangle', label: 'Triangle', hint: 'Click and drag out from a corner to size it.' },
-];
+function shapeOptions(t: TFunction): { value: ShapeKind; label: string; hint: string }[] {
+  return [
+    { value: 'point', label: t('yardObstacles.shapePointLabel'), hint: t('yardObstacles.shapePointHint') },
+    { value: 'circle', label: t('yardObstacles.shapeCircleLabel'), hint: t('yardObstacles.shapeCircleHint') },
+    { value: 'line', label: t('yardObstacles.shapeLineLabel'), hint: t('yardObstacles.shapeLineHint') },
+    { value: 'rect', label: t('yardObstacles.shapeRectLabel'), hint: t('yardObstacles.shapeRectHint') },
+    { value: 'triangle', label: t('yardObstacles.shapeTriangleLabel'), hint: t('yardObstacles.shapeTriangleHint') },
+  ];
+}
 
 type HandleKey = 'location' | 'to' | 'b' | 'c' | 'radius';
 
@@ -70,17 +76,18 @@ function boundingTriangle(start: Point, current: Point): { location: Point; b: P
   };
 }
 
-const TIER_OPTIONS: { value: ObstacleHeightTier; label: string }[] = [
-  { value: 'low', label: 'Low (~fence height)' },
-  { value: 'medium', label: 'Medium (~single-story roof)' },
-  { value: 'tall', label: 'Tall (~tree or two-story)' },
-];
+function tierOptions(t: TFunction): { value: ObstacleHeightTier; label: string }[] {
+  return [
+    { value: 'low', label: t('yardObstacles.tierLow') },
+    { value: 'medium', label: t('yardObstacles.tierMedium') },
+    { value: 'tall', label: t('yardObstacles.tierTall') },
+  ];
+}
 
-const SHORT_TIER_LABEL: Record<ObstacleHeightTier, string> = {
-  low: 'Low',
-  medium: 'Medium',
-  tall: 'Tall',
-};
+function shortTierLabel(t: TFunction, tier: ObstacleHeightTier): string {
+  const key = { low: 'tierLowShort', medium: 'tierMediumShort', tall: 'tierTallShort' }[tier];
+  return t(`yardObstacles.${key}`);
+}
 
 const ICON_BY_TYPE: Record<YardObstacleType, string> = {
   building: '🏠',
@@ -229,6 +236,11 @@ export function YardObstaclesSettings({
   onSaved,
   onClose,
 }: YardObstaclesSettingsProps) {
+  const { t } = useTranslation();
+  const TYPE_OPTIONS = typeOptions(t);
+  const SHAPE_OPTIONS = shapeOptions(t);
+  const EDGE_OPTIONS = edgeOptions(t);
+  const TIER_OPTIONS = tierOptions(t);
   const contentRef = useRef<HTMLDivElement>(null);
   const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
   const activeSection = sections.find((s) => s.id === activeSectionId) ?? null;
@@ -357,7 +369,7 @@ export function YardObstaclesSettings({
       onSaved([...obstacles, created]);
       setPending(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save that obstacle');
+      setError(err instanceof Error ? err.message : t('yardObstacles.couldNotSaveObstacle'));
     } finally {
       setSaving(false);
     }
@@ -370,7 +382,7 @@ export function YardObstaclesSettings({
       await yardObstaclesService.remove(obstacle.id);
       onSaved(obstacles.filter((o) => o.id !== obstacle.id));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not remove that obstacle');
+      setError(err instanceof Error ? err.message : t('yardObstacles.couldNotRemoveObstacle'));
     } finally {
       setRemovingId(null);
     }
@@ -384,7 +396,7 @@ export function YardObstaclesSettings({
       const updated = await yardObstaclesService.update(obstacle.id, { heightTier });
       onSaved(obstacles.map((o) => (o.id === obstacle.id ? updated : o)));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not update that obstacle');
+      setError(err instanceof Error ? err.message : t('yardObstacles.couldNotUpdateObstacle'));
     } finally {
       setUpdatingId(null);
     }
@@ -430,7 +442,7 @@ export function YardObstaclesSettings({
       setEditLocation(null);
       setEditShape(undefined);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not update that obstacle');
+      setError(err instanceof Error ? err.message : t('yardObstacles.couldNotUpdateObstacle'));
     } finally {
       setSavingEdit(false);
     }
@@ -448,12 +460,12 @@ export function YardObstaclesSettings({
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 sm:items-center">
       <div className="flex max-h-[90vh] w-full max-w-lg flex-col rounded-lg bg-white shadow-xl">
         <div className="flex shrink-0 items-center justify-between border-b p-4">
-          <h3 className="text-lg font-bold">Yard obstacles</h3>
+          <h3 className="text-lg font-bold">{t('yardObstacles.title')}</h3>
           <button
             type="button"
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700"
-            aria-label="Close yard obstacles"
+            aria-label={t('yardObstacles.closeAria')}
           >
             <X size={20} />
           </button>
@@ -461,9 +473,7 @@ export function YardObstaclesSettings({
 
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
           <p className="text-sm text-gray-600">
-            Mark anything that blocks the sun — the house, a covered porch, trees, fences — sized
-            to its actual footprint so the sun/shade estimate can tell how wide a slice of sky it
-            really covers.
+            {t('yardObstacles.description')}
           </p>
 
           {error && (
@@ -479,8 +489,8 @@ export function YardObstaclesSettings({
                 onChange={(e) => changeType(e.target.value as YardObstacleType)}
                 className="flex-1 rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
               >
-                {TYPE_OPTIONS.map((t) => (
-                  <option key={t.value} value={t.value}>{t.icon} {t.label}</option>
+                {TYPE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.icon} {opt.label}</option>
                 ))}
               </select>
               <select
@@ -498,8 +508,7 @@ export function YardObstaclesSettings({
           {!pending && !editingId && <p className="text-xs text-gray-500">{hint}</p>}
           {editingId && (
             <p className="text-xs text-gray-500">
-              Drag its marker to move it, or the small squares to resize — changes show live, Save
-              to keep them.
+              {t('yardObstacles.editHint')}
             </p>
           )}
 
@@ -514,7 +523,7 @@ export function YardObstaclesSettings({
                     : 'border-gray-300 bg-white text-gray-600 hover:border-gray-400'
                 }`}
               >
-                Whole yard
+                {t('yardObstacles.wholeYard')}
               </button>
               {sections.map((section) => (
                 <button
@@ -541,7 +550,7 @@ export function YardObstaclesSettings({
             style={{ cursor: pending ? 'default' : 'crosshair' }}
           >
           <div ref={contentRef} className="relative" style={activeBox ? sectionTransformStyle(activeBox) : undefined}>
-            <img src={yardImageUrl} alt="Your yard" className="block h-auto w-full select-none" draggable={false} />
+            <img src={yardImageUrl} alt={t('yardObstacles.yardAlt')} className="block h-auto w-full select-none" draggable={false} />
             <svg
               className="pointer-events-none absolute inset-0 h-full w-full"
               viewBox="0 0 100 100"
@@ -623,8 +632,11 @@ export function YardObstaclesSettings({
                   style={{ left: `${loc.x}%`, top: `${loc.y}%` }}
                   title={
                     isEditing
-                      ? 'Drag to move'
-                      : `Edit ${o.label || TYPE_OPTIONS.find((t) => t.value === o.type)?.label} (${o.heightTier})`
+                      ? t('yardObstacles.dragToMove')
+                      : t('yardObstacles.editMarkerTitle', {
+                          label: o.label || TYPE_OPTIONS.find((opt) => opt.value === o.type)?.label,
+                          tier: shortTierLabel(t, o.heightTier),
+                        })
                   }
                 >
                   {ICON_BY_TYPE[o.type]}
@@ -665,8 +677,8 @@ export function YardObstaclesSettings({
                         e.stopPropagation();
                         setDraggingHandle(null);
                       }}
-                      aria-label={`Resize handle (${h.key})`}
-                      title="Drag to resize"
+                      aria-label={t('yardObstacles.resizeHandleAria', { key: h.key })}
+                      title={t('yardObstacles.dragToResize')}
                       className="absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 cursor-move rounded-sm border-2 border-white bg-emerald-600 shadow ring-1 ring-emerald-800"
                       style={{ left: `${h.point.x}%`, top: `${h.point.y}%` }}
                     />
@@ -690,7 +702,7 @@ export function YardObstaclesSettings({
               onClick={cancelDraft}
               className="w-full rounded-lg border border-gray-300 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
             >
-              Cancel ({draft.points.length}/2 points placed)
+              {t('yardObstacles.cancelPointsPlaced', { count: draft.points.length })}
             </button>
           )}
 
@@ -702,8 +714,8 @@ export function YardObstaclesSettings({
                   onChange={(e) => setType(e.target.value as YardObstacleType)}
                   className="flex-1 rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
                 >
-                  {TYPE_OPTIONS.map((t) => (
-                    <option key={t.value} value={t.value}>{t.icon} {t.label}</option>
+                  {TYPE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.icon} {opt.label}</option>
                   ))}
                 </select>
                 <select
@@ -711,8 +723,8 @@ export function YardObstaclesSettings({
                   onChange={(e) => setHeightTier(e.target.value as ObstacleHeightTier)}
                   className="flex-1 rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
                 >
-                  {TIER_OPTIONS.map((t) => (
-                    <option key={t.value} value={t.value}>{t.label}</option>
+                  {TIER_OPTIONS.map((tier) => (
+                    <option key={tier.value} value={tier.value}>{tier.label}</option>
                   ))}
                 </select>
               </div>
@@ -720,7 +732,7 @@ export function YardObstaclesSettings({
               {ROOFED_TYPES.has(type) && pending.shape?.kind === 'rect' && (
                 <div>
                   <p className="mb-1 text-xs font-medium text-gray-700">
-                    Which sides are open (no wall)? Matters for wind-driven rain, not sun.
+                    {t('yardObstacles.whichSidesOpen')}
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {EDGE_OPTIONS.map((edge) => {
@@ -745,7 +757,7 @@ export function YardObstaclesSettings({
                       onClick={() => setOpenEdges(openEdges.length === 4 ? [] : ALL_EDGES)}
                       className="rounded-full border border-dashed border-gray-300 px-2.5 py-1 text-xs font-semibold text-gray-500 hover:border-gray-400"
                     >
-                      {openEdges.length === 4 ? 'None open (enclosed)' : 'All open (gazebo)'}
+                      {openEdges.length === 4 ? t('yardObstacles.noneOpen') : t('yardObstacles.allOpen')}
                     </button>
                   </div>
                 </div>
@@ -757,7 +769,7 @@ export function YardObstaclesSettings({
                   onClick={cancelDraft}
                   className="flex-1 rounded-lg border border-gray-300 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
                 >
-                  Cancel
+                  {t('yardObstacles.cancel')}
                 </button>
                 <button
                   type="button"
@@ -766,7 +778,7 @@ export function YardObstaclesSettings({
                   className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-emerald-600 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:bg-gray-400"
                 >
                   {saving && <Loader2 size={12} className="animate-spin" />}
-                  Add
+                  {t('yardObstacles.add')}
                 </button>
               </div>
             </div>
@@ -780,8 +792,8 @@ export function YardObstaclesSettings({
                   onChange={(e) => setEditType(e.target.value as YardObstacleType)}
                   className="flex-1 rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
                 >
-                  {TYPE_OPTIONS.map((t) => (
-                    <option key={t.value} value={t.value}>{t.icon} {t.label}</option>
+                  {TYPE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.icon} {opt.label}</option>
                   ))}
                 </select>
                 <select
@@ -789,8 +801,8 @@ export function YardObstaclesSettings({
                   onChange={(e) => setEditHeightTier(e.target.value as ObstacleHeightTier)}
                   className="flex-1 rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
                 >
-                  {TIER_OPTIONS.map((t) => (
-                    <option key={t.value} value={t.value}>{t.label}</option>
+                  {TIER_OPTIONS.map((tier) => (
+                    <option key={tier.value} value={tier.value}>{tier.label}</option>
                   ))}
                 </select>
               </div>
@@ -798,7 +810,7 @@ export function YardObstaclesSettings({
               {ROOFED_TYPES.has(editType) && editingObstacle.shape?.kind === 'rect' && (
                 <div>
                   <p className="mb-1 text-xs font-medium text-gray-700">
-                    Which sides are open (no wall)? Matters for wind-driven rain, not sun.
+                    {t('yardObstacles.whichSidesOpen')}
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {EDGE_OPTIONS.map((edge) => {
@@ -829,7 +841,7 @@ export function YardObstaclesSettings({
                       onClick={() => setEditOpenEdges(editOpenEdges.length === 4 ? [] : ALL_EDGES)}
                       className="rounded-full border border-dashed border-gray-300 px-2.5 py-1 text-xs font-semibold text-gray-500 hover:border-gray-400"
                     >
-                      {editOpenEdges.length === 4 ? 'None open (enclosed)' : 'All open (gazebo)'}
+                      {editOpenEdges.length === 4 ? t('yardObstacles.noneOpen') : t('yardObstacles.allOpen')}
                     </button>
                   </div>
                 </div>
@@ -839,7 +851,7 @@ export function YardObstaclesSettings({
                 <button
                   type="button"
                   onClick={deleteEditing}
-                  aria-label="Delete this obstacle"
+                  aria-label={t('yardObstacles.deleteObstacleAria')}
                   className="shrink-0 rounded-lg border border-red-200 px-2.5 py-1.5 text-red-600 hover:bg-red-50"
                 >
                   <Trash2 size={14} />
@@ -849,7 +861,7 @@ export function YardObstaclesSettings({
                   onClick={cancelEditing}
                   className="flex-1 rounded-lg border border-gray-300 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
                 >
-                  Cancel
+                  {t('yardObstacles.cancel')}
                 </button>
                 <button
                   type="button"
@@ -858,7 +870,7 @@ export function YardObstaclesSettings({
                   className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-emerald-600 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:bg-gray-400"
                 >
                   {savingEdit && <Loader2 size={12} className="animate-spin" />}
-                  Save
+                  {t('yardObstacles.save')}
                 </button>
               </div>
             </div>
@@ -870,12 +882,19 @@ export function YardObstaclesSettings({
                 <li key={o.id} className="flex items-center gap-2 px-3 py-2 text-sm">
                   <span className="text-base">{ICON_BY_TYPE[o.type]}</span>
                   <span className="min-w-0 flex-1 truncate text-gray-700">
-                    {o.label || TYPE_OPTIONS.find((t) => t.value === o.type)?.label}
-                    {o.shape && <span className="text-gray-400"> · {o.shape.kind}</span>}
+                    {o.label || TYPE_OPTIONS.find((opt) => opt.value === o.type)?.label}
+                    {o.shape && (
+                      <span className="text-gray-400">
+                        {' '}
+                        · {SHAPE_OPTIONS.find((s) => s.value === o.shape!.kind)?.label}
+                      </span>
+                    )}
                     {ROOFED_TYPES.has(o.type) && o.shape?.kind === 'rect' && (
                       <span className="text-gray-400">
                         {' '}
-                        · {o.openEdges?.length ? `${o.openEdges.length} side${o.openEdges.length > 1 ? 's' : ''} open` : 'enclosed'}
+                        · {o.openEdges?.length
+                          ? t('yardObstacles.sidesOpen', { count: o.openEdges.length })
+                          : t('yardObstacles.enclosed')}
                       </span>
                     )}
                   </span>
@@ -884,11 +903,11 @@ export function YardObstaclesSettings({
                       value={o.heightTier}
                       onChange={(e) => updateHeightTier(o, e.target.value as ObstacleHeightTier)}
                       disabled={updatingId === o.id}
-                      aria-label="Height"
+                      aria-label={t('yardObstacles.heightAria')}
                       className="rounded-md border border-gray-300 bg-white px-1.5 py-1 text-xs text-gray-700 disabled:opacity-50"
                     >
-                      {TIER_OPTIONS.map((t) => (
-                        <option key={t.value} value={t.value}>{SHORT_TIER_LABEL[t.value]}</option>
+                      {TIER_OPTIONS.map((tier) => (
+                        <option key={tier.value} value={tier.value}>{shortTierLabel(t, tier.value)}</option>
                       ))}
                     </select>
                     {updatingId === o.id && (
@@ -901,7 +920,7 @@ export function YardObstaclesSettings({
                   <button
                     type="button"
                     onClick={() => startEditing(o)}
-                    aria-label="Edit obstacle"
+                    aria-label={t('yardObstacles.editObstacleAria')}
                     className="shrink-0 p-1 text-gray-400 hover:text-emerald-600"
                   >
                     <Pencil size={13} />
@@ -910,7 +929,7 @@ export function YardObstaclesSettings({
                     type="button"
                     onClick={() => remove(o)}
                     disabled={removingId === o.id}
-                    aria-label="Remove obstacle"
+                    aria-label={t('yardObstacles.removeObstacleAria')}
                     className="shrink-0 p-1 text-gray-400 hover:text-red-600"
                   >
                     {removingId === o.id ? (
@@ -931,7 +950,7 @@ export function YardObstaclesSettings({
             onClick={onClose}
             className="flex-1 rounded-lg bg-green-500 py-2 text-sm font-semibold text-white hover:bg-green-600"
           >
-            Done
+            {t('yardObstacles.done')}
           </button>
         </div>
       </div>

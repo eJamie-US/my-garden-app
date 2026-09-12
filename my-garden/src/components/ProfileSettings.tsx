@@ -4,8 +4,10 @@
 // garden location.
 
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Loader2, X } from 'lucide-react';
 import { userSettingsService, type Profile } from '../services/supabase/userSettings';
+import { SUPPORTED_LOCALES, setAppLanguage } from '../i18n';
 
 const ICON_OPTIONS = [
   '🌱', '🌵', '🌻', '🌷', '🌸', '🌹', '🌿', '🍀',
@@ -27,8 +29,10 @@ export function ProfileSettings({
   onSaved,
   onClose,
 }: ProfileSettingsProps) {
+  const { t } = useTranslation();
   const [displayName, setDisplayName] = useState(current.displayName ?? '');
   const [avatarIcon, setAvatarIcon] = useState(current.avatarIcon ?? '');
+  const [locale, setLocale] = useState(current.locale ?? 'en');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -39,11 +43,13 @@ export function ProfileSettings({
       const saved = await userSettingsService.saveProfile(userId, {
         displayName: displayName.trim() || undefined,
         avatarIcon: avatarIcon || undefined,
+        locale,
       });
+      setAppLanguage(locale);
       onSaved(saved.profile);
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save your profile.');
+      setError(err instanceof Error ? err.message : t('profileSettings.saveError'));
       setSaving(false);
     }
   };
@@ -52,12 +58,12 @@ export function ProfileSettings({
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 sm:items-center">
       <div className="flex max-h-[90vh] w-full max-w-md flex-col rounded-lg bg-white shadow-xl">
         <div className="flex shrink-0 items-center justify-between border-b p-4">
-          <h3 className="text-lg font-bold">Your profile</h3>
+          <h3 className="text-lg font-bold">{t('profileSettings.title')}</h3>
           <button
             type="button"
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700"
-            aria-label="Close profile settings"
+            aria-label={t('profileSettings.close')}
           >
             <X size={20} />
           </button>
@@ -72,27 +78,43 @@ export function ProfileSettings({
 
           <div>
             <label htmlFor="display-name" className="mb-1 block text-xs font-semibold text-gray-600">
-              Display name
+              {t('profileSettings.displayName')}
             </label>
             <input
               id="display-name"
               type="text"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="What should we call you?"
+              placeholder={t('profileSettings.displayNamePlaceholder')}
               maxLength={40}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:ring-green-500"
             />
           </div>
 
           <div>
-            <p className="mb-1.5 text-xs font-semibold text-gray-600">Icon</p>
+            <label htmlFor="language" className="mb-1 block text-xs font-semibold text-gray-600">
+              {t('profileSettings.language')}
+            </label>
+            <select
+              id="language"
+              value={locale}
+              onChange={(e) => setLocale(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:ring-green-500"
+            >
+              {SUPPORTED_LOCALES.map((l) => (
+                <option key={l.code} value={l.code}>{l.nativeName}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <p className="mb-1.5 text-xs font-semibold text-gray-600">{t('profileSettings.icon')}</p>
             <div className="grid grid-cols-8 gap-1.5">
               <button
                 type="button"
                 onClick={() => setAvatarIcon('')}
                 aria-pressed={avatarIcon === ''}
-                aria-label={`No icon — use the initial "${fallbackInitial}" instead`}
+                aria-label={t('profileSettings.noIcon', { initial: fallbackInitial })}
                 className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold transition ${
                   avatarIcon === ''
                     ? 'bg-emerald-500 text-white ring-2 ring-emerald-600 ring-offset-2'
@@ -107,7 +129,7 @@ export function ProfileSettings({
                   type="button"
                   onClick={() => setAvatarIcon(icon)}
                   aria-pressed={avatarIcon === icon}
-                  aria-label={`Use ${icon} as your icon`}
+                  aria-label={t('profileSettings.useIcon', { icon })}
                   className={`flex h-10 w-10 items-center justify-center rounded-full text-lg transition ${
                     avatarIcon === icon
                       ? 'bg-emerald-100 ring-2 ring-emerald-600 ring-offset-2'
@@ -127,7 +149,7 @@ export function ProfileSettings({
             onClick={onClose}
             className="flex-1 rounded-lg border border-gray-300 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             type="button"
@@ -136,7 +158,7 @@ export function ProfileSettings({
             className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-green-500 py-2 text-sm font-semibold text-white hover:bg-green-600 disabled:bg-gray-400"
           >
             {saving && <Loader2 size={14} className="animate-spin" />}
-            Save profile
+            {t('profileSettings.save')}
           </button>
         </div>
       </div>

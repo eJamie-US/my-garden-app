@@ -6,9 +6,15 @@
 // sees who they're gardening with and can leave.
 
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { Loader2, LogOut, Mail, UserMinus, X } from 'lucide-react';
 import { yardMembersService } from '../services/supabase/yardMembers';
-import type { Yard, YardMember } from '../types';
+import type { Yard, YardMember, YardRole } from '../types';
+
+function roleLabel(t: TFunction, role: YardRole): string {
+  return t(`yardSharing.role${role === 'owner' ? 'Owner' : 'Editor'}`);
+}
 
 interface YardSharingSettingsProps {
   yard: Yard;
@@ -21,6 +27,7 @@ interface YardSharingSettingsProps {
 }
 
 export function YardSharingSettings({ yard, userId, isOwner, onClose, onLeft }: YardSharingSettingsProps) {
+  const { t } = useTranslation();
   const [members, setMembers] = useState<YardMember[] | null>(null);
   const [loadError, setLoadError] = useState('');
   const [email, setEmail] = useState('');
@@ -33,7 +40,7 @@ export function YardSharingSettings({ yard, userId, isOwner, onClose, onLeft }: 
     try {
       setMembers(await yardMembersService.list(yard.id));
     } catch (err) {
-      setLoadError(err instanceof Error ? err.message : 'Could not load who has access');
+      setLoadError(err instanceof Error ? err.message : t('yardSharing.couldNotLoadAccess'));
     }
   };
 
@@ -52,7 +59,7 @@ export function YardSharingSettings({ yard, userId, isOwner, onClose, onLeft }: 
       setEmail('');
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not send that invite');
+      setError(err instanceof Error ? err.message : t('yardSharing.couldNotSendInvite'));
     } finally {
       setInviting(false);
     }
@@ -65,7 +72,7 @@ export function YardSharingSettings({ yard, userId, isOwner, onClose, onLeft }: 
       await yardMembersService.remove(yard.id, member.userId);
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not remove them');
+      setError(err instanceof Error ? err.message : t('yardSharing.couldNotRemove'));
       setBusyUserId(null);
     }
   };
@@ -78,7 +85,7 @@ export function YardSharingSettings({ yard, userId, isOwner, onClose, onLeft }: 
       onLeft();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not leave that yard');
+      setError(err instanceof Error ? err.message : t('yardSharing.couldNotLeaveYard'));
       setBusyUserId(null);
     }
   };
@@ -87,12 +94,12 @@ export function YardSharingSettings({ yard, userId, isOwner, onClose, onLeft }: 
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 sm:items-center">
       <div className="flex max-h-[90vh] w-full max-w-md flex-col rounded-lg bg-white shadow-xl">
         <div className="flex shrink-0 items-center justify-between border-b p-4">
-          <h3 className="text-lg font-bold">Shared with — {yard.name}</h3>
+          <h3 className="text-lg font-bold">{t('yardSharing.sharedWith', { name: yard.name })}</h3>
           <button
             type="button"
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700"
-            aria-label="Close sharing settings"
+            aria-label={t('yardSharing.closeAria')}
           >
             <X size={20} />
           </button>
@@ -100,9 +107,7 @@ export function YardSharingSettings({ yard, userId, isOwner, onClose, onLeft }: 
 
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
           <p className="text-sm text-gray-600">
-            {isOwner
-              ? 'Anyone you add can view and manage every plant and obstacle in this yard, just like you — perfect for a spouse, roommate, or anyone else tending it with you.'
-              : 'Everyone below can view and manage this yard.'}
+            {isOwner ? t('yardSharing.ownerDescription') : t('yardSharing.memberDescription')}
           </p>
 
           {(error || loadError) && (
@@ -129,16 +134,16 @@ export function YardSharingSettings({ yard, userId, isOwner, onClose, onLeft }: 
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-gray-900">
-                        {label} {isMe && <span className="font-normal text-gray-400">(you)</span>}
+                        {label} {isMe && <span className="font-normal text-gray-400">{t('yardSharing.you')}</span>}
                       </p>
-                      <p className="text-xs capitalize text-gray-500">{member.role}</p>
+                      <p className="text-xs text-gray-500">{roleLabel(t, member.role)}</p>
                     </div>
                     {isOwner && !isMe && (
                       <button
                         type="button"
                         onClick={() => remove(member)}
                         disabled={busy}
-                        aria-label={`Remove ${label}`}
+                        aria-label={t('yardSharing.removeAria', { name: label })}
                         className="shrink-0 rounded-md p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
                       >
                         {busy ? <Loader2 size={14} className="animate-spin" /> : <UserMinus size={14} />}
@@ -153,7 +158,7 @@ export function YardSharingSettings({ yard, userId, isOwner, onClose, onLeft }: 
           {isOwner && (
             <div>
               <label htmlFor="invite-email" className="mb-1 block text-sm font-medium text-gray-700">
-                Invite by email
+                {t('yardSharing.inviteByEmail')}
               </label>
               <div className="flex gap-2">
                 <input
@@ -162,7 +167,7 @@ export function YardSharingSettings({ yard, userId, isOwner, onClose, onLeft }: 
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && invite()}
-                  placeholder="them@example.com"
+                  placeholder={t('yardSharing.emailPlaceholder')}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:ring-green-500"
                 />
                 <button
@@ -172,11 +177,11 @@ export function YardSharingSettings({ yard, userId, isOwner, onClose, onLeft }: 
                   className="flex shrink-0 items-center gap-1.5 rounded-lg bg-green-500 px-3 py-2 text-sm font-semibold text-white hover:bg-green-600 disabled:bg-gray-400"
                 >
                   {inviting ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
-                  Invite
+                  {t('yardSharing.invite')}
                 </button>
               </div>
               <p className="mt-1 text-xs text-gray-400">
-                They'll need a My Garden account already — invite by the email they signed up with.
+                {t('yardSharing.inviteHint')}
               </p>
             </div>
           )}
@@ -189,7 +194,7 @@ export function YardSharingSettings({ yard, userId, isOwner, onClose, onLeft }: 
               className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:text-gray-400"
             >
               {busyUserId === userId ? <Loader2 size={14} className="animate-spin" /> : <LogOut size={14} />}
-              Leave this yard
+              {t('yardSharing.leaveYard')}
             </button>
           )}
         </div>

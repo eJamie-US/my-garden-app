@@ -3,6 +3,8 @@
 // location, then save the coordinates against one specific yard.
 
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { Loader2, MapPin, Crosshair, Search, X } from 'lucide-react';
 import { yardsService } from '../services/supabase/yards';
 import type { Yard } from '../types';
@@ -18,16 +20,18 @@ interface Match {
 /** 8-way compass picker for "which way is up in the yard photo" — plenty
  *  of precision for the sun/shade estimate, which already reasons in
  *  rough terms. */
-const ORIENTATION_OPTIONS: { label: string; deg: number }[] = [
-  { label: 'North (up in the photo)', deg: 0 },
-  { label: 'Northeast', deg: 45 },
-  { label: 'East', deg: 90 },
-  { label: 'Southeast', deg: 135 },
-  { label: 'South', deg: 180 },
-  { label: 'Southwest', deg: 225 },
-  { label: 'West', deg: 270 },
-  { label: 'Northwest', deg: 315 },
-];
+function orientationOptions(t: TFunction): { label: string; deg: number }[] {
+  return [
+    { label: t('gardenLocation.orientationNorth'), deg: 0 },
+    { label: t('gardenLocation.orientationNortheast'), deg: 45 },
+    { label: t('gardenLocation.orientationEast'), deg: 90 },
+    { label: t('gardenLocation.orientationSoutheast'), deg: 135 },
+    { label: t('gardenLocation.orientationSouth'), deg: 180 },
+    { label: t('gardenLocation.orientationSouthwest'), deg: 225 },
+    { label: t('gardenLocation.orientationWest'), deg: 270 },
+    { label: t('gardenLocation.orientationNorthwest'), deg: 315 },
+  ];
+}
 
 interface GardenLocationSettingsProps {
   yard: Yard;
@@ -44,6 +48,8 @@ export const GardenLocationSettings = ({
   onSaved,
   onClose,
 }: GardenLocationSettingsProps) => {
+  const { t, i18n } = useTranslation();
+  const ORIENTATION_OPTIONS = orientationOptions(t);
   const [query, setQuery] = useState(yard.label ?? '');
   const [matches, setMatches] = useState<Match[] | null>(null);
   const [picked, setPicked] = useState<{ label?: string; latitude: number; longitude: number } | null>(
@@ -63,14 +69,14 @@ export const GardenLocationSettings = ({
     setMatches(null);
     try {
       const res = await fetch(
-        `https://geocoding-api.open-meteo.com/v1/search?count=6&language=en&format=json&name=${encodeURIComponent(name)}`,
+        `https://geocoding-api.open-meteo.com/v1/search?count=6&language=${encodeURIComponent(i18n.language)}&format=json&name=${encodeURIComponent(name)}`,
       );
       const data = await res.json();
       const results: Match[] = data?.results ?? [];
       setMatches(results);
-      if (!results.length) setError(`No place found for “${name}”.`);
+      if (!results.length) setError(t('gardenLocation.noPlaceFound', { name }));
     } catch {
-      setError("Couldn't reach the place lookup. Check your connection.");
+      setError(t('gardenLocation.lookupUnreachable'));
     } finally {
       setBusy(null);
     }
@@ -79,14 +85,14 @@ export const GardenLocationSettings = ({
   const useMyLocation = () => {
     setError('');
     if (!navigator.geolocation) {
-      setError('This browser has no location support. Search for a place instead.');
+      setError(t('gardenLocation.noLocationSupport'));
       return;
     }
     setBusy('locate');
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setPicked({
-          label: 'My current location',
+          label: t('gardenLocation.currentLocationLabel'),
           latitude: Number(pos.coords.latitude.toFixed(4)),
           longitude: Number(pos.coords.longitude.toFixed(4)),
         });
@@ -95,9 +101,7 @@ export const GardenLocationSettings = ({
       },
       () => {
         setBusy(null);
-        setError(
-          'The browser refused location access. Search for a nearby town instead — close enough for weather.',
-        );
+        setError(t('gardenLocation.locationDenied'));
       },
       { timeout: 10_000, maximumAge: 30 * 60 * 1000 },
     );
@@ -117,7 +121,7 @@ export const GardenLocationSettings = ({
       onSaved(saved);
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save the location.');
+      setError(err instanceof Error ? err.message : t('gardenLocation.saveError'));
       setBusy(null);
     }
   };
@@ -126,12 +130,12 @@ export const GardenLocationSettings = ({
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 sm:items-center">
       <div className="flex max-h-[90vh] w-full max-w-md flex-col rounded-lg bg-white shadow-xl">
         <div className="flex shrink-0 items-center justify-between border-b p-4">
-          <h3 className="text-lg font-bold">Where is {yard.name}?</h3>
+          <h3 className="text-lg font-bold">{t('gardenLocation.title', { yardName: yard.name })}</h3>
           <button
             type="button"
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700"
-            aria-label="Close location settings"
+            aria-label={t('gardenLocation.close')}
           >
             <X size={20} />
           </button>
@@ -139,8 +143,7 @@ export const GardenLocationSettings = ({
 
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
           <p className="text-sm text-gray-600">
-            Used for rainfall, heat and frost in your care plan. A nearby town is
-            close enough.
+            {t('gardenLocation.description')}
           </p>
 
           {error && (
@@ -160,7 +163,7 @@ export const GardenLocationSettings = ({
                   search();
                 }
               }}
-              placeholder="Town, city or postcode"
+              placeholder={t('gardenLocation.searchPlaceholder')}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:ring-green-500"
             />
             <button
@@ -174,7 +177,7 @@ export const GardenLocationSettings = ({
               ) : (
                 <Search size={14} />
               )}
-              Find
+              {t('gardenLocation.find')}
             </button>
           </div>
 
@@ -189,7 +192,7 @@ export const GardenLocationSettings = ({
             ) : (
               <Crosshair size={14} />
             )}
-            Use my current location
+            {t('gardenLocation.useMyLocation')}
           </button>
 
           {matches && matches.length > 0 && (
@@ -218,10 +221,10 @@ export const GardenLocationSettings = ({
           {picked && (
             <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
-                Selected
+                {t('gardenLocation.selected')}
               </p>
               <p className="text-sm font-semibold text-emerald-900">
-                {picked.label ?? 'Chosen spot'}
+                {picked.label ?? t('gardenLocation.chosenSpot')}
               </p>
               <p className="text-xs text-emerald-700">
                 {picked.latitude.toFixed(4)}, {picked.longitude.toFixed(4)}
@@ -231,7 +234,7 @@ export const GardenLocationSettings = ({
 
           <div>
             <label htmlFor="yard-orientation" className="mb-1 block text-sm font-medium text-gray-700">
-              Which way is up in your yard photo?
+              {t('gardenLocation.orientationLabel')}
             </label>
             <select
               id="yard-orientation"
@@ -244,8 +247,7 @@ export const GardenLocationSettings = ({
               ))}
             </select>
             <p className="mt-1 text-xs text-gray-400">
-              Used for the sun/shade exposure estimate — it's the only way to know which
-              direction the sun crosses your yard photo. Doesn't need to be exact.
+              {t('gardenLocation.orientationHint')}
             </p>
           </div>
         </div>
@@ -256,7 +258,7 @@ export const GardenLocationSettings = ({
             onClick={onClose}
             className="flex-1 rounded-lg border border-gray-300 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             type="button"
@@ -265,7 +267,7 @@ export const GardenLocationSettings = ({
             className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-green-500 py-2 text-sm font-semibold text-white hover:bg-green-600 disabled:bg-gray-400"
           >
             {busy === 'save' && <Loader2 size={14} className="animate-spin" />}
-            Save location
+            {t('gardenLocation.saveLocation')}
           </button>
         </div>
       </div>

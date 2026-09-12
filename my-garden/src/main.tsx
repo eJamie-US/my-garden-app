@@ -3,6 +3,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import './styles.css'
+import './i18n'
 
 // Error monitoring — no-ops entirely until VITE_SENTRY_DSN is set (free
 // account at sentry.io, then add the DSN to .env.local/Netlify env vars).

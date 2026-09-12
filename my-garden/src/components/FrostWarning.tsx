@@ -7,6 +7,7 @@
 // sheltered split here the way RainStatus has.
 
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Snowflake, X } from 'lucide-react';
 import type { Plant, WeatherData } from '../types';
 import { nextFrost } from '../services/weather/forecast';
@@ -26,6 +27,7 @@ function daysUntil(dateStr: string): number {
 }
 
 export function FrostWarning({ plants, weather, onOpenPlant }: FrostWarningProps) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
 
   const outdoorPlants = plants.filter((p) => !p.indoor);
@@ -36,7 +38,11 @@ export function FrostWarning({ plants, weather, onOpenPlant }: FrostWarningProps
   if (!frostDay || outdoorPlants.length === 0) return null;
 
   const days = daysUntil(frostDay.date);
-  const dayLabel = days <= 0 ? 'tonight' : days === 1 ? 'tomorrow night' : `in ${days} days`;
+  const dayLabel = days <= 0
+    ? t('frostWarning.tonight')
+    : days === 1
+      ? t('frostWarning.tomorrowNight')
+      : t('frostWarning.inDays', { count: days });
 
   return (
     <>
@@ -48,13 +54,13 @@ export function FrostWarning({ plants, weather, onOpenPlant }: FrostWarningProps
         >
           <span className="flex min-w-0 items-center gap-2">
             <Snowflake size={16} className="shrink-0 text-sky-600" />
-            <span className="shrink-0 text-sm font-bold text-sky-900">Frost warning</span>
+            <span className="shrink-0 text-sm font-bold text-sky-900">{t('frostWarning.title')}</span>
             <span className="shrink-0 rounded-full bg-sky-100 px-1.5 py-0.5 text-xs font-bold text-sky-800">
               {dayLabel}
             </span>
           </span>
           <span className="shrink-0 text-xs font-semibold text-sky-700">
-            {outdoorPlants.length} outdoor
+            {t('frostWarning.outdoorCount', { count: outdoorPlants.length })}
           </span>
         </button>
       </div>
@@ -64,13 +70,13 @@ export function FrostWarning({ plants, weather, onOpenPlant }: FrostWarningProps
           <div className="flex max-h-[90vh] w-full max-w-lg flex-col rounded-lg bg-white shadow-xl">
             <div className="flex shrink-0 items-center justify-between gap-3 border-b p-4">
               <h3 className="flex items-center gap-2 text-lg font-bold text-gray-900">
-                <Snowflake size={18} className="text-sky-600" /> Frost warning
+                <Snowflake size={18} className="text-sky-600" /> {t('frostWarning.title')}
               </h3>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
                 className="shrink-0 text-gray-500 hover:text-gray-700"
-                aria-label="Close frost warning"
+                aria-label={t('frostWarning.close')}
               >
                 <X size={20} />
               </button>
@@ -78,8 +84,7 @@ export function FrostWarning({ plants, weather, onOpenPlant }: FrostWarningProps
 
             <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
               <p className="text-sm text-gray-700">
-                A low of {Math.round(frostDay.tempMin)}°C is expected {dayLabel} — bring in anything
-                tender, or cover it.
+                {t('frostWarning.description', { temp: Math.round(frostDay.tempMin), when: dayLabel })}
               </p>
               <ul className="space-y-1.5">
                 {outdoorPlants.map((plant) => (
@@ -97,7 +102,7 @@ export function FrostWarning({ plants, weather, onOpenPlant }: FrostWarningProps
                         }}
                         className="shrink-0 rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50"
                       >
-                        Open
+                        {t('frostWarning.open')}
                       </button>
                     )}
                   </li>

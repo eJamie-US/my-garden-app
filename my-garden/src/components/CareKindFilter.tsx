@@ -3,8 +3,9 @@
 // Shared between Due Today and the yard map's badges — lifted to App so
 // picking "Water" here narrows both at once, not just the list.
 
+import { useTranslation } from 'react-i18next';
 import type { CareItem } from '../types';
-import { KIND_ICONS, KIND_LABELS } from '../utils/careDisplay';
+import { KIND_ICONS, kindLabel } from '../utils/careDisplay';
 
 interface CareKindFilterProps {
   /** Kind -> how many due items of that kind exist right now. Kinds with 0 aren't shown. */
@@ -19,6 +20,7 @@ const KIND_ORDER: CareItem['kind'][] = [
 ];
 
 export function CareKindFilter({ counts, active, onToggle, onClear }: CareKindFilterProps) {
+  const { t } = useTranslation();
   const kinds = KIND_ORDER.filter((k) => (counts[k] ?? 0) > 0);
   if (!kinds.length) return null;
 
@@ -33,7 +35,7 @@ export function CareKindFilter({ counts, active, onToggle, onClear }: CareKindFi
             : 'border-gray-300 text-gray-600 hover:bg-gray-50'
         }`}
       >
-        All
+        {t('careKindFilter.all')}
       </button>
       {kinds.map((kind) => {
         const isActive = active.has(kind);
@@ -50,7 +52,7 @@ export function CareKindFilter({ counts, active, onToggle, onClear }: CareKindFi
             }`}
           >
             <span>{KIND_ICONS[kind]}</span>
-            {KIND_LABELS[kind]}
+            {kindLabel(t, kind)}
             <span className={isActive ? 'text-emerald-100' : 'text-gray-400'}>{counts[kind]}</span>
           </button>
         );

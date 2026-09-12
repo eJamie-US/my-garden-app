@@ -3,16 +3,18 @@
 // per-plant care modal, and the due-badges on the yard markers, so all three
 // agree on what "due" and "overdue" mean and look like.
 
+import type { TFunction } from 'i18next';
 import type { CareItem } from '../types';
 
 export const KIND_ICONS: Record<CareItem['kind'], string> = {
   water: '💧', feed: '🌱', prune: '✂️', mulch: '🍂', protect: '🧣', inspect: '🔍', other: '📋',
 };
 
-export const KIND_LABELS: Record<CareItem['kind'], string> = {
-  water: 'Water', feed: 'Feed', prune: 'Prune', mulch: 'Mulch',
-  protect: 'Protect', inspect: 'Inspect', other: 'Other',
-};
+/** `t` comes from the caller's own useTranslation() — this file has no
+ *  component/hook of its own to call it from. */
+export function kindLabel(t: TFunction, kind: CareItem['kind']): string {
+  return t(`careKind.${kind}`);
+}
 
 export const today = () => new Date().toISOString().slice(0, 10);
 
@@ -23,12 +25,12 @@ export function daysUntil(date?: string): number | null {
   return Math.round(diff / 86_400_000);
 }
 
-export function dueLabel(days: number | null): string {
-  if (days === null) return 'not scheduled';
-  if (days < 0) return `overdue ${Math.abs(days)}d`;
-  if (days === 0) return 'due today';
-  if (days === 1) return 'due tomorrow';
-  return `due in ${days}d`;
+export function dueLabel(t: TFunction, days: number | null): string {
+  if (days === null) return t('careDisplay.notScheduled');
+  if (days < 0) return t('careDisplay.overdue', { count: Math.abs(days) });
+  if (days === 0) return t('careDisplay.dueToday');
+  if (days === 1) return t('careDisplay.dueTomorrow');
+  return t('careDisplay.dueInDays', { count: days });
 }
 
 export function dueBadgeClass(days: number | null): string {

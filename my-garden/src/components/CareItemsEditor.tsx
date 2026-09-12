@@ -3,6 +3,8 @@
 // with amount + unit. Whether an item came from the weather-driven generator
 // or was typed in by hand, every field here stays editable.
 
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { Plus, Trash2, GripVertical, Sparkles } from 'lucide-react';
 import { CARE_UNITS } from '../types';
 import { today } from '../utils/careDisplay';
@@ -29,6 +31,10 @@ const KINDS: CareItemKind[] = [
 
 const FREQUENCY_UNITS: CareFrequencyUnit[] = ['day', 'week', 'month', 'year'];
 
+function frequencyUnitLabel(t: TFunction, unit: CareFrequencyUnit, count: number): string {
+  return t(`careItemsEditor.unit_${unit}`, { count });
+}
+
 let seq = 0;
 const uid = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${seq++}`;
 
@@ -48,6 +54,7 @@ export function CareItemsEditor({
   weatherUsed = true,
   onRegenerate,
 }: CareItemsEditorProps) {
+  const { t } = useTranslation();
   const patch = (id: string, updates: Partial<DraftCareItem>) =>
     onChange(items.map((i) => (i.id === id ? { ...i, ...updates } : i)));
 
@@ -112,7 +119,7 @@ export function CareItemsEditor({
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <h4 className="text-sm font-semibold text-gray-800">
-          Care plan
+          {t('careItemsEditor.carePlan')}
           <span className="ml-1.5 font-normal text-gray-400">({items.length})</span>
         </h4>
         {onRegenerate && (
@@ -121,15 +128,14 @@ export function CareItemsEditor({
             onClick={onRegenerate}
             className="flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:underline"
           >
-            <Sparkles size={12} /> Regenerate
+            <Sparkles size={12} /> {t('careItemsEditor.regenerate')}
           </button>
         )}
       </div>
 
       {!weatherUsed && (
         <p className="rounded border border-amber-300 bg-amber-50 px-2 py-1.5 text-xs text-amber-800">
-          Local weather unavailable — these are generic baselines. Adjust anything
-          that looks wrong for your patch.
+          {t('careItemsEditor.noWeather')}
         </p>
       )}
 
@@ -152,7 +158,7 @@ export function CareItemsEditor({
               <select
                 value={item.kind}
                 onChange={(e) => patch(item.id, { kind: e.target.value as CareItemKind })}
-                aria-label="Care type"
+                aria-label={t('careItemsEditor.careType')}
                 className="mt-0.5 shrink-0 rounded border border-gray-200 bg-gray-50 px-1 py-1 text-base"
               >
                 {KINDS.map((kind) => (
@@ -167,12 +173,12 @@ export function CareItemsEditor({
                   type="text"
                   value={item.title}
                   onChange={(e) => patch(item.id, { title: e.target.value })}
-                  placeholder="What needs doing"
+                  placeholder={t('careItemsEditor.titlePlaceholder')}
                   className="w-full border-b border-transparent px-0 py-0.5 text-sm font-semibold text-gray-900 placeholder-gray-400 focus:border-emerald-500 focus:outline-none"
                 />
 
                 <div className="flex flex-wrap items-center gap-1.5 text-xs text-gray-600">
-                  <span>every</span>
+                  <span>{t('careItemsEditor.every')}</span>
                   <input
                     type="number"
                     min={1}
@@ -186,7 +192,7 @@ export function CareItemsEditor({
                         },
                       })
                     }
-                    aria-label="Frequency interval"
+                    aria-label={t('careItemsEditor.frequencyInterval')}
                     className="w-12 rounded border border-gray-300 px-1.5 py-1 text-center"
                   />
                   <select
@@ -199,28 +205,28 @@ export function CareItemsEditor({
                         },
                       })
                     }
-                    aria-label="Frequency unit"
+                    aria-label={t('careItemsEditor.frequencyUnit')}
                     className="rounded border border-gray-300 px-1.5 py-1"
                   >
                     {FREQUENCY_UNITS.map((unit) => (
                       <option key={unit} value={unit}>
-                        {unit}{item.frequency.every > 1 ? 's' : ''}
+                        {frequencyUnitLabel(t, unit, item.frequency.every)}
                       </option>
                     ))}
                   </select>
 
-                  <span className="ml-2 shrink-0">next due</span>
+                  <span className="ml-2 shrink-0">{t('careItemsEditor.nextDue')}</span>
                   <input
                     type="date"
                     value={item.nextDueDate ?? ''}
                     onChange={(e) => patch(item.id, { nextDueDate: e.target.value || undefined })}
-                    aria-label="Next due date"
+                    aria-label={t('careItemsEditor.nextDueDate')}
                     className="rounded border border-gray-300 px-1.5 py-1"
                   />
 
                   {item.source === 'generated' && (
                     <span className="ml-auto rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
-                      suggested
+                      {t('careItemsEditor.suggested')}
                     </span>
                   )}
                 </div>
@@ -237,7 +243,7 @@ export function CareItemsEditor({
                             patchIngredient(item.id, ing.id, { amount: e.target.value })
                           }
                           placeholder="1/2"
-                          aria-label="Amount"
+                          aria-label={t('careItemsEditor.amount')}
                           className="w-14 rounded border border-gray-300 px-1.5 py-1 text-center text-xs"
                         />
                         <select
@@ -247,10 +253,10 @@ export function CareItemsEditor({
                               unit: e.target.value as CareIngredient['unit'],
                             })
                           }
-                          aria-label="Unit"
+                          aria-label={t('careItemsEditor.unitField')}
                           className="w-[74px] shrink-0 rounded border border-gray-300 px-1 py-1 text-xs"
                         >
-                          <option value="">unit</option>
+                          <option value="">{t('careItemsEditor.unitPlaceholder')}</option>
                           {CARE_UNITS.map((unit) => (
                             <option key={unit} value={unit}>
                               {unit}
@@ -263,14 +269,14 @@ export function CareItemsEditor({
                           onChange={(e) =>
                             patchIngredient(item.id, ing.id, { name: e.target.value })
                           }
-                          placeholder="Ingredient"
-                          aria-label="Ingredient"
+                          placeholder={t('careItemsEditor.ingredientPlaceholder')}
+                          aria-label={t('careItemsEditor.ingredientPlaceholder')}
                           className="min-w-0 flex-1 rounded border border-gray-300 px-2 py-1 text-xs"
                         />
                         <button
                           type="button"
                           onClick={() => removeIngredient(item.id, ing.id)}
-                          aria-label={`Remove ${ing.name || 'ingredient'}`}
+                          aria-label={t('careItemsEditor.removeIngredient', { name: ing.name || t('careItemsEditor.ingredientPlaceholder') })}
                           className="shrink-0 p-1 text-gray-400 hover:text-red-600"
                         >
                           <Trash2 size={13} />
@@ -286,14 +292,14 @@ export function CareItemsEditor({
                     onClick={() => addIngredient(item.id)}
                     className="flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:underline"
                   >
-                    <Plus size={12} /> Ingredient
+                    <Plus size={12} /> {t('careItemsEditor.ingredient')}
                   </button>
                   <button
                     type="button"
                     onClick={() => onChange(items.filter((i) => i.id !== item.id))}
                     className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-600"
                   >
-                    <Trash2 size={12} /> Remove item
+                    <Trash2 size={12} /> {t('careItemsEditor.removeItem')}
                   </button>
                 </div>
 
@@ -301,7 +307,7 @@ export function CareItemsEditor({
                   value={item.instructions ?? ''}
                   onChange={(e) => patch(item.id, { instructions: e.target.value })}
                   rows={2}
-                  placeholder="Notes (optional)"
+                  placeholder={t('careItemsEditor.notesPlaceholder')}
                   className="w-full resize-none rounded border border-gray-200 px-2 py-1 text-xs text-gray-700 placeholder-gray-400"
                 />
               </div>
@@ -315,7 +321,7 @@ export function CareItemsEditor({
         onClick={addItem}
         className="flex w-full items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-gray-300 py-2 text-xs font-semibold text-gray-600 hover:border-emerald-400 hover:text-emerald-700"
       >
-        <Plus size={14} /> Add a care item
+        <Plus size={14} /> {t('careItemsEditor.addItem')}
       </button>
     </div>
   );

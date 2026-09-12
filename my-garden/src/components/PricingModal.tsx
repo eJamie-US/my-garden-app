@@ -6,6 +6,8 @@
 // changes in the Stripe dashboard.
 
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { Check, Loader2, Sparkles, X } from 'lucide-react';
 import { billingService, type PlanId } from '../services/supabase/billing';
 
@@ -17,23 +19,22 @@ interface PlanCard {
   blurb?: string;
 }
 
-const PLANS: PlanCard[] = [
-  { id: 'premium-monthly', name: 'Premium', price: '$4.99', cadence: '/month' },
-  {
-    id: 'premium-yearly',
-    name: 'Premium',
-    price: '$39.99',
-    cadence: '/year',
-    blurb: 'Best value — about $3.33/month',
-  },
-  { id: 'lifetime', name: 'Lifetime', price: '$99', cadence: 'once' },
-];
-
-const PREMIUM_FEATURES = [
-  'Unlimited plants (free plan is capped)',
-  'AI species ID from a photo',
-  'AI sowing plans for seeds',
-];
+// Prices/cadence stay plain USD text regardless of locale — they're tied
+// 1:1 to fixed Stripe Price objects (see file header), not something this
+// app can actually charge in a different currency by translating a string.
+function plans(t: TFunction): PlanCard[] {
+  return [
+    { id: 'premium-monthly', name: t('pricingModal.planPremium'), price: '$4.99', cadence: t('pricingModal.perMonth') },
+    {
+      id: 'premium-yearly',
+      name: t('pricingModal.planPremium'),
+      price: '$39.99',
+      cadence: t('pricingModal.perYear'),
+      blurb: t('pricingModal.yearlyBlurb'),
+    },
+    { id: 'lifetime', name: t('pricingModal.planLifetime'), price: '$99', cadence: t('pricingModal.once') },
+  ];
+}
 
 interface PricingModalProps {
   reason?: string;
@@ -41,8 +42,15 @@ interface PricingModalProps {
 }
 
 export function PricingModal({ reason, onClose }: PricingModalProps) {
+  const { t } = useTranslation();
   const [busy, setBusy] = useState<PlanId | null>(null);
   const [error, setError] = useState('');
+  const PLANS = plans(t);
+  const PREMIUM_FEATURES = [
+    t('pricingModal.featurePlants'),
+    t('pricingModal.featureId'),
+    t('pricingModal.featureSeed'),
+  ];
 
   const choose = async (plan: PlanId) => {
     setBusy(plan);
@@ -51,7 +59,7 @@ export function PricingModal({ reason, onClose }: PricingModalProps) {
       await billingService.startCheckout(plan);
       // Browser is navigating away to Stripe — nothing else to do here.
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not start checkout.');
+      setError(err instanceof Error ? err.message : t('pricingModal.error'));
       setBusy(null);
     }
   };
@@ -61,13 +69,13 @@ export function PricingModal({ reason, onClose }: PricingModalProps) {
       <div className="flex max-h-[90vh] w-full max-w-lg flex-col rounded-lg bg-white shadow-xl">
         <div className="flex shrink-0 items-center justify-between border-b p-4">
           <h3 className="flex items-center gap-2 text-lg font-bold text-gray-900">
-            <Sparkles size={18} className="text-emerald-600" /> Upgrade to Premium
+            <Sparkles size={18} className="text-emerald-600" /> {t('pricingModal.title')}
           </h3>
           <button
             type="button"
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700"
-            aria-label="Close upgrade options"
+            aria-label={t('pricingModal.close')}
           >
             <X size={20} />
           </button>
@@ -112,14 +120,14 @@ export function PricingModal({ reason, onClose }: PricingModalProps) {
                 {plan.blurb && <span className="text-[11px] text-emerald-700">{plan.blurb}</span>}
                 <span className="mt-1 flex items-center gap-1 text-xs font-semibold text-emerald-700">
                   {busy === plan.id && <Loader2 size={12} className="animate-spin" />}
-                  Choose
+                  {t('pricingModal.choose')}
                 </span>
               </button>
             ))}
           </div>
 
           <p className="text-center text-xs text-gray-400">
-            Have a promo code? There&apos;s a spot for it on the checkout page.
+            {t('pricingModal.promoNote')}
           </p>
         </div>
       </div>

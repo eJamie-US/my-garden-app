@@ -5,20 +5,20 @@
 // alternative(s) marked, so the choice is "does this look right" rather
 // than reading numbers.
 
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { X } from 'lucide-react';
 import type { PlacementEvaluation, SunClassification } from '../utils/bestPlacement';
 
-const CLASSIFICATION_LABEL: Record<SunClassification, string> = {
-  'full-sun': 'full sun',
-  'partial-shade': 'partial shade',
-  'full-shade': 'full shade',
-};
+function classificationLabel(t: TFunction, classification: SunClassification): string {
+  return t(`bestPlacement.${classification === 'full-sun' ? 'fullSun' : classification === 'partial-shade' ? 'partialShade' : 'fullShade'}`);
+}
 
-function spotDescription(classification: SunClassification, rainySeasons: number): string {
-  const sun = CLASSIFICATION_LABEL[classification];
-  if (rainySeasons === 4) return `${sun}, rained on year-round`;
-  if (rainySeasons === 0) return `${sun}, stays dry year-round`;
-  return `${sun}, rained on ${rainySeasons} of 4 seasons`;
+function spotDescription(t: TFunction, classification: SunClassification, rainySeasons: number): string {
+  const sun = classificationLabel(t, classification);
+  if (rainySeasons === 4) return t('bestPlacement.spotRainedYearRound', { sun });
+  if (rainySeasons === 0) return t('bestPlacement.spotDryYearRound', { sun });
+  return t('bestPlacement.spotRainedSeasons', { sun, count: rainySeasons });
 }
 
 interface BestPlacementPromptProps {
@@ -36,18 +36,19 @@ export const BestPlacementPrompt = ({
   onUseSpot,
   onDismiss,
 }: BestPlacementPromptProps) => {
+  const { t } = useTranslation();
   const { current, alternatives } = evaluation;
 
   return (
     <div className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-2.5">
       <div className="flex items-start justify-between gap-2">
         <p className="text-xs font-semibold text-amber-900">
-          There's a spot nearby that suits this plant's {CLASSIFICATION_LABEL[sunRequirement]} needs better.
+          {t('bestPlacement.suggestion', { sunNeeds: classificationLabel(t, sunRequirement) })}
         </p>
         <button
           type="button"
           onClick={onDismiss}
-          aria-label="Keep my spot — dismiss this suggestion"
+          aria-label={t('bestPlacement.keepSpotDismiss')}
           className="shrink-0 text-amber-500 hover:text-amber-700"
         >
           <X size={14} />
@@ -55,12 +56,12 @@ export const BestPlacementPrompt = ({
       </div>
 
       <div className="relative w-full overflow-hidden rounded-md border border-amber-200 bg-gray-100">
-        <img src={yardImageUrl} alt="Yard" className="block h-auto w-full" />
+        <img src={yardImageUrl} alt={t('bestPlacement.yourSpot')} className="block h-auto w-full" />
 
         <div
           className="absolute flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[10px] font-bold text-gray-500 shadow ring-2 ring-gray-400"
           style={{ left: `${current.x}%`, top: `${current.y}%` }}
-          title="Your spot"
+          title={t('bestPlacement.yourSpot')}
         >
           •
         </div>
@@ -72,7 +73,7 @@ export const BestPlacementPrompt = ({
             onClick={() => onUseSpot(spot)}
             className="absolute flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white shadow ring-2 ring-white hover:bg-emerald-700"
             style={{ left: `${spot.x}%`, top: `${spot.y}%` }}
-            title={`Use spot ${i + 1}`}
+            title={t('bestPlacement.useSpotTitle', { number: i + 1 })}
           >
             {i + 1}
           </button>
@@ -80,7 +81,9 @@ export const BestPlacementPrompt = ({
       </div>
 
       <p className="text-[11px] text-amber-800">
-        Your spot: {spotDescription(current.classification, current.rainySeasons)}.
+        {t('bestPlacement.yourSpotSummary', {
+          description: spotDescription(t, current.classification, current.rainySeasons),
+        })}
       </p>
 
       <div className="flex flex-wrap gap-1.5">
@@ -91,7 +94,10 @@ export const BestPlacementPrompt = ({
             onClick={() => onUseSpot(spot)}
             className="rounded-md bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-emerald-700"
           >
-            Use spot {i + 1} — {spotDescription(spot.classification, spot.rainySeasons)}
+            {t('bestPlacement.useSpotButton', {
+              number: i + 1,
+              description: spotDescription(t, spot.classification, spot.rainySeasons),
+            })}
           </button>
         ))}
         <button
@@ -99,7 +105,7 @@ export const BestPlacementPrompt = ({
           onClick={onDismiss}
           className="rounded-md border border-amber-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-amber-800 hover:bg-amber-100"
         >
-          Keep my spot
+          {t('bestPlacement.keepSpot')}
         </button>
       </div>
     </div>

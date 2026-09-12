@@ -6,6 +6,7 @@
 // as sunExposure.ts, and the same "no real-world scale" caveat: this
 // reasons in percent-of-yard-photo distance, not metres.
 
+import type { TFunction } from 'i18next';
 import type { ObstacleEdge, Plant, YardObstacle } from '../types';
 
 type Point = { x: number; y: number };
@@ -116,14 +117,17 @@ export function computeRainShelter(
   return { sheltered: false };
 }
 
-const EDGE_COMPASS_LABEL: Record<ObstacleEdge, string> = {
-  top: 'north', right: 'east', bottom: 'south', left: 'west',
+const EDGE_COMPASS_KEY: Record<ObstacleEdge, string> = {
+  top: 'North', right: 'East', bottom: 'South', left: 'West',
 };
 
-/** Plain-English readout of a shelter result, for the plant form/care modal. */
-export function describeRainShelter(result: RainShelterResult, obstacleLabel: string): string {
-  if (!result.obstacle) return "Out in the open — nothing here to shelter it from rain.";
-  if (result.sheltered) return `Under the ${obstacleLabel} — sheltered from rain right now.`;
-  const edge = result.exposedEdge ? ` through its open ${EDGE_COMPASS_LABEL[result.exposedEdge]} side` : '';
-  return `Under the ${obstacleLabel}, but the wind is blowing rain in${edge}.`;
+/** Readout of a shelter result, for the plant form/care modal. `t` comes
+ *  from the caller's own useTranslation() — this file has no component of
+ *  its own to call it from. */
+export function describeRainShelter(t: TFunction, result: RainShelterResult, obstacleLabel: string): string {
+  if (!result.obstacle) return t('rainShelter.outInOpen');
+  if (result.sheltered) return t('rainShelter.sheltered', { obstacle: obstacleLabel });
+  if (!result.exposedEdge) return t('rainShelter.exposed', { obstacle: obstacleLabel });
+  const edge = t(`rainShelter.compass${EDGE_COMPASS_KEY[result.exposedEdge]}`);
+  return t('rainShelter.exposedThroughEdge', { obstacle: obstacleLabel, edge });
 }

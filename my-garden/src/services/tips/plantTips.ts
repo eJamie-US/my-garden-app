@@ -8,6 +8,7 @@
 
 import type { PlantTipsResult } from '../../types';
 import { supabase } from '../../lib/supabase';
+import i18n from '../../i18n';
 
 export const plantTipsService = {
   /** Never throws for an unusable answer — reports it as an error status
@@ -15,43 +16,43 @@ export const plantTipsService = {
    *  cancelled request (AbortSignal fired) still rethrows. */
   async getTips(plantName: string, signal?: AbortSignal): Promise<PlantTipsResult> {
     const name = plantName.trim();
-    if (!name) return { status: 'error', message: 'No plant name to look up.' };
+    if (!name) return { status: 'error', message: i18n.t('plantTipsService.noPlantName') };
 
     if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-      return { status: 'offline', message: "You're offline — try again once you reconnect." };
+      return { status: 'offline', message: i18n.t('plantTipsService.offline') };
     }
 
     try {
       const { data, error } = await supabase.functions.invoke<{
         tips?: PlantTipsResult['tips'];
         error?: string;
-      }>('plant-tips', { body: { plantName: name }, signal });
+      }>('plant-tips', { body: { plantName: name, locale: i18n.language }, signal });
 
       if (error) {
         const funcStatus = (error as { context?: { status?: number } })?.context?.status;
-        if (funcStatus === 401) return { status: 'error', message: 'Please sign in again.' };
+        if (funcStatus === 401) return { status: 'error', message: i18n.t('plantTipsService.signInAgain') };
         if (funcStatus === 501) {
-          return { status: 'unconfigured', message: 'Plant tips aren’t set up yet.' };
+          return { status: 'unconfigured', message: i18n.t('plantTipsService.notSetUpYet') };
         }
         if (funcStatus === 402) {
           return {
             status: 'unconfigured',
-            message: 'Plant tips are a premium feature — upgrade to see propagation and care tips.',
+            message: i18n.t('plantTipsService.premiumFeature'),
           };
         }
         if (funcStatus === 422) {
-          return { status: 'not-a-plant', message: `Couldn't recognize "${name}" as a plant.` };
+          return { status: 'not-a-plant', message: i18n.t('plantTipsService.notAPlant', { name }) };
         }
         console.error('plant-tips function unreachable', error);
-        return { status: 'error', message: "Couldn't reach plant tips right now." };
+        return { status: 'error', message: i18n.t('plantTipsService.couldNotReach') };
       }
 
-      if (!data?.tips) return { status: 'error', message: 'Plant tips failed.' };
+      if (!data?.tips) return { status: 'error', message: i18n.t('plantTipsService.failed') };
       return { status: 'ok', tips: data.tips };
     } catch (err) {
       if (signal?.aborted) throw err;
       console.error('Plant tips failed', err);
-      return { status: 'error', message: err instanceof Error ? err.message : 'Plant tips failed.' };
+      return { status: 'error', message: err instanceof Error ? err.message : i18n.t('plantTipsService.failed') };
     }
   },
 };

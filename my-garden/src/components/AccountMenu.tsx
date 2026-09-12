@@ -4,6 +4,7 @@
 // bar competing with the yard for space.
 
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Bell, BellOff, CreditCard, Download, LogOut, Loader2, Map, Sparkles, Sun, Trees, UserCircle, UserPlus,
 } from 'lucide-react';
@@ -33,12 +34,6 @@ interface AccountMenuProps {
   onLogout: () => void;
 }
 
-const PLAN_LABEL: Record<Plan, string> = {
-  free: 'Free plan',
-  premium: 'Premium',
-  lifetime: 'Lifetime',
-};
-
 export function AccountMenu({
   userId,
   email,
@@ -54,6 +49,12 @@ export function AccountMenu({
   onGrantAccess,
   onLogout,
 }: AccountMenuProps) {
+  const { t } = useTranslation();
+  const PLAN_LABEL: Record<Plan, string> = {
+    free: t('accountMenu.planFree'),
+    premium: t('accountMenu.planPremium'),
+    lifetime: t('accountMenu.planLifetime'),
+  };
   const [open, setOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState('');
@@ -75,7 +76,7 @@ export function AccountMenu({
         setNotificationsOn(true);
       }
     } catch (err) {
-      setNotifError(err instanceof Error ? err.message : 'Could not update notifications');
+      setNotifError(err instanceof Error ? err.message : t('accountMenu.notificationsError'));
     } finally {
       setNotifLoading(false);
     }
@@ -89,7 +90,7 @@ export function AccountMenu({
       downloadAsJson(data, `my-garden-export-${new Date().toISOString().slice(0, 10)}.json`);
       setOpen(false);
     } catch (err) {
-      setExportError(err instanceof Error ? err.message : 'Could not export your data');
+      setExportError(err instanceof Error ? err.message : t('accountMenu.exportError'));
     } finally {
       setExporting(false);
     }
@@ -114,7 +115,7 @@ export function AccountMenu({
           {/* Click-away catcher */}
           <button
             type="button"
-            aria-label="Close menu"
+            aria-label={t('accountMenu.closeMenu')}
             className="fixed inset-0 z-10 cursor-default"
             onClick={() => setOpen(false)}
           />
@@ -141,7 +142,7 @@ export function AccountMenu({
               className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
             >
               <UserCircle size={14} className="shrink-0 text-emerald-600" />
-              Edit profile
+              {t('accountMenu.editProfile')}
             </button>
             <button
               type="button"
@@ -156,7 +157,7 @@ export function AccountMenu({
               ) : (
                 <CreditCard size={14} className="shrink-0 text-emerald-600" />
               )}
-              {plan === 'free' ? 'Upgrade' : 'Manage billing'}
+              {plan === 'free' ? t('accountMenu.upgrade') : t('accountMenu.manageBilling')}
             </button>
             <button
               type="button"
@@ -168,7 +169,7 @@ export function AccountMenu({
             >
               <Map size={14} className="shrink-0 text-emerald-600" />
               <span className="min-w-0 flex-1 truncate">
-                Yards{activeYardName ? ` · ${activeYardName}` : ''}
+                {t('accountMenu.yards')}{activeYardName ? ` · ${activeYardName}` : ''}
               </span>
             </button>
             <button
@@ -180,7 +181,7 @@ export function AccountMenu({
               className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
             >
               <Trees size={14} className="shrink-0 text-emerald-600" />
-              Yard obstacles
+              {t('accountMenu.yardObstacles')}
             </button>
             <button
               type="button"
@@ -191,7 +192,7 @@ export function AccountMenu({
               className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
             >
               <Sun size={14} className="shrink-0 text-emerald-600" />
-              Sun map
+              {t('accountMenu.sunMap')}
             </button>
             <button
               type="button"
@@ -202,7 +203,7 @@ export function AccountMenu({
               className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
             >
               <UserPlus size={14} className="shrink-0 text-emerald-600" />
-              Grant access
+              {t('accountMenu.grantAccess')}
             </button>
             {isPushSupported() && (
               <button
@@ -218,7 +219,11 @@ export function AccountMenu({
                 ) : (
                   <BellOff size={14} className="shrink-0 text-emerald-600" />
                 )}
-                {notifLoading ? 'Updating…' : notificationsOn ? 'Notifications on' : 'Enable notifications'}
+                {notifLoading
+                  ? t('accountMenu.notificationsUpdating')
+                  : notificationsOn
+                    ? t('accountMenu.notificationsOn')
+                    : t('accountMenu.notificationsEnable')}
               </button>
             )}
             {notifError && (
@@ -235,7 +240,7 @@ export function AccountMenu({
               ) : (
                 <Download size={14} className="shrink-0 text-emerald-600" />
               )}
-              {exporting ? 'Preparing download…' : 'Download my data'}
+              {exporting ? t('accountMenu.exportPreparing') : t('accountMenu.exportDownload')}
             </button>
             {exportError && (
               <p className="border-t border-gray-100 px-3 py-1.5 text-xs text-red-600">{exportError}</p>
@@ -249,7 +254,7 @@ export function AccountMenu({
               className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
             >
               <LogOut size={14} />
-              Log out
+              {t('accountMenu.logout')}
             </button>
           </div>
         </>

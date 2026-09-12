@@ -4,6 +4,7 @@
 // Lifetime so they can try the app without a Stripe checkout.
 
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Check, Loader2, UserPlus, X } from 'lucide-react';
 import { billingService, type Plan } from '../services/supabase/billing';
 
@@ -12,11 +13,18 @@ interface GrantAccessModalProps {
 }
 
 export function GrantAccessModal({ onClose }: GrantAccessModalProps) {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [plan, setPlan] = useState<Plan>('lifetime');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState('');
+
+  const planLabel: Record<Plan, string> = {
+    lifetime: t('grantAccessModal.planLifetime'),
+    premium: t('grantAccessModal.planPremium'),
+    free: t('grantAccessModal.planFreeRevoke'),
+  };
 
   const grant = async () => {
     if (!email.trim()) return;
@@ -25,10 +33,10 @@ export function GrantAccessModal({ onClose }: GrantAccessModalProps) {
     setDone('');
     try {
       await billingService.grantAccess(email.trim(), plan);
-      setDone(`${email.trim()} is now on ${plan}.`);
+      setDone(t('grantAccessModal.done', { email: email.trim(), plan: planLabel[plan] }));
       setEmail('');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not grant access');
+      setError(err instanceof Error ? err.message : t('grantAccessModal.error'));
     } finally {
       setSaving(false);
     }
@@ -39,13 +47,13 @@ export function GrantAccessModal({ onClose }: GrantAccessModalProps) {
       <div className="flex max-h-[90vh] w-full max-w-sm flex-col rounded-lg bg-white shadow-xl">
         <div className="flex shrink-0 items-center justify-between border-b p-4">
           <h3 className="flex items-center gap-2 text-lg font-bold text-gray-900">
-            <UserPlus size={18} className="text-emerald-600" /> Grant access
+            <UserPlus size={18} className="text-emerald-600" /> {t('grantAccessModal.title')}
           </h3>
           <button
             type="button"
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700"
-            aria-label="Close grant access"
+            aria-label={t('grantAccessModal.close')}
           >
             <X size={20} />
           </button>
@@ -53,8 +61,7 @@ export function GrantAccessModal({ onClose }: GrantAccessModalProps) {
 
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
           <p className="text-sm text-gray-600">
-            Let a friend try the app on Premium or Lifetime without paying — they need an
-            account already (have them sign up first).
+            {t('grantAccessModal.description')}
           </p>
 
           {error && (
@@ -70,21 +77,21 @@ export function GrantAccessModal({ onClose }: GrantAccessModalProps) {
 
           <div>
             <label htmlFor="grant-email" className="mb-1 block text-sm font-medium text-gray-700">
-              Their email
+              {t('grantAccessModal.emailLabel')}
             </label>
             <input
               id="grant-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="friend@example.com"
+              placeholder={t('grantAccessModal.emailPlaceholder')}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:ring-green-500"
             />
           </div>
 
           <div>
             <label htmlFor="grant-plan" className="mb-1 block text-sm font-medium text-gray-700">
-              Plan
+              {t('grantAccessModal.planLabel')}
             </label>
             <select
               id="grant-plan"
@@ -92,9 +99,9 @@ export function GrantAccessModal({ onClose }: GrantAccessModalProps) {
               onChange={(e) => setPlan(e.target.value as Plan)}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:ring-green-500"
             >
-              <option value="lifetime">Lifetime</option>
-              <option value="premium">Premium</option>
-              <option value="free">Free (revoke)</option>
+              <option value="lifetime">{planLabel.lifetime}</option>
+              <option value="premium">{planLabel.premium}</option>
+              <option value="free">{planLabel.free}</option>
             </select>
           </div>
         </div>
@@ -105,7 +112,7 @@ export function GrantAccessModal({ onClose }: GrantAccessModalProps) {
             onClick={onClose}
             className="flex-1 rounded-lg border border-gray-300 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
           >
-            Close
+            {t('grantAccessModal.closeButton')}
           </button>
           <button
             type="button"
@@ -114,7 +121,7 @@ export function GrantAccessModal({ onClose }: GrantAccessModalProps) {
             className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-green-500 py-2 text-sm font-semibold text-white hover:bg-green-600 disabled:bg-gray-400"
           >
             {saving && <Loader2 size={14} className="animate-spin" />}
-            Grant
+            {t('grantAccessModal.grant')}
           </button>
         </div>
       </div>

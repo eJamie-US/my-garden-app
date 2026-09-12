@@ -1,6 +1,7 @@
 // src/components/Auth/LoginForm.tsx
 
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../hooks/useAuth';
 
 interface LoginFormProps {
@@ -10,6 +11,7 @@ interface LoginFormProps {
 type Mode = 'login' | 'signup' | 'forgot';
 
 export function LoginForm({ onAuthSuccess }: LoginFormProps) {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [mode, setMode] = useState<Mode>('login');
@@ -53,31 +55,30 @@ export function LoginForm({ onAuthSuccess }: LoginFormProps) {
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-green-50 to-blue-50">
       <div className="w-full max-w-md p-8 bg-white rounded-lg shadow-lg">
         <h1 className="text-3xl font-bold text-center text-green-700 mb-2">
-          🌱 Garden App
+          🌱 {t('login.appName')}
         </h1>
         <p className="text-center text-gray-600 mb-8">
-          Grow, track, and care for your plants
+          {t('login.tagline')}
         </p>
 
         {mode === 'forgot' && resetSent ? (
           <div className="space-y-4">
             <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-800">
-              If an account exists for <strong>{email}</strong>, a password reset link is on its
-              way. Check your email (and spam folder) and open it on this device.
+              {t('login.resetSent', { email })}
             </div>
             <button
               type="button"
               onClick={() => switchMode('login')}
               className="w-full py-2 px-4 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition"
             >
-              Back to log in
+              {t('login.backToLogin')}
             </button>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                Email
+                {t('login.email')}
               </label>
               <input
                 id="email"
@@ -94,7 +95,7 @@ export function LoginForm({ onAuthSuccess }: LoginFormProps) {
               <div>
                 <div className="mb-1 flex items-center justify-between">
                   <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                    Password
+                    {t('login.password')}
                   </label>
                   {mode === 'login' && (
                     <button
@@ -102,7 +103,7 @@ export function LoginForm({ onAuthSuccess }: LoginFormProps) {
                       onClick={() => switchMode('forgot')}
                       className="text-xs font-medium text-green-600 hover:text-green-700"
                     >
-                      Forgot password?
+                      {t('login.forgotPassword')}
                     </button>
                   )}
                 </div>
@@ -131,13 +132,13 @@ export function LoginForm({ onAuthSuccess }: LoginFormProps) {
             >
               {mode === 'forgot'
                 ? sendingReset
-                  ? 'Sending...'
-                  : 'Send reset link'
+                  ? t('login.sending')
+                  : t('login.sendResetLink')
                 : loading
-                  ? 'Loading...'
+                  ? t('login.loading')
                   : mode === 'signup'
-                    ? 'Sign Up'
-                    : 'Log In'}
+                    ? t('login.signUp')
+                    : t('login.logIn')}
             </button>
 
             {mode === 'forgot' && (
@@ -146,7 +147,7 @@ export function LoginForm({ onAuthSuccess }: LoginFormProps) {
                 onClick={() => switchMode('login')}
                 className="w-full text-sm text-gray-500 hover:text-gray-700"
               >
-                Back to log in
+                {t('login.backToLogin')}
               </button>
             )}
           </form>
@@ -159,7 +160,7 @@ export function LoginForm({ onAuthSuccess }: LoginFormProps) {
               onClick={() => switchMode(mode === 'signup' ? 'login' : 'signup')}
               className="text-sm text-green-600 hover:text-green-700 font-medium"
             >
-              {mode === 'signup' ? 'Already have an account? Log In' : "Don't have an account? Sign Up"}
+              {mode === 'signup' ? t('login.switchToLogin') : t('login.switchToSignUp')}
             </button>
           </div>
         )}

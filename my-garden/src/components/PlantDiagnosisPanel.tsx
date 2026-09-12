@@ -8,6 +8,8 @@
 // truth" framing as the rest of the app's AI-assisted features.
 
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import {
   Bug, Box, Camera, Droplets, Loader2, Scissors, Sun, FlaskConical,
   CircleAlert, Stethoscope, Thermometer, Wind, X,
@@ -45,11 +47,14 @@ const CATEGORY_COLOR: Record<DiagnosisCategory, string> = {
   other: 'text-gray-600 bg-gray-50',
 };
 
-const HEALTH_LABEL: Record<NonNullable<PlantDiagnosisResult['overallHealth']>, { label: string; className: string }> = {
-  healthy: { label: 'Looking healthy', className: 'bg-emerald-100 text-emerald-800' },
-  stressed: { label: 'A little stressed', className: 'bg-amber-100 text-amber-800' },
-  unhealthy: { label: 'Needs attention', className: 'bg-red-100 text-red-800' },
-};
+function healthLabel(t: TFunction, health: NonNullable<PlantDiagnosisResult['overallHealth']>): { label: string; className: string } {
+  const map: Record<NonNullable<PlantDiagnosisResult['overallHealth']>, { key: string; className: string }> = {
+    healthy: { key: 'diagnosis.healthy', className: 'bg-emerald-100 text-emerald-800' },
+    stressed: { key: 'diagnosis.stressed', className: 'bg-amber-100 text-amber-800' },
+    unhealthy: { key: 'diagnosis.unhealthy', className: 'bg-red-100 text-red-800' },
+  };
+  return { label: t(map[health].key), className: map[health].className };
+}
 
 interface PlantDiagnosisPanelProps {
   /** When provided, diagnosis runs automatically against this photo. Used
@@ -73,6 +78,7 @@ interface PlantDiagnosisPanelProps {
 }
 
 export function PlantDiagnosisPanel({ photo, knownIssues, allowManualPhoto }: PlantDiagnosisPanelProps = {}) {
+  const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<PlantDiagnosisResult | null>(null);
@@ -112,13 +118,17 @@ export function PlantDiagnosisPanel({ photo, knownIssues, allowManualPhoto }: Pl
             className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-emerald-300 bg-emerald-50 py-2.5 text-sm font-semibold text-emerald-800 hover:border-emerald-500 hover:bg-emerald-100 disabled:opacity-60"
           >
             {loading ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
-            {loading ? 'Checking the photo…' : photo != null ? 'Check a different photo' : 'Diagnose from a photo'}
+            {loading
+              ? t('diagnosis.checkingPhoto')
+              : photo != null
+                ? t('diagnosis.checkDifferentPhoto')
+                : t('diagnosis.diagnoseFromPhoto')}
           </button>
         </>
       ) : (
         loading && (
           <p className="flex items-center gap-2 text-xs text-gray-500">
-            <Loader2 size={13} className="animate-spin" /> Checking the photo for issues…
+            <Loader2 size={13} className="animate-spin" /> {t('diagnosis.checkingForIssues')}
           </p>
         )
       )}
@@ -127,22 +137,22 @@ export function PlantDiagnosisPanel({ photo, knownIssues, allowManualPhoto }: Pl
         <div className="space-y-2 rounded-lg border border-gray-200 p-2.5">
           <div className="flex items-center justify-between">
             <span
-              className={`rounded-full px-2 py-0.5 text-xs font-bold ${HEALTH_LABEL[result.overallHealth ?? 'healthy'].className}`}
+              className={`rounded-full px-2 py-0.5 text-xs font-bold ${healthLabel(t, result.overallHealth ?? 'healthy').className}`}
             >
-              {HEALTH_LABEL[result.overallHealth ?? 'healthy'].label}
+              {healthLabel(t, result.overallHealth ?? 'healthy').label}
             </span>
             <button
               type="button"
               onClick={() => setResult(null)}
               className="text-gray-400 hover:text-gray-600"
-              aria-label="Dismiss diagnosis"
+              aria-label={t('diagnosis.dismiss')}
             >
               <X size={14} />
             </button>
           </div>
 
           {result.findings.length === 0 ? (
-            <p className="text-xs text-gray-600">No issues spotted in that photo.</p>
+            <p className="text-xs text-gray-600">{t('diagnosis.noIssues')}</p>
           ) : (
             <ul className="space-y-2">
               {result.findings.map((f, i) => {
@@ -158,7 +168,7 @@ export function PlantDiagnosisPanel({ photo, knownIssues, allowManualPhoto }: Pl
                       <div className="flex flex-wrap items-center gap-1.5">
                         <span className="font-semibold text-gray-900">{f.label}</span>
                         <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold text-gray-500">
-                          {f.confidence} confidence
+                          {t('diagnosis.confidence', { level: f.confidence })}
                         </span>
                       </div>
                       <p className="mt-0.5 text-gray-600">{f.observation}</p>
@@ -170,7 +180,7 @@ export function PlantDiagnosisPanel({ photo, knownIssues, allowManualPhoto }: Pl
             </ul>
           )}
           <p className="text-[10px] text-gray-400">
-            A best guess from a photo, not a certified diagnosis — remedies are screened for pet/wildlife safety.
+            {t('diagnosis.disclaimer')}
           </p>
         </div>
       )}

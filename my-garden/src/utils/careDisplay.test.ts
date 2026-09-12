@@ -1,6 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { daysUntil, dueLabel, dueBadgeClass, ingredientSummary } from './careDisplay';
 import type { CareItem } from '../types';
+import i18n from '../i18n';
+
+const t = i18n.getFixedT('en');
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -31,19 +34,19 @@ describe('daysUntil', () => {
 
 describe('dueLabel', () => {
   it('labels null as not scheduled', () => {
-    expect(dueLabel(null)).toBe('not scheduled');
+    expect(dueLabel(t, null)).toBe('not scheduled');
   });
   it('labels negative days as overdue with the day count', () => {
-    expect(dueLabel(-3)).toBe('overdue 3d');
+    expect(dueLabel(t, -3)).toBe('overdue 3d');
   });
   it('labels 0 as due today', () => {
-    expect(dueLabel(0)).toBe('due today');
+    expect(dueLabel(t, 0)).toBe('due today');
   });
   it('labels 1 as due tomorrow', () => {
-    expect(dueLabel(1)).toBe('due tomorrow');
+    expect(dueLabel(t, 1)).toBe('due tomorrow');
   });
   it('labels other future days generically', () => {
-    expect(dueLabel(4)).toBe('due in 4d');
+    expect(dueLabel(t, 4)).toBe('due in 4d');
   });
 });
 

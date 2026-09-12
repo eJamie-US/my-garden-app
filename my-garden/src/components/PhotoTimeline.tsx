@@ -2,16 +2,20 @@
 // A plant's photos oldest-first: scrub the strip, or compare first vs selected.
 
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Camera, Check, Columns2, Loader2, Star, Trash2 } from 'lucide-react';
 import type { PlantPhoto } from '../types';
 import { plantPhotosService } from '../services/supabase/plantPhotos';
 import { plantsService } from '../services/supabase/plants';
 
-const dateLabel = (iso: string) =>
-  new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+// The app's own chosen language (not just the browser default) so a date
+// picked in Profile settings is honored even if the OS/browser is still
+// set to something else.
+const dateLabel = (iso: string, locale: string) =>
+  new Date(iso).toLocaleDateString(locale, { month: 'short', day: 'numeric' });
 
-const fullDateLabel = (iso: string) =>
-  new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+const fullDateLabel = (iso: string, locale: string) =>
+  new Date(iso).toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' });
 
 /** For a date input's value, which wants YYYY-MM-DD in local time. */
 const dateInputValue = (iso: string) => {
@@ -38,6 +42,7 @@ interface PhotoTimelineProps {
 export function PhotoTimeline({
   plantId, plantName, currentPhotoUrl, onAddPhoto, onPlantUpdated, refreshKey = 0,
 }: PhotoTimelineProps) {
+  const { t, i18n } = useTranslation();
   const [photos, setPhotos] = useState<PlantPhoto[]>([]);
   const [selected, setSelected] = useState(0);
   const [compare, setCompare] = useState(false);
@@ -56,7 +61,7 @@ export function PhotoTimeline({
       setSelected(keepIndex >= 0 ? keepIndex : Math.max(0, list.length - 1)); // else land on the newest
       setError('');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not load photos');
+      setError(err instanceof Error ? err.message : t('photoTimeline.loadError'));
     } finally {
       setLoading(false);
     }
@@ -76,7 +81,7 @@ export function PhotoTimeline({
       await plantPhotosService.deletePhoto(photo);
     } catch (err) {
       setPhotos(previous);
-      setError(err instanceof Error ? err.message : 'Could not delete that photo');
+      setError(err instanceof Error ? err.message : t('photoTimeline.deleteError'));
       return;
     }
 
@@ -117,7 +122,7 @@ export function PhotoTimeline({
       });
       onPlantUpdated?.();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not set that as the current photo');
+      setError(err instanceof Error ? err.message : t('photoTimeline.setCurrentError'));
     } finally {
       setSettingCurrent(null);
     }
@@ -129,7 +134,7 @@ export function PhotoTimeline({
     try {
       await plantPhotosService.updatePhoto(photo.id, { note });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save that note');
+      setError(err instanceof Error ? err.message : t('photoTimeline.noteError'));
     }
   };
 
@@ -150,7 +155,7 @@ export function PhotoTimeline({
       await plantPhotosService.updatePhoto(photo.id, { takenAt: next.toISOString() });
       await load(photo.id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not update that date');
+      setError(err instanceof Error ? err.message : t('photoTimeline.dateError'));
     } finally {
       setSavingDate(false);
     }
@@ -159,7 +164,7 @@ export function PhotoTimeline({
   if (loading) {
     return (
       <p className="flex items-center gap-2 py-3 text-xs text-gray-500">
-        <Loader2 size={13} className="animate-spin" /> Loading photos…
+        <Loader2 size={13} className="animate-spin" /> {t('photoTimeline.loading')}
       </p>
     );
   }
@@ -168,7 +173,7 @@ export function PhotoTimeline({
     return (
       <div className="rounded-lg border-2 border-dashed border-gray-300 p-4 text-center">
         <p className="text-xs text-gray-500">
-          No photos of {plantName} yet. Add one now and it becomes the start of its progression.
+          {t('photoTimeline.noPhotos', { plantName })}
         </p>
         {onAddPhoto && (
           <button
@@ -176,7 +181,7 @@ export function PhotoTimeline({
             onClick={onAddPhoto}
             className="mx-auto mt-2 flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
           >
-            <Camera size={13} /> Add the first photo
+            <Camera size={13} /> {t('photoTimeline.addFirstPhoto')}
           </button>
         )}
       </div>
@@ -196,8 +201,8 @@ export function PhotoTimeline({
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs text-gray-500">
-          {photos.length} photo{photos.length === 1 ? '' : 's'}
-          {span > 0 && ` · tracked ${span} days`}
+          {t('photoTimeline.photoCount', { count: photos.length })}
+          {span > 0 && ` · ${t('photoTimeline.tracked', { count: span })}`}
         </p>
         <div className="flex items-center gap-2">
           {photos.length > 1 && (
@@ -208,7 +213,7 @@ export function PhotoTimeline({
                 compare ? 'bg-emerald-600 text-white' : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
               }`}
             >
-              <Columns2 size={12} /> Compare
+              <Columns2 size={12} /> {t('photoTimeline.compare')}
             </button>
           )}
           {onAddPhoto && (
@@ -217,7 +222,7 @@ export function PhotoTimeline({
               onClick={onAddPhoto}
               className="flex items-center gap-1 rounded-md bg-emerald-600 px-2 py-1 text-xs font-semibold text-white hover:bg-emerald-700"
             >
-              <Camera size={12} /> Add
+              <Camera size={12} /> {t('photoTimeline.add')}
             </button>
           )}
         </div>
@@ -229,11 +234,11 @@ export function PhotoTimeline({
             <figure key={photo.id} className="m-0">
               <img
                 src={photo.photoUrl}
-                alt={`${plantName} on ${fullDateLabel(photo.takenAt)}`}
+                alt={t('photoTimeline.photoAlt', { plantName, date: fullDateLabel(photo.takenAt, i18n.language) })}
                 className="h-40 w-full rounded-lg object-cover"
               />
               <figcaption className="mt-1 text-center text-[11px] text-gray-500">
-                {index === 0 ? 'First' : 'Selected'} · {dateLabel(photo.takenAt)}
+                {index === 0 ? t('photoTimeline.first') : t('photoTimeline.selected')} · {dateLabel(photo.takenAt, i18n.language)}
               </figcaption>
             </figure>
           ))}
@@ -242,12 +247,12 @@ export function PhotoTimeline({
         <figure className="m-0">
           <img
             src={current.photoUrl}
-            alt={`${plantName} on ${fullDateLabel(current.takenAt)}`}
+            alt={t('photoTimeline.photoAlt', { plantName, date: fullDateLabel(current.takenAt, i18n.language) })}
             className="h-52 w-full rounded-lg object-cover"
           />
           <figcaption className="mt-1.5 flex items-center justify-between gap-2">
             <span className="min-w-0 text-xs font-semibold text-gray-700">
-              {fullDateLabel(current.takenAt)}
+              {fullDateLabel(current.takenAt, i18n.language)}
               {current.identifiedSpecies && (
                 <span className="ml-1.5 font-normal italic text-gray-500">
                   {current.identifiedSpecies}
@@ -257,7 +262,7 @@ export function PhotoTimeline({
             <span className="flex shrink-0 items-center gap-2">
               {isMarker ? (
                 <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700">
-                  <Star size={12} className="fill-emerald-500 text-emerald-500" /> Marker photo
+                  <Star size={12} className="fill-emerald-500 text-emerald-500" /> {t('photoTimeline.markerPhoto')}
                 </span>
               ) : (
                 onPlantUpdated && (
@@ -266,21 +271,21 @@ export function PhotoTimeline({
                     onClick={() => setCurrent(current)}
                     disabled={settingCurrent === current.id}
                     className="flex items-center gap-1 text-[11px] font-semibold text-gray-500 hover:text-emerald-700"
-                    title="Use this photo as the plant's marker on the yard map, without deleting the others"
+                    title={t('photoTimeline.useAsMarkerTitle')}
                   >
                     {settingCurrent === current.id ? (
                       <Loader2 size={12} className="animate-spin" />
                     ) : (
                       <Check size={12} />
                     )}
-                    Use as marker
+                    {t('photoTimeline.useAsMarker')}
                   </button>
                 )
               )}
               <button
                 type="button"
                 onClick={() => remove(current)}
-                aria-label="Delete this photo"
+                aria-label={t('photoTimeline.deletePhoto')}
                 className="p-1 text-gray-400 hover:text-red-600"
               >
                 <Trash2 size={13} />
@@ -295,13 +300,13 @@ export function PhotoTimeline({
         defaultValue={current.note ?? ''}
         key={`note-${current.id}`}
         onBlur={(e) => setNote(current, e.target.value)}
-        placeholder="Note for this photo — first bud, repotted, leaf spot…"
+        placeholder={t('photoTimeline.notePlaceholder')}
         className="w-full rounded border border-gray-200 px-2 py-1.5 text-xs text-gray-700 placeholder-gray-400"
       />
 
       <div className="flex items-center gap-2">
         <label htmlFor={`taken-at-${current.id}`} className="text-xs text-gray-500">
-          Taken
+          {t('photoTimeline.taken')}
         </label>
         <input
           id={`taken-at-${current.id}`}
@@ -310,11 +315,11 @@ export function PhotoTimeline({
           key={`date-${current.id}`}
           disabled={savingDate}
           onBlur={(e) => setDate(current, e.target.value)}
-          aria-label="Date this photo was taken"
+          aria-label={t('photoTimeline.dateTakenLabel')}
           className="rounded border border-gray-200 px-2 py-1 text-xs text-gray-700 disabled:opacity-60"
         />
         {savingDate && <Loader2 size={12} className="animate-spin text-gray-400" />}
-        <span className="text-[11px] text-gray-400">Backdate an old photo to place it correctly</span>
+        <span className="text-[11px] text-gray-400">{t('photoTimeline.backdateHint')}</span>
       </div>
 
       {photos.length > 1 && (
@@ -325,7 +330,7 @@ export function PhotoTimeline({
             max={photos.length - 1}
             value={Math.min(selected, photos.length - 1)}
             onChange={(e) => setSelected(Number(e.target.value))}
-            aria-label="Scrub the photo timeline"
+            aria-label={t('photoTimeline.scrubLabel')}
             className="w-full accent-emerald-600"
           />
           <ul className="flex gap-1.5 overflow-x-auto pb-1">
@@ -346,13 +351,13 @@ export function PhotoTimeline({
                     className="h-12 w-12 object-cover"
                   />
                   <span className="block bg-white px-1 py-0.5 text-[9px] text-gray-500">
-                    {dateLabel(photo.takenAt)}
+                    {dateLabel(photo.takenAt, i18n.language)}
                   </span>
                 </button>
                 {currentPhotoUrl && photo.photoUrl === currentPhotoUrl && (
                   <span
                     className="pointer-events-none absolute right-0.5 top-0.5 rounded-full bg-white p-0.5 shadow"
-                    title="Marker photo"
+                    title={t('photoTimeline.markerPhoto')}
                   >
                     <Star size={9} className="fill-emerald-500 text-emerald-500" />
                   </span>

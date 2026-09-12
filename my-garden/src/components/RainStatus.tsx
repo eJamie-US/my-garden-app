@@ -6,10 +6,11 @@
 // permanent fixture nagging about wind direction on a dry day.
 
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { CloudRain, Umbrella, X } from 'lucide-react';
 import type { Plant, WeatherData, Yard, YardObstacle } from '../types';
 import { computeRainShelter, describeRainShelter } from '../utils/rainShelter';
-import { OBSTACLE_TYPE_LABEL } from '../utils/obstacleTypes';
+import { obstacleTypeLabel } from '../utils/obstacleTypes';
 
 interface RainStatusProps {
   plants: Plant[];
@@ -20,6 +21,7 @@ interface RainStatusProps {
 }
 
 export function RainStatus({ plants, obstacles, garden, weather, onOpenPlant }: RainStatusProps) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
 
   const raining = Boolean(weather?.precipitation && weather.precipitation > 0);
@@ -55,14 +57,14 @@ export function RainStatus({ plants, obstacles, garden, weather, onOpenPlant }: 
         >
           <span className="flex min-w-0 items-center gap-2">
             <CloudRain size={16} className="shrink-0 text-sky-600" />
-            <span className="shrink-0 text-sm font-bold text-sky-900">Raining now</span>
+            <span className="shrink-0 text-sm font-bold text-sky-900">{t('rainStatus.title')}</span>
             {exposed.length > 0 ? (
               <span className="shrink-0 rounded-full bg-sky-100 px-1.5 py-0.5 text-xs font-bold text-sky-800">
-                {exposed.length} getting wet
+                {t('rainStatus.gettingWet', { count: exposed.length })}
               </span>
             ) : (
               <span className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-1.5 py-0.5 text-xs font-bold text-emerald-700">
-                <Umbrella size={11} /> all covered
+                <Umbrella size={11} /> {t('rainStatus.allCovered')}
               </span>
             )}
           </span>
@@ -74,13 +76,13 @@ export function RainStatus({ plants, obstacles, garden, weather, onOpenPlant }: 
           <div className="flex max-h-[90vh] w-full max-w-lg flex-col rounded-lg bg-white shadow-xl">
             <div className="flex shrink-0 items-center justify-between gap-3 border-b p-4">
               <h3 className="flex items-center gap-2 text-lg font-bold text-gray-900">
-                <CloudRain size={18} className="text-sky-600" /> Raining now
+                <CloudRain size={18} className="text-sky-600" /> {t('rainStatus.title')}
               </h3>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
                 className="shrink-0 text-gray-500 hover:text-gray-700"
-                aria-label="Close rain status"
+                aria-label={t('rainStatus.close')}
               >
                 <X size={20} />
               </button>
@@ -90,7 +92,7 @@ export function RainStatus({ plants, obstacles, garden, weather, onOpenPlant }: 
               {exposed.length > 0 && (
                 <div>
                   <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-sky-700">
-                    Getting wet
+                    {t('rainStatus.gettingWetHeading')}
                   </p>
                   <ul className="space-y-1.5">
                     {exposed.map(({ plant, shelter }) => (
@@ -103,8 +105,9 @@ export function RainStatus({ plants, obstacles, garden, weather, onOpenPlant }: 
                           <span className="block text-sm font-semibold text-gray-900">{plant.name}</span>
                           <span className="block text-xs text-gray-600">
                             {describeRainShelter(
+                              t,
                               shelter,
-                              shelter.obstacle ? OBSTACLE_TYPE_LABEL[shelter.obstacle.type] : '',
+                              shelter.obstacle ? obstacleTypeLabel(t, shelter.obstacle.type) : '',
                             )}
                           </span>
                         </span>
@@ -117,7 +120,7 @@ export function RainStatus({ plants, obstacles, garden, weather, onOpenPlant }: 
                             }}
                             className="shrink-0 rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50"
                           >
-                            Open
+                            {t('rainStatus.open')}
                           </button>
                         )}
                       </li>
@@ -129,7 +132,7 @@ export function RainStatus({ plants, obstacles, garden, weather, onOpenPlant }: 
               {sheltered.length > 0 && (
                 <div>
                   <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-emerald-700">
-                    Staying dry
+                    {t('rainStatus.stayingDryHeading')}
                   </p>
                   <ul className="space-y-1.5">
                     {sheltered.map(({ plant, shelter }) => (
@@ -142,8 +145,9 @@ export function RainStatus({ plants, obstacles, garden, weather, onOpenPlant }: 
                           <span className="block text-sm font-semibold text-gray-900">{plant.name}</span>
                           <span className="block text-xs text-gray-600">
                             {describeRainShelter(
+                              t,
                               shelter,
-                              shelter.obstacle ? OBSTACLE_TYPE_LABEL[shelter.obstacle.type] : '',
+                              shelter.obstacle ? obstacleTypeLabel(t, shelter.obstacle.type) : '',
                             )}
                           </span>
                         </span>
