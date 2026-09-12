@@ -3,6 +3,12 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
+  // host: true binds the dev server to 0.0.0.0 (not just localhost) so a
+  // phone on the same Wi-Fi can reach it at this Mac's LAN address — `npm
+  // run dev` prints that address on startup.
+  server: {
+    host: true,
+  },
   plugins: [
     react(),
     VitePWA({
