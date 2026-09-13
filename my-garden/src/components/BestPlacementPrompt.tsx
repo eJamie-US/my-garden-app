@@ -8,22 +8,36 @@
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { X } from 'lucide-react';
-import type { PlacementEvaluation, SunClassification } from '../utils/bestPlacement';
+import type { PlacementEvaluation, PlacementSpot, SunClassification } from '../utils/bestPlacement';
 
 function classificationLabel(t: TFunction, classification: SunClassification): string {
   return t(`bestPlacement.${classification === 'full-sun' ? 'fullSun' : classification === 'partial-shade' ? 'partialShade' : 'fullShade'}`);
 }
 
-function spotDescription(t: TFunction, classification: SunClassification, rainySeasons: number): string {
-  const sun = classificationLabel(t, classification);
-  if (rainySeasons === 4) return t('bestPlacement.spotRainedYearRound', { sun });
-  if (rainySeasons === 0) return t('bestPlacement.spotDryYearRound', { sun });
-  return t('bestPlacement.spotRainedSeasons', { sun, count: rainySeasons });
+function windLabel(t: TFunction, spot: PlacementSpot): string | null {
+  // 'breezy' also covers "no wind data" (see bestPlacement.ts) — not worth
+  // calling out as a fact about the spot when it might just be a data gap.
+  if (spot.windClassification === 'calm') return t('bestPlacement.windCalm');
+  if (spot.windClassification === 'windy') return t('bestPlacement.windWindy');
+  return null;
+}
+
+function spotDescription(t: TFunction, spot: PlacementSpot): string {
+  const sun = classificationLabel(t, spot.classification);
+  const rain =
+    spot.rainySeasons === 4
+      ? t('bestPlacement.rainedYearRound')
+      : spot.rainySeasons === 0
+        ? t('bestPlacement.dryYearRound')
+        : t('bestPlacement.rainedSeasons', { count: spot.rainySeasons });
+  const wind = windLabel(t, spot);
+  return wind
+    ? t('bestPlacement.spotDescriptionWithWind', { sun, rain, wind })
+    : t('bestPlacement.spotDescription', { sun, rain });
 }
 
 interface BestPlacementPromptProps {
   yardImageUrl: string;
-  sunRequirement: 'full-sun' | 'partial-shade' | 'full-shade';
   evaluation: PlacementEvaluation;
   onUseSpot: (location: { x: number; y: number }) => void;
   onDismiss: () => void;
@@ -31,7 +45,6 @@ interface BestPlacementPromptProps {
 
 export const BestPlacementPrompt = ({
   yardImageUrl,
-  sunRequirement,
   evaluation,
   onUseSpot,
   onDismiss,
@@ -43,7 +56,7 @@ export const BestPlacementPrompt = ({
     <div className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-2.5">
       <div className="flex items-start justify-between gap-2">
         <p className="text-xs font-semibold text-amber-900">
-          {t('bestPlacement.suggestion', { sunNeeds: classificationLabel(t, sunRequirement) })}
+          {t('bestPlacement.suggestion')}
         </p>
         <button
           type="button"
@@ -82,7 +95,7 @@ export const BestPlacementPrompt = ({
 
       <p className="text-[11px] text-amber-800">
         {t('bestPlacement.yourSpotSummary', {
-          description: spotDescription(t, current.classification, current.rainySeasons),
+          description: spotDescription(t, current),
         })}
       </p>
 
@@ -96,7 +109,7 @@ export const BestPlacementPrompt = ({
           >
             {t('bestPlacement.useSpotButton', {
               number: i + 1,
-              description: spotDescription(t, spot.classification, spot.rainySeasons),
+              description: spotDescription(t, spot),
             })}
           </button>
         ))}

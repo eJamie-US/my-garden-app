@@ -8,6 +8,7 @@ import { useEntitlement, useIsPremium, FREE_PLANT_LIMIT } from './hooks/useEntit
 import { LoginForm } from './components/Auth/LoginForm';
 import { ResetPasswordForm } from './components/Auth/ResetPasswordForm';
 import { UpdatePrompt } from './components/UpdatePrompt';
+import { ToastHost } from './components/ToastHost';
 import { GardenCanvas } from './components/GardenCanvas';
 import { GardenSpotModal } from './components/GardenSpotModal';
 import { AccountMenu } from './components/AccountMenu';
@@ -17,7 +18,7 @@ import { RainStatus } from './components/RainStatus';
 import { FrostWarning } from './components/FrostWarning';
 import { PlantCareModal } from './components/PlantCareModal';
 import { weatherService } from './services/weather/forecast';
-import { getSeasonalRainWindDirections } from './services/weather/climateWind';
+import { getSeasonalClimate, type SeasonalClimate } from './services/weather/climateWind';
 import type { Season } from './utils/sunExposure';
 import { billingService } from './services/supabase/billing';
 import { yardObstaclesService } from './services/supabase/yardObstacles';
@@ -93,7 +94,7 @@ export default function App() {
   const [sections, setSections] = useState<YardSection[]>([]);
   const [obstacles, setObstacles] = useState<YardObstacle[]>([]);
   const [weather, setWeather] = useState<WeatherData | null>(null);
-  const [seasonalRainWind, setSeasonalRainWind] = useState<Record<Season, number | null> | null>(null);
+  const [seasonalClimate, setSeasonalClimate] = useState<Record<Season, SeasonalClimate> | null>(null);
   const [selectedPlant, setSelectedPlant] = useState<Plant | null>(null);
   const [editingPlant, setEditingPlant] = useState<Plant | null>(null);
   // Shared between Due Today and the yard map so picking "Water" narrows
@@ -206,19 +207,20 @@ export default function App() {
       .catch((err) => console.error('Weather unavailable:', err));
   }, [user?.id, activeYard?.id, activeYard?.latitude, activeYard?.longitude]);
 
-  // The real prevailing rain-wind direction per season at this yard's
-  // location (see services/weather/climateWind.ts) — powers the
-  // best-placement suggestion's year-round rain reasoning. Best-effort:
-  // failing to load it just falls back to a direction-agnostic rain check.
+  // The real prevailing rain-wind direction and average wind speed per
+  // season at this yard's location (see services/weather/climateWind.ts) —
+  // powers the best-placement suggestion's year-round rain/wind reasoning.
+  // Best-effort: failing to load it just falls back to direction/speed-
+  // agnostic checks.
   useEffect(() => {
-    setSeasonalRainWind(null);
+    setSeasonalClimate(null);
     if (activeYard?.latitude == null || activeYard?.longitude == null) return;
     let cancelled = false;
-    getSeasonalRainWindDirections(activeYard.latitude, activeYard.longitude)
+    getSeasonalClimate(activeYard.latitude, activeYard.longitude)
       .then((result) => {
-        if (!cancelled) setSeasonalRainWind(result);
+        if (!cancelled) setSeasonalClimate(result);
       })
-      .catch((err) => console.error('Seasonal rain-wind climatology unavailable:', err));
+      .catch((err) => console.error('Seasonal climatology unavailable:', err));
     return () => {
       cancelled = true;
     };
@@ -379,6 +381,7 @@ export default function App() {
   return (
     <div className="min-h-screen w-full">
       <UpdatePrompt />
+      <ToastHost />
       {/* Banner (with the account menu overlaid on it), Due Today, the yard, and plant markers */}
       <GardenCanvas
         plants={activeYardPlants}
@@ -535,7 +538,7 @@ export default function App() {
           weather={weather}
           garden={activeYard}
           obstacles={activeYardObstacles}
-          seasonalRainWind={seasonalRainWind}
+          seasonalClimate={seasonalClimate}
           onClose={() => setSelectedPlant(null)}
           onPhotoUploaded={() => fetchPlants(user.id)}
           onDeletePlant={deletePlant}
@@ -572,7 +575,7 @@ export default function App() {
                 weather={weather}
                 obstacles={activeYardObstacles}
                 garden={activeYard}
-                seasonalRainWind={seasonalRainWind}
+                seasonalClimate={seasonalClimate}
                 onSuccess={() => {
                   setEditingPlant(null);
                   fetchPlants(user.id);
@@ -607,7 +610,7 @@ export default function App() {
                 weather={weather}
                 obstacles={activeYardObstacles}
                 garden={activeYard}
-                seasonalRainWind={seasonalRainWind}
+                seasonalClimate={seasonalClimate}
                 onSuccess={() => {
                   closePlantForm();
 

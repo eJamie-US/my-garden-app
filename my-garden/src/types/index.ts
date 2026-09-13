@@ -18,6 +18,12 @@ export interface Plant {
   notes?: string;
   wateringSchedule?: 'daily' | 'weekly' | 'biweekly' | 'monthly';
   sunRequirement?: 'full-sun' | 'partial-shade' | 'full-shade';
+  /** Whether this plant wants drier or wetter-than-average ground, for
+   *  best-placement scoring alongside sunRequirement — see bestPlacement.ts. */
+  rainPreference?: 'prefers-dry' | 'neutral' | 'prefers-wet';
+  /** Whether this plant is delicate in wind (stems/blooms easily damaged)
+   *  or doesn't care either way — see bestPlacement.ts. */
+  windTolerance?: 'fragile' | 'hardy';
   /** Sheltered from rain (an eave, a patio roof) — so care generation
    *  doesn't credit it with rainfall it never gets. Implied by `indoor`.
    *  Manual fallback only — once yard obstacles are mapped, whether this
@@ -219,6 +225,26 @@ export interface CareItem {
   source: 'generated' | 'user';
   createdAt: string;
   updatedAt: string;
+}
+
+/** One row of the append-only completion log (care_completions) — a
+ *  snapshot of what a care item's due-date fields were immediately before
+ *  and after one completion, so an undo can restore the "before" values.
+ *  `itemTitle`/`itemKind` come from a join against care_items at query time
+ *  (ON DELETE CASCADE means this row never outlives its care item, so a
+ *  live join is always safe — no need to duplicate those fields here). */
+export interface CareCompletion {
+  id: string;
+  careItemId: string;
+  plantId: string;
+  userId: string;
+  itemTitle: string;
+  itemKind: CareItemKind;
+  completedAt: string;
+  previousLastCompletedAt?: string;
+  previousNextDueDate?: string;
+  newNextDueDate?: string;
+  createdAt: string;
 }
 
 /** A care item that has not been persisted yet (new plant flow). */

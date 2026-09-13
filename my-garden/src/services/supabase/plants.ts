@@ -19,6 +19,8 @@ interface PlantRow {
   notes: string | null;
   watering_schedule: Plant['wateringSchedule'] | null;
   sun_requirement: Plant['sunRequirement'] | null;
+  rain_preference: Plant['rainPreference'] | null;
+  wind_tolerance: Plant['windTolerance'] | null;
   rain_covered: boolean | null;
   indoor: boolean | null;
   mount: Plant['mount'] | null;
@@ -50,6 +52,8 @@ function toPlant(row: PlantRow): Plant {
     notes: row.notes ?? undefined,
     wateringSchedule: row.watering_schedule ?? 'weekly',
     sunRequirement: row.sun_requirement ?? 'partial-shade',
+    rainPreference: row.rain_preference ?? 'neutral',
+    windTolerance: row.wind_tolerance ?? 'hardy',
     rainCovered: row.rain_covered ?? false,
     indoor: row.indoor ?? false,
     mount: row.mount ?? 'ground',
@@ -75,6 +79,8 @@ function toRow(plant: Partial<Plant>) {
   if (plant.notes !== undefined) row.notes = plant.notes ?? null;
   if (plant.wateringSchedule !== undefined) row.watering_schedule = plant.wateringSchedule;
   if (plant.sunRequirement !== undefined) row.sun_requirement = plant.sunRequirement;
+  if (plant.rainPreference !== undefined) row.rain_preference = plant.rainPreference;
+  if (plant.windTolerance !== undefined) row.wind_tolerance = plant.windTolerance;
   if (plant.rainCovered !== undefined) row.rain_covered = plant.rainCovered;
   if (plant.indoor !== undefined) row.indoor = plant.indoor;
   if (plant.mount !== undefined) row.mount = plant.mount;

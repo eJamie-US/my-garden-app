@@ -27,9 +27,11 @@ import type { CareItem, Plant, Yard } from '../types';
 import type { Plan } from '../services/supabase/billing';
 import { useCareItems } from '../hooks/useCareItems';
 import { useSeasonalTasks } from '../hooks/useSeasonalTasks';
+import { useToast } from '../hooks/useToast';
 import { describeFrequency } from '../services/care/generateCareItems';
 import { KIND_ICONS, kindLabel, ingredientSummary } from '../utils/careDisplay';
 import { CareKindFilter } from './CareKindFilter';
+import { CompleteWithDateMenu } from './CompleteWithDateMenu';
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -66,6 +68,8 @@ export function DueToday({
   const fetchForUser = useCareItems((s) => s.fetchForUser);
   const completeItem = useCareItems((s) => s.completeItem);
   const completeMany = useCareItems((s) => s.completeMany);
+  const undoLastCompletion = useCareItems((s) => s.undoLastCompletion);
+  const showToast = useToast((s) => s.show);
   const { entries: seasonalEntries, byPlant: seasonalByPlant } = useSeasonalTasks(plants, garden, plan);
 
   const [open, setOpen] = useState(false);
@@ -125,11 +129,20 @@ export function DueToday({
       return next;
     });
 
-  const complete = async (item: CareItem) => {
+  const complete = async (item: CareItem, when?: Date) => {
     setCompleting(item.id);
     setLocalError('');
     try {
-      await completeItem(item);
+      await completeItem(item, when);
+      showToast({
+        message: t('dueToday.completedToast', { title: item.title }),
+        actionLabel: t('common.undo'),
+        onAction: () => {
+          undoLastCompletion(item.id).catch((err) => {
+            setLocalError(err instanceof Error ? err.message : t('common.saveError'));
+          });
+        },
+      });
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : t('common.saveError'));
     } finally {
@@ -141,7 +154,17 @@ export function DueToday({
     setCompletingAll(true);
     setLocalError('');
     try {
-      await completeMany(due);
+      const completedItems = due;
+      await completeMany(completedItems);
+      showToast({
+        message: t('dueToday.completedAllToast', { count: completedItems.length }),
+        actionLabel: t('common.undo'),
+        onAction: () => {
+          Promise.all(completedItems.map((item) => undoLastCompletion(item.id))).catch((err) => {
+            setLocalError(err instanceof Error ? err.message : t('common.saveError'));
+          });
+        },
+      });
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : t('dueToday.completeAllError'));
     } finally {
@@ -402,11 +425,11 @@ export function DueToday({
                                     {t('dueToday.open')}
                                   </button>
                                 )}
-                                <button
-                                  type="button"
+                                <CompleteWithDateMenu
                                   disabled={completing === item.id}
-                                  onClick={() => complete(item)}
-                                  className="flex shrink-0 items-center gap-1 rounded-md bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-700 disabled:bg-gray-400"
+                                  onComplete={(when) => complete(item, when)}
+                                  wrapperClassName="shrink-0 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 has-[:disabled]:bg-gray-400"
+                                  mainButtonClassName="flex items-center gap-1 rounded-l-md px-3 py-1 text-xs font-semibold"
                                 >
                                   {completing === item.id ? (
                                     <Loader2 size={12} className="animate-spin" />
@@ -414,7 +437,7 @@ export function DueToday({
                                     <Check size={12} />
                                   )}
                                   {t('dueToday.done')}
-                                </button>
+                                </CompleteWithDateMenu>
                               </li>
                             ))}
                           </ul>

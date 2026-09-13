@@ -1,7 +1,8 @@
 {
   "common": {
     "cancel": "취소",
-    "saveError": "저장하지 못했어요"
+    "saveError": "저장하지 못했어요",
+    "undo": "실행 취소"
   },
   "accountMenu": {
     "planFree": "무료 플랜",
@@ -34,7 +35,21 @@
     "noIcon": "아이콘 없음 — 대신 이니셜 \"{{initial}}\" 사용",
     "useIcon": "{{icon}}을(를) 아이콘으로 사용",
     "save": "프로필 저장",
-    "saveError": "프로필을 저장하지 못했어요."
+    "saveError": "프로필을 저장하지 못했어요.",
+    "careHistoryRetention": "완료한 작업 기록 보관 기간",
+    "retentionOptions": {
+      "1_day": "1일",
+      "1_week": "1주",
+      "1_month": "1개월",
+      "6_months": "6개월",
+      "1_year": "1년",
+      "forever": "영구 보관"
+    },
+    "clearHistory": "지금 기록 삭제",
+    "clearHistoryButton": "삭제",
+    "clearHistoryConfirm": "{{period}}보다 오래된 완료 작업 기록을 영구적으로 삭제합니다. 이 작업은 되돌릴 수 없어요.",
+    "clearHistoryDone": "기록을 삭제했어요.",
+    "clearHistoryError": "기록을 삭제하지 못했어요."
   },
   "dueToday": {
     "title": "오늘 할 일",
@@ -65,7 +80,10 @@
     "tabSeasonal": "이번 달 ({{count}})",
     "seasonalTitle": "이번 달",
     "closeSeasonalTasks": "이번 달 작업 닫기",
-    "nothingSeasonal": "이번 달에 안내할 계절 작업이 없어요."
+    "nothingSeasonal": "이번 달에 안내할 계절 작업이 없어요.",
+    "completedToast": "{{title}} 완료함",
+    "completedAllToast_one": "{{count}}개 작업 완료함",
+    "completedAllToast_other": "{{count}}개 작업 완료함"
   },
   "careKind": {
     "water": "물주기",
@@ -123,16 +141,20 @@
     "fullSun": "양지",
     "partialShade": "반그늘",
     "fullShade": "음지",
-    "spotRainedYearRound": "{{sun}}, 연중 비를 맞음",
-    "spotDryYearRound": "{{sun}}, 연중 건조하게 유지됨",
-    "spotRainedSeasons": "{{sun}}, 4계절 중 {{count}}계절 비를 맞음",
-    "suggestion": "이 식물의 {{sunNeeds}} 조건에 더 잘 맞는 자리가 근처에 있어요.",
+    "suggestion": "근처에 이 식물에게 더 잘 맞는 자리가 있어요.",
     "keepSpotDismiss": "지금 자리 유지 — 이 제안 닫기",
     "yourSpot": "지금 자리",
     "useSpotTitle": "{{number}}번 자리 사용",
     "yourSpotSummary": "지금 자리: {{description}}.",
     "useSpotButton": "{{number}}번 자리 사용 — {{description}}",
-    "keepSpot": "지금 자리 유지"
+    "keepSpot": "지금 자리 유지",
+    "rainedYearRound": "일년 내내 비를 맞아요",
+    "dryYearRound": "일년 내내 건조하게 유지돼요",
+    "rainedSeasons": "4계절 중 {{count}}계절 비를 맞아요",
+    "windCalm": "대체로 바람이 잔잔해요",
+    "windWindy": "바람이 잦아요",
+    "spotDescription": "{{sun}}, {{rain}}",
+    "spotDescriptionWithWind": "{{sun}}, {{rain}}, {{wind}}"
   },
   "gardenSpot": {
     "alreadyHere": "이미 뭔가 있어요",
@@ -383,7 +405,8 @@
     "dragTip": "팁: 마당에서 마커를 드래그하면 {{name}}을(를) 옮길 수 있어요 — 다른 식물들로 붐비는 자리에서도요.",
     "deleteConfirm": "{{name}}을(를) 삭제할까요? 사진과 관리 계획도 함께 삭제되며, 되돌릴 수 없어요.",
     "delete": "삭제",
-    "deletePlant": "식물 삭제"
+    "deletePlant": "식물 삭제",
+    "history": "기록"
   },
   "plantForm": {
     "sowDirect": "야외에 직접 파종",
@@ -436,7 +459,14 @@
     "saving": "저장 중…",
     "saveChanges": "{{name}} 저장",
     "addPlant": "식물 추가",
-    "changes": "변경 사항"
+    "changes": "변경 사항",
+    "rainPreference": "비 선호도",
+    "prefersDry": "더 건조한 흙을 선호해요",
+    "rainNeutral": "특별한 선호 없음",
+    "prefersWet": "비가 많은 걸 좋아해요",
+    "windTolerance": "바람에 대한 내성",
+    "windHardy": "바람에 크게 개의치 않아요",
+    "windFragile": "바람에 약해요"
   },
   "yardObstacles": {
     "edgeTop": "위",
@@ -590,5 +620,18 @@
   },
   "seedPlanService": {
     "noSpecificData": "\"{{name}}\"에 대한 구체적인 파종 데이터가 없어요 — 이는 일반적인 씨앗 재배 기본값이에요. 씨앗 봉투를 확인하고 조정해 주세요."
+  },
+  "completeWithDate": {
+    "today": "오늘",
+    "yesterday": "어제",
+    "daysAgo": "{{count}}일 전",
+    "chooseDate": "다른 날짜로 완료 표시"
+  },
+  "plantCareHistory": {
+    "loading": "기록 불러오는 중…",
+    "loadError": "관리 기록을 불러오지 못했어요.",
+    "empty": "아직 완료한 작업이 없어요.",
+    "undo": "실행 취소",
+    "undoError": "실행 취소하지 못했어요."
   }
 }

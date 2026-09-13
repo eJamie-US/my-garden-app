@@ -1,7 +1,8 @@
 {
   "common": {
     "cancel": "Cancelar",
-    "saveError": "No se pudo guardar"
+    "saveError": "No se pudo guardar",
+    "undo": "Deshacer"
   },
   "accountMenu": {
     "planFree": "Plan gratuito",
@@ -34,7 +35,21 @@
     "noIcon": "Sin icono — usar la inicial \"{{initial}}\" en su lugar",
     "useIcon": "Usar {{icon}} como tu icono",
     "save": "Guardar perfil",
-    "saveError": "No se pudo guardar tu perfil."
+    "saveError": "No se pudo guardar tu perfil.",
+    "careHistoryRetention": "Guardar el historial de tareas completadas durante",
+    "retentionOptions": {
+      "1_day": "1 día",
+      "1_week": "1 semana",
+      "1_month": "1 mes",
+      "6_months": "6 meses",
+      "1_year": "1 año",
+      "forever": "Para siempre"
+    },
+    "clearHistory": "Borrar historial ahora",
+    "clearHistoryButton": "Borrar",
+    "clearHistoryConfirm": "Esto elimina permanentemente el historial de tareas completadas anterior a {{period}}. No se puede deshacer.",
+    "clearHistoryDone": "Historial borrado.",
+    "clearHistoryError": "No se pudo borrar el historial."
   },
   "dueToday": {
     "title": "Tareas de hoy",
@@ -65,7 +80,10 @@
     "tabSeasonal": "Este mes ({{count}})",
     "seasonalTitle": "Este mes",
     "closeSeasonalTasks": "Cerrar tareas de este mes",
-    "nothingSeasonal": "No hay nada estacional que destacar este mes."
+    "nothingSeasonal": "No hay nada estacional que destacar este mes.",
+    "completedToast": "{{title}} completado",
+    "completedAllToast_one": "{{count}} tarea completada",
+    "completedAllToast_other": "{{count}} tareas completadas"
   },
   "careKind": {
     "water": "Regar",
@@ -123,16 +141,20 @@
     "fullSun": "sol pleno",
     "partialShade": "sombra parcial",
     "fullShade": "sombra total",
-    "spotRainedYearRound": "{{sun}}, recibe lluvia todo el año",
-    "spotDryYearRound": "{{sun}}, se mantiene seco todo el año",
-    "spotRainedSeasons": "{{sun}}, recibe lluvia en {{count}} de 4 estaciones",
-    "suggestion": "Hay un lugar cercano que se ajusta mejor a las necesidades de {{sunNeeds}} de esta planta.",
+    "suggestion": "Hay un lugar cercano que se adapta mejor a las necesidades de esta planta.",
     "keepSpotDismiss": "Mantener mi lugar — descartar esta sugerencia",
     "yourSpot": "Tu lugar",
     "useSpotTitle": "Usar lugar {{number}}",
     "yourSpotSummary": "Tu lugar: {{description}}.",
     "useSpotButton": "Usar lugar {{number}} — {{description}}",
-    "keepSpot": "Mantener mi lugar"
+    "keepSpot": "Mantener mi lugar",
+    "rainedYearRound": "recibe lluvia todo el año",
+    "dryYearRound": "se mantiene seco todo el año",
+    "rainedSeasons": "recibe lluvia en {{count}} de 4 estaciones",
+    "windCalm": "normalmente en calma",
+    "windWindy": "a menudo ventoso",
+    "spotDescription": "{{sun}}, {{rain}}",
+    "spotDescriptionWithWind": "{{sun}}, {{rain}}, {{wind}}"
   },
   "gardenSpot": {
     "alreadyHere": "Ya hay algo aquí",
@@ -383,7 +405,8 @@
     "dragTip": "Consejo: arrastra su marcador en el patio para mover {{name}} — incluso fuera de un lugar con muchas plantas.",
     "deleteConfirm": "¿Eliminar {{name}}? Esto también elimina sus fotos y plan de cuidado — no se puede deshacer.",
     "delete": "Eliminar",
-    "deletePlant": "Eliminar planta"
+    "deletePlant": "Eliminar planta",
+    "history": "Historial"
   },
   "plantForm": {
     "sowDirect": "Sembrar directamente al aire libre",
@@ -436,7 +459,14 @@
     "saving": "Guardando…",
     "saveChanges": "Guardar {{name}}",
     "addPlant": "Agregar planta",
-    "changes": "cambios"
+    "changes": "cambios",
+    "rainPreference": "Preferencia de lluvia",
+    "prefersDry": "Prefiere suelo más seco",
+    "rainNeutral": "Sin preferencia marcada",
+    "prefersWet": "Le gusta mucha lluvia",
+    "windTolerance": "Tolerancia al viento",
+    "windHardy": "No le importa el viento",
+    "windFragile": "Delicada con el viento"
   },
   "yardObstacles": {
     "edgeTop": "Arriba",
@@ -590,5 +620,18 @@
   },
   "seedPlanService": {
     "noSpecificData": "No hay datos específicos de siembra para \"{{name}}\" — estos son valores generales predeterminados. Revisa el paquete y ajusta según sea necesario."
+  },
+  "completeWithDate": {
+    "today": "Hoy",
+    "yesterday": "Ayer",
+    "daysAgo": "hace {{count}} días",
+    "chooseDate": "Marcar como hecho otro día"
+  },
+  "plantCareHistory": {
+    "loading": "Cargando historial…",
+    "loadError": "No se pudo cargar el historial de cuidados.",
+    "empty": "Aún no hay tareas completadas.",
+    "undo": "Deshacer",
+    "undoError": "No se pudo deshacer eso."
   }
 }

@@ -1,7 +1,8 @@
 {
   "common": {
     "cancel": "Annulla",
-    "saveError": "Impossibile salvare"
+    "saveError": "Impossibile salvare",
+    "undo": "Annulla"
   },
   "accountMenu": {
     "planFree": "Piano gratuito",
@@ -34,7 +35,21 @@
     "noIcon": "Nessuna icona — usa l'iniziale \"{{initial}}\" invece",
     "useIcon": "Usa {{icon}} come tua icona",
     "save": "Salva profilo",
-    "saveError": "Impossibile salvare il tuo profilo."
+    "saveError": "Impossibile salvare il tuo profilo.",
+    "careHistoryRetention": "Conserva la cronologia delle attività completate per",
+    "retentionOptions": {
+      "1_day": "1 giorno",
+      "1_week": "1 settimana",
+      "1_month": "1 mese",
+      "6_months": "6 mesi",
+      "1_year": "1 anno",
+      "forever": "Per sempre"
+    },
+    "clearHistory": "Cancella cronologia ora",
+    "clearHistoryButton": "Cancella",
+    "clearHistoryConfirm": "Questo elimina definitivamente la cronologia delle attività completate precedente a {{period}}. L'operazione non può essere annullata.",
+    "clearHistoryDone": "Cronologia cancellata.",
+    "clearHistoryError": "Impossibile cancellare la cronologia."
   },
   "dueToday": {
     "title": "Da fare oggi",
@@ -65,7 +80,10 @@
     "tabSeasonal": "Questo mese ({{count}})",
     "seasonalTitle": "Questo mese",
     "closeSeasonalTasks": "Chiudi le attività di questo mese",
-    "nothingSeasonal": "Niente di stagionale da segnalare questo mese."
+    "nothingSeasonal": "Niente di stagionale da segnalare questo mese.",
+    "completedToast": "{{title}} completata",
+    "completedAllToast_one": "{{count}} attività completata",
+    "completedAllToast_other": "{{count}} attività completate"
   },
   "careKind": {
     "water": "Annaffiare",
@@ -123,16 +141,20 @@
     "fullSun": "sole pieno",
     "partialShade": "ombra parziale",
     "fullShade": "ombra totale",
-    "spotRainedYearRound": "{{sun}}, piove tutto l'anno",
-    "spotDryYearRound": "{{sun}}, resta asciutto tutto l'anno",
-    "spotRainedSeasons": "{{sun}}, piove in {{count}} stagioni su 4",
-    "suggestion": "C'è un posto vicino che si adatta meglio alle esigenze di {{sunNeeds}} di questa pianta.",
+    "suggestion": "C'è un punto vicino più adatto alle esigenze di questa pianta.",
     "keepSpotDismiss": "Mantieni il mio posto — ignora questo suggerimento",
     "yourSpot": "Il tuo posto",
     "useSpotTitle": "Usa il posto {{number}}",
     "yourSpotSummary": "Il tuo posto: {{description}}.",
     "useSpotButton": "Usa il posto {{number}} — {{description}}",
-    "keepSpot": "Mantieni il mio posto"
+    "keepSpot": "Mantieni il mio posto",
+    "rainedYearRound": "riceve pioggia tutto l'anno",
+    "dryYearRound": "resta asciutto tutto l'anno",
+    "rainedSeasons": "riceve pioggia in {{count}} stagioni su 4",
+    "windCalm": "solitamente calmo",
+    "windWindy": "spesso ventoso",
+    "spotDescription": "{{sun}}, {{rain}}",
+    "spotDescriptionWithWind": "{{sun}}, {{rain}}, {{wind}}"
   },
   "gardenSpot": {
     "alreadyHere": "C'è già qualcosa qui",
@@ -383,7 +405,8 @@
     "dragTip": "Suggerimento: trascina il suo marcatore sul giardino per spostare {{name}} — anche fuori da un punto affollato con altre piante.",
     "deleteConfirm": "Eliminare {{name}}? Questo rimuove anche le sue foto e il piano di cura — non può essere annullato.",
     "delete": "Elimina",
-    "deletePlant": "Elimina pianta"
+    "deletePlant": "Elimina pianta",
+    "history": "Cronologia"
   },
   "plantForm": {
     "sowDirect": "Semina direttamente all'aperto",
@@ -436,7 +459,14 @@
     "saving": "Salvataggio…",
     "saveChanges": "Salva {{name}}",
     "addPlant": "Aggiungi pianta",
-    "changes": "modifiche"
+    "changes": "modifiche",
+    "rainPreference": "Preferenza per la pioggia",
+    "prefersDry": "Preferisce un terreno più asciutto",
+    "rainNeutral": "Nessuna preferenza particolare",
+    "prefersWet": "Ama molta pioggia",
+    "windTolerance": "Tolleranza al vento",
+    "windHardy": "Non teme il vento",
+    "windFragile": "Delicata con il vento"
   },
   "yardObstacles": {
     "edgeTop": "Sopra",
@@ -590,5 +620,18 @@
   },
   "seedPlanService": {
     "noSpecificData": "Nessun dato specifico di semina per \"{{name}}\" — questi sono valori predefiniti generali. Controlla la confezione e adatta secondo necessità."
+  },
+  "completeWithDate": {
+    "today": "Oggi",
+    "yesterday": "Ieri",
+    "daysAgo": "{{count}} giorni fa",
+    "chooseDate": "Segna come completata un altro giorno"
+  },
+  "plantCareHistory": {
+    "loading": "Caricamento cronologia…",
+    "loadError": "Impossibile caricare la cronologia di cura.",
+    "empty": "Ancora nessuna attività completata.",
+    "undo": "Annulla",
+    "undoError": "Impossibile annullare l'operazione."
   }
 }

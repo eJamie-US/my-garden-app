@@ -23,8 +23,7 @@ import { careItemsService } from '../services/supabase/careItems';
 import { generateCareItems } from '../services/care/generateCareItems';
 import { seedPlanService, type SeedPlan } from '../services/seeds/seedPlan';
 import { computeRainShelter, describeRainShelter } from '../utils/rainShelter';
-import { evaluatePlacement } from '../utils/bestPlacement';
-import type { Season } from '../utils/sunExposure';
+import { evaluatePlacement, type SeasonalClimateBySeason } from '../utils/bestPlacement';
 import { obstacleTypeLabel } from '../utils/obstacleTypes';
 import type { CareItem, DraftCareItem, Plant, WeatherData, Yard, YardObstacle } from '../types';
 
@@ -41,9 +40,10 @@ interface PlantFormProps {
    *  or empty falls back to the manual "sheltered from rain" checkbox. */
   obstacles?: YardObstacle[];
   garden?: Yard | null;
-  /** Real prevailing rain-wind direction per season, where known — powers
-   *  the year-round rain half of the best-placement suggestion below. */
-  seasonalRainWind?: Partial<Record<Season, number | null>> | null;
+  /** Real seasonal rain-wind direction/wind-speed climatology, where known
+   *  — powers the year-round rain/wind half of the best-placement
+   *  suggestion below. */
+  seasonalClimate?: SeasonalClimateBySeason | null;
   /** When the flow started from the canvas camera button, open on the photo step. */
   startWithPhoto?: boolean;
   /** Present = edit an existing plant instead of creating one. */
@@ -58,7 +58,7 @@ export const PlantForm = ({
   weather,
   obstacles = [],
   garden = null,
-  seasonalRainWind,
+  seasonalClimate,
   startWithPhoto = false,
   plant = null,
   existingCareItems,
@@ -106,6 +106,8 @@ export const PlantForm = ({
     species: plant?.species ?? '',
     wateringSchedule: plant?.wateringSchedule ?? ('weekly' as 'daily' | 'weekly' | 'biweekly' | 'monthly'),
     sunRequirement: plant?.sunRequirement ?? ('partial-shade' as 'full-sun' | 'partial-shade' | 'full-shade'),
+    rainPreference: plant?.rainPreference ?? ('neutral' as 'prefers-dry' | 'neutral' | 'prefers-wet'),
+    windTolerance: plant?.windTolerance ?? ('hardy' as 'fragile' | 'hardy'),
     rainCovered: plant?.rainCovered ?? false,
     mount: plant?.mount ?? ('ground' as 'ground' | 'hanging'),
     indoor: plant?.indoor ?? false,
@@ -198,15 +200,26 @@ export const PlantForm = ({
    *  plant around is a deliberate edit, not something to second-guess. */
   const placementEvaluation = useMemo(() => {
     if (isEdit || !garden) return null;
-    return evaluatePlacement(effectiveLocation, formData.sunRequirement, obstacles, garden, seasonalRainWind, weather);
-  }, [isEdit, garden, effectiveLocation, formData.sunRequirement, obstacles, seasonalRainWind, weather]);
+    return evaluatePlacement(
+      effectiveLocation,
+      { sunRequirement: formData.sunRequirement, rainPreference: formData.rainPreference, windTolerance: formData.windTolerance },
+      obstacles,
+      garden,
+      seasonalClimate,
+      weather,
+    );
+  }, [
+    isEdit, garden, effectiveLocation,
+    formData.sunRequirement, formData.rainPreference, formData.windTolerance,
+    obstacles, seasonalClimate, weather,
+  ]);
 
-  // A different sun requirement can change what counts as "better" —
-  // give the suggestion another chance to show rather than staying
-  // dismissed for a choice the person hasn't seen evaluated yet.
+  // A different sun/rain/wind preference can change what counts as
+  // "better" — give the suggestion another chance to show rather than
+  // staying dismissed for a choice the person hasn't seen evaluated yet.
   useEffect(() => {
     setPlacementDismissed(false);
-  }, [formData.sunRequirement]);
+  }, [formData.sunRequirement, formData.rainPreference, formData.windTolerance]);
 
   const showPlacementPrompt =
     !isEdit && sunRequirementTouched && !placementDismissed && Boolean(placementEvaluation?.hasBetter);
@@ -345,7 +358,6 @@ export const PlantForm = ({
       {showPlacementPrompt && placementEvaluation && garden && (
         <BestPlacementPrompt
           yardImageUrl={garden.imageUrl}
-          sunRequirement={formData.sunRequirement}
           evaluation={placementEvaluation}
           onUseSpot={(spot) => {
             setEffectiveLocation({ x: spot.x, y: spot.y });
@@ -545,6 +557,33 @@ export const PlantForm = ({
           <option value="full-sun">{t('plantForm.fullSun')}</option>
           <option value="partial-shade">{t('plantForm.partialShade')}</option>
           <option value="full-shade">{t('plantForm.fullShade')}</option>
+        </select>
+      </div>
+
+      <div>
+        <label className="mb-1 block text-sm font-medium text-gray-700">{t('plantForm.rainPreference')}</label>
+        <select
+          name="rainPreference"
+          value={formData.rainPreference}
+          onChange={handleInputChange}
+          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:ring-green-500"
+        >
+          <option value="prefers-dry">{t('plantForm.prefersDry')}</option>
+          <option value="neutral">{t('plantForm.rainNeutral')}</option>
+          <option value="prefers-wet">{t('plantForm.prefersWet')}</option>
+        </select>
+      </div>
+
+      <div>
+        <label className="mb-1 block text-sm font-medium text-gray-700">{t('plantForm.windTolerance')}</label>
+        <select
+          name="windTolerance"
+          value={formData.windTolerance}
+          onChange={handleInputChange}
+          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:ring-green-500"
+        >
+          <option value="hardy">{t('plantForm.windHardy')}</option>
+          <option value="fragile">{t('plantForm.windFragile')}</option>
         </select>
       </div>
 

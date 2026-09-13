@@ -1,7 +1,8 @@
 {
   "common": {
     "cancel": "Annuleren",
-    "saveError": "Kon dit niet opslaan"
+    "saveError": "Kon dit niet opslaan",
+    "undo": "Ongedaan maken"
   },
   "accountMenu": {
     "planFree": "Gratis abonnement",
@@ -34,7 +35,21 @@
     "noIcon": "Geen icoon — gebruik in plaats daarvan de letter \"{{initial}}\"",
     "useIcon": "Gebruik {{icon}} als je icoon",
     "save": "Profiel opslaan",
-    "saveError": "Kon je profiel niet opslaan."
+    "saveError": "Kon je profiel niet opslaan.",
+    "careHistoryRetention": "Geschiedenis van voltooide taken bewaren voor",
+    "retentionOptions": {
+      "1_day": "1 dag",
+      "1_week": "1 week",
+      "1_month": "1 maand",
+      "6_months": "6 maanden",
+      "1_year": "1 jaar",
+      "forever": "Voor altijd"
+    },
+    "clearHistory": "Geschiedenis nu wissen",
+    "clearHistoryButton": "Wissen",
+    "clearHistoryConfirm": "Dit verwijdert de geschiedenis van voltooide taken ouder dan {{period}} permanent. Dit kan niet ongedaan worden gemaakt.",
+    "clearHistoryDone": "Geschiedenis gewist.",
+    "clearHistoryError": "Kon de geschiedenis niet wissen."
   },
   "dueToday": {
     "title": "Vandaag te doen",
@@ -65,7 +80,10 @@
     "tabSeasonal": "Deze maand ({{count}})",
     "seasonalTitle": "Deze maand",
     "closeSeasonalTasks": "Taken van deze maand sluiten",
-    "nothingSeasonal": "Niets seizoensgebonden om te melden deze maand."
+    "nothingSeasonal": "Niets seizoensgebonden om te melden deze maand.",
+    "completedToast": "{{title}} voltooid",
+    "completedAllToast_one": "{{count}} taak voltooid",
+    "completedAllToast_other": "{{count}} taken voltooid"
   },
   "careKind": {
     "water": "Water geven",
@@ -123,16 +141,20 @@
     "fullSun": "volle zon",
     "partialShade": "halfschaduw",
     "fullShade": "volledige schaduw",
-    "spotRainedYearRound": "{{sun}}, het hele jaar door regen",
-    "spotDryYearRound": "{{sun}}, blijft het hele jaar droog",
-    "spotRainedSeasons": "{{sun}}, regen in {{count}} van de 4 seizoenen",
-    "suggestion": "Er is een plek in de buurt die beter past bij de behoefte aan {{sunNeeds}} van deze plant.",
+    "suggestion": "Er is een plek in de buurt die beter past bij de behoeften van deze plant.",
     "keepSpotDismiss": "Mijn plek behouden — deze suggestie negeren",
     "yourSpot": "Jouw plek",
     "useSpotTitle": "Plek {{number}} gebruiken",
     "yourSpotSummary": "Jouw plek: {{description}}.",
     "useSpotButton": "Plek {{number}} gebruiken — {{description}}",
-    "keepSpot": "Mijn plek behouden"
+    "keepSpot": "Mijn plek behouden",
+    "rainedYearRound": "krijgt het hele jaar regen",
+    "dryYearRound": "blijft het hele jaar droog",
+    "rainedSeasons": "krijgt regen in {{count}} van de 4 seizoenen",
+    "windCalm": "meestal rustig",
+    "windWindy": "vaak winderig",
+    "spotDescription": "{{sun}}, {{rain}}",
+    "spotDescriptionWithWind": "{{sun}}, {{rain}}, {{wind}}"
   },
   "gardenSpot": {
     "alreadyHere": "Hier staat al iets",
@@ -383,7 +405,8 @@
     "dragTip": "Tip: sleep de markering op de tuin om {{name}} te verplaatsen — ook uit een drukke plek met andere planten.",
     "deleteConfirm": "{{name}} verwijderen? Dit verwijdert ook de foto's en het verzorgingsplan — kan niet ongedaan worden gemaakt.",
     "delete": "Verwijderen",
-    "deletePlant": "Plant verwijderen"
+    "deletePlant": "Plant verwijderen",
+    "history": "Geschiedenis"
   },
   "plantForm": {
     "sowDirect": "Rechtstreeks buiten zaaien",
@@ -436,7 +459,14 @@
     "saving": "Opslaan…",
     "saveChanges": "{{name}} opslaan",
     "addPlant": "Plant toevoegen",
-    "changes": "wijzigingen"
+    "changes": "wijzigingen",
+    "rainPreference": "Regenvoorkeur",
+    "prefersDry": "Geeft de voorkeur aan drogere grond",
+    "rainNeutral": "Geen uitgesproken voorkeur",
+    "prefersWet": "Houdt van veel regen",
+    "windTolerance": "Windtolerantie",
+    "windHardy": "Wind maakt haar niet uit",
+    "windFragile": "Kwetsbaar bij wind"
   },
   "yardObstacles": {
     "edgeTop": "Boven",
@@ -590,5 +620,18 @@
   },
   "seedPlanService": {
     "noSpecificData": "Geen specifieke zaaigegevens voor \"{{name}}\" — dit zijn algemene standaardwaarden voor het opkweken uit zaad. Controleer het zakje en pas aan indien nodig."
+  },
+  "completeWithDate": {
+    "today": "Vandaag",
+    "yesterday": "Gisteren",
+    "daysAgo": "{{count}} dagen geleden",
+    "chooseDate": "Markeer als voltooid op een andere dag"
+  },
+  "plantCareHistory": {
+    "loading": "Geschiedenis laden…",
+    "loadError": "Kon verzorgingsgeschiedenis niet laden.",
+    "empty": "Nog geen voltooide taken.",
+    "undo": "Ongedaan maken",
+    "undoError": "Kon dit niet ongedaan maken."
   }
 }

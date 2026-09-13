@@ -1,7 +1,8 @@
 {
   "common": {
     "cancel": "取消",
-    "saveError": "无法保存"
+    "saveError": "无法保存",
+    "undo": "撤销"
   },
   "accountMenu": {
     "planFree": "免费版",
@@ -34,7 +35,21 @@
     "noIcon": "无图标 — 改用首字母“{{initial}}”",
     "useIcon": "使用 {{icon}} 作为你的图标",
     "save": "保存资料",
-    "saveError": "无法保存你的资料。"
+    "saveError": "无法保存你的资料。",
+    "careHistoryRetention": "保留已完成任务历史记录的时长",
+    "retentionOptions": {
+      "1_day": "1 天",
+      "1_week": "1 周",
+      "1_month": "1 个月",
+      "6_months": "6 个月",
+      "1_year": "1 年",
+      "forever": "永久"
+    },
+    "clearHistory": "立即清除历史记录",
+    "clearHistoryButton": "清除",
+    "clearHistoryConfirm": "这将永久删除早于{{period}}的已完成任务历史记录，且无法撤销。",
+    "clearHistoryDone": "历史记录已清除。",
+    "clearHistoryError": "无法清除历史记录。"
   },
   "dueToday": {
     "title": "今日待办",
@@ -65,7 +80,10 @@
     "tabSeasonal": "本月（{{count}}）",
     "seasonalTitle": "本月",
     "closeSeasonalTasks": "关闭本月任务",
-    "nothingSeasonal": "本月没有需要留意的季节性任务。"
+    "nothingSeasonal": "本月没有需要留意的季节性任务。",
+    "completedToast": "{{title}}已完成",
+    "completedAllToast_one": "已完成 {{count}} 项任务",
+    "completedAllToast_other": "已完成 {{count}} 项任务"
   },
   "careKind": {
     "water": "浇水",
@@ -123,16 +141,20 @@
     "fullSun": "全日照",
     "partialShade": "半阴",
     "fullShade": "全阴",
-    "spotRainedYearRound": "{{sun}}，全年都会淋雨",
-    "spotDryYearRound": "{{sun}}，全年保持干燥",
-    "spotRainedSeasons": "{{sun}}，四季中有 {{count}} 季会淋雨",
-    "suggestion": "附近有个地方更适合这株植物对{{sunNeeds}}的需求。",
+    "suggestion": "附近有个位置更符合这株植物的需求。",
     "keepSpotDismiss": "保留我的位置 — 关闭此建议",
     "yourSpot": "你的位置",
     "useSpotTitle": "使用位置 {{number}}",
     "yourSpotSummary": "你的位置：{{description}}。",
     "useSpotButton": "使用位置 {{number}} — {{description}}",
-    "keepSpot": "保留我的位置"
+    "keepSpot": "保留我的位置",
+    "rainedYearRound": "全年都能淋到雨",
+    "dryYearRound": "全年保持干燥",
+    "rainedSeasons": "四季中有 {{count}} 季会淋到雨",
+    "windCalm": "通常风力较小",
+    "windWindy": "经常有风",
+    "spotDescription": "{{sun}}、{{rain}}",
+    "spotDescriptionWithWind": "{{sun}}、{{rain}}、{{wind}}"
   },
   "gardenSpot": {
     "alreadyHere": "这里已经有东西了",
@@ -383,7 +405,8 @@
     "dragTip": "提示：拖动庭院中的标记即可移动{{name}} — 即使它挤在其他植物之间也可以。",
     "deleteConfirm": "删除{{name}}？这也会删除它的照片和养护计划 — 无法撤销。",
     "delete": "删除",
-    "deletePlant": "删除植物"
+    "deletePlant": "删除植物",
+    "history": "历史记录"
   },
   "plantForm": {
     "sowDirect": "直接露天播种",
@@ -436,7 +459,14 @@
     "saving": "正在保存…",
     "saveChanges": "保存{{name}}",
     "addPlant": "添加植物",
-    "changes": "更改"
+    "changes": "更改",
+    "rainPreference": "降雨偏好",
+    "prefersDry": "偏好较干燥的土壤",
+    "rainNeutral": "没有明显偏好",
+    "prefersWet": "喜欢较多降雨",
+    "windTolerance": "耐风程度",
+    "windHardy": "不太在意风",
+    "windFragile": "怕风，较脆弱"
   },
   "yardObstacles": {
     "edgeTop": "上",
@@ -590,5 +620,18 @@
   },
   "seedPlanService": {
     "noSpecificData": "没有针对“{{name}}”的具体播种数据 — 以下为通用的育苗默认值。请查看种子包装并自行调整。"
+  },
+  "completeWithDate": {
+    "today": "今天",
+    "yesterday": "昨天",
+    "daysAgo": "{{count}} 天前",
+    "chooseDate": "标记为其他日期完成"
+  },
+  "plantCareHistory": {
+    "loading": "正在加载历史记录…",
+    "loadError": "无法加载养护历史记录。",
+    "empty": "还没有已完成的任务。",
+    "undo": "撤销",
+    "undoError": "无法撤销。"
   }
 }
