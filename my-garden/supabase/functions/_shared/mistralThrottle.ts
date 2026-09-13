@@ -14,8 +14,12 @@ const MIN_INTERVAL_MS = 1100;
 // A slot further out than this means a real backlog, not just this one
 // call arriving a beat too soon — waiting that long would hang the
 // request for no good reason, so the caller bails out and returns its own
-// rate-limited response instead of actually calling Mistral.
-const MAX_WAIT_MS = 8000;
+// rate-limited response instead of actually calling Mistral. Sized with
+// headroom above useSeasonalTasks.ts's own client-side batching (which
+// keeps any single burst small regardless of yard size) — this is a
+// backstop for everything else sharing the same queue at the same moment,
+// not the primary defense against a large burst.
+const MAX_WAIT_MS = 15000;
 
 /** Waits until it's this call's turn to hit Mistral. Returns false when
  *  the queue is backed up too far to reasonably wait for — the caller

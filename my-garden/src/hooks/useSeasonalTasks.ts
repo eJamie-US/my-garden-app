@@ -10,6 +10,16 @@ import type { Plan } from '../services/supabase/billing';
 import { plantTipsService } from '../services/tips/plantTips';
 import { matchSeasonalTasks, type SeasonalTaskEntry } from '../utils/seasonalTasks';
 
+// plant-tips shares one Mistral key rate-limited to 1 request/second
+// (see supabase/functions/_shared/mistralThrottle.ts) across every user of
+// the app, not just this one. Firing every distinct species at once — a
+// yard with a few dozen species is a real, not hypothetical, case — would
+// dump a burst that size onto the shared queue in one instant; batching
+// keeps the number of requests in flight at any moment small and constant
+// regardless of how many species a yard has, so no individual lookup ends
+// up waiting anywhere near the throttle's own give-up cutoff.
+const SPECIES_BATCH_SIZE = 4;
+
 export function useSeasonalTasks(plants: Plant[], garden: Yard | null, plan: Plan) {
   const [tipsBySpecies, setTipsBySpecies] = useState<Map<string, SeasonalTask[]>>(new Map());
 
@@ -31,16 +41,26 @@ export function useSeasonalTasks(plants: Plant[], garden: Yard | null, plan: Pla
       return;
     }
     let cancelled = false;
-    Promise.allSettled(speciesKeys.map((key) => plantTipsService.getTips(key))).then((results) => {
-      if (cancelled) return;
+
+    (async () => {
       const next = new Map<string, SeasonalTask[]>();
-      results.forEach((result, i) => {
-        if (result.status === 'fulfilled' && result.value.status === 'ok' && result.value.tips) {
-          next.set(speciesKeys[i], result.value.tips.seasonalTasks);
-        }
-      });
-      setTipsBySpecies(next);
-    });
+      for (let i = 0; i < speciesKeys.length; i += SPECIES_BATCH_SIZE) {
+        if (cancelled) return;
+        const batchKeys = speciesKeys.slice(i, i + SPECIES_BATCH_SIZE);
+        const batchResults = await Promise.allSettled(batchKeys.map((key) => plantTipsService.getTips(key)));
+        if (cancelled) return;
+        batchResults.forEach((result, j) => {
+          if (result.status === 'fulfilled' && result.value.status === 'ok' && result.value.tips) {
+            next.set(batchKeys[j], result.value.tips.seasonalTasks);
+          }
+        });
+        // Applied incrementally rather than only at the very end, so a
+        // yard with many species starts showing results as each batch
+        // lands instead of one long wait for the whole thing.
+        setTipsBySpecies(new Map(next));
+      }
+    })();
+
     return () => {
       cancelled = true;
     };
