@@ -152,6 +152,17 @@ Deno.serve(async (req) => {
     if (!aiResponse.ok) {
       const detail = await aiResponse.text();
       console.error('Mistral vision error', aiResponse.status, detail);
+      // Distinguished from a generic upstream failure — the shared Mistral
+      // key is deliberately rate-limited (see requirePremium's comment in
+      // ai-seed-plan), so this is an expected, recoverable condition, not a
+      // broken integration. The client shows "try again shortly" instead of
+      // a generic "couldn't reach" for this one.
+      if (aiResponse.status === 429) {
+        return new Response(JSON.stringify({ error: 'rate_limited' }), {
+          status: 429,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
       return new Response(JSON.stringify({ error: 'upstream_error' }), {
         status: 502,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

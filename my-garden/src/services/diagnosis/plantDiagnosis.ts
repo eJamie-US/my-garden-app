@@ -119,6 +119,9 @@ export const plantDiagnosisService = {
             message: i18n.t('plantDiagnosisService.premiumFeature'),
           };
         }
+        if (funcStatus === 429) {
+          return { status: 'error', findings: [], message: i18n.t('plantDiagnosisService.rateLimited') };
+        }
         console.error('plant-diagnosis function unreachable', error);
         return {
           status: 'error',

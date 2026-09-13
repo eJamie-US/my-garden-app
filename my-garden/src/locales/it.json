@@ -607,7 +607,8 @@
     "premiumFeature": "I consigli per le piante sono una funzione premium — passa a Premium per vedere consigli di propagazione e cura.",
     "notAPlant": "Impossibile riconoscere \"{{name}}\" come una pianta.",
     "couldNotReach": "Impossibile raggiungere i consigli per le piante in questo momento.",
-    "failed": "Recupero dei consigli per le piante non riuscito."
+    "failed": "Recupero dei consigli per le piante non riuscito.",
+    "rateLimited": "I consigli per le piante sono molto richiesti in questo momento — riprova tra qualche minuto."
   },
   "plantDiagnosisService": {
     "noPlantDetected": "Non siamo riusciti a vedere chiaramente una pianta in quella foto — prova con uno scatto più ravvicinato e ben illuminato.",
@@ -616,7 +617,8 @@
     "notSetUpYet": "La diagnosi delle piante non è ancora disponibile.",
     "premiumFeature": "La diagnosi delle piante è una funzione premium — passa a Premium per un controllo di salute con IA.",
     "couldNotReach": "Impossibile raggiungere la diagnosi delle piante in questo momento.",
-    "failed": "Diagnosi non riuscita."
+    "failed": "Diagnosi non riuscita.",
+    "rateLimited": "La diagnosi delle piante è molto richiesta in questo momento — riprova tra qualche minuto."
   },
   "seedPlanService": {
     "noSpecificData": "Nessun dato specifico di semina per \"{{name}}\" — questi sono valori predefiniti generali. Controlla la confezione e adatta secondo necessità."

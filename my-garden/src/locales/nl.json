@@ -607,7 +607,8 @@
     "premiumFeature": "Plantentips zijn een premiumfunctie — upgrade om vermeerderings- en verzorgingstips te zien.",
     "notAPlant": "Kon \"{{name}}\" niet herkennen als plant.",
     "couldNotReach": "Kon plantentips nu niet bereiken.",
-    "failed": "Plantentips zijn mislukt."
+    "failed": "Plantentips zijn mislukt.",
+    "rateLimited": "Plantentips worden nu heel vaak opgevraagd — probeer het over een paar minuten opnieuw."
   },
   "plantDiagnosisService": {
     "noPlantDetected": "We konden geen plant duidelijk zien op die foto — probeer een dichterbij, goed belichte foto.",
@@ -616,7 +617,8 @@
     "notSetUpYet": "Plantdiagnose is nog niet ingesteld.",
     "premiumFeature": "Plantdiagnose is een premiumfunctie — upgrade voor een AI-gezondheidscontrole.",
     "couldNotReach": "Kon plantdiagnose nu niet bereiken.",
-    "failed": "Diagnose is mislukt."
+    "failed": "Diagnose is mislukt.",
+    "rateLimited": "Plantendiagnose wordt nu heel vaak opgevraagd — probeer het over een paar minuten opnieuw."
   },
   "seedPlanService": {
     "noSpecificData": "Geen specifieke zaaigegevens voor \"{{name}}\" — dit zijn algemene standaardwaarden voor het opkweken uit zaad. Controleer het zakje en pas aan indien nodig."

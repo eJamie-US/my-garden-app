@@ -607,7 +607,8 @@
     "premiumFeature": "Pflanzentipps sind eine Premium-Funktion — upgraden Sie, um Vermehrungs- und Pflegetipps zu sehen.",
     "notAPlant": "\"{{name}}\" konnte nicht als Pflanze erkannt werden.",
     "couldNotReach": "Pflanzentipps konnten gerade nicht erreicht werden.",
-    "failed": "Pflanzentipps sind fehlgeschlagen."
+    "failed": "Pflanzentipps sind fehlgeschlagen.",
+    "rateLimited": "Pflanzentipps sind gerade sehr gefragt — versuchen Sie es in ein paar Minuten erneut."
   },
   "plantDiagnosisService": {
     "noPlantDetected": "Auf diesem Foto konnte keine Pflanze klar erkannt werden — versuchen Sie eine näher aufgenommene, gut beleuchtete Aufnahme.",
@@ -616,7 +617,8 @@
     "notSetUpYet": "Die Pflanzendiagnose ist noch nicht eingerichtet.",
     "premiumFeature": "Die Pflanzendiagnose ist eine Premium-Funktion — upgraden Sie für einen KI-Gesundheitscheck.",
     "couldNotReach": "Die Pflanzendiagnose konnte gerade nicht erreicht werden.",
-    "failed": "Diagnose fehlgeschlagen."
+    "failed": "Diagnose fehlgeschlagen.",
+    "rateLimited": "Die Pflanzendiagnose ist gerade sehr gefragt — versuchen Sie es in ein paar Minuten erneut."
   },
   "seedPlanService": {
     "noSpecificData": "Keine spezifischen Aussaatdaten für \"{{name}}\" — dies sind allgemeine Standardwerte für die Samenanzucht. Prüfen Sie die Packung und passen Sie sie an."

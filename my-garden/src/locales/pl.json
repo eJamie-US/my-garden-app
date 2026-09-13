@@ -607,7 +607,8 @@
     "premiumFeature": "Porady dotyczące roślin to funkcja Premium — przejdź na wyższy plan, aby zobaczyć porady dotyczące rozmnażania i pielęgnacji.",
     "notAPlant": "Nie udało się rozpoznać \"{{name}}\" jako rośliny.",
     "couldNotReach": "Nie udało się teraz połączyć z poradami dotyczącymi roślin.",
-    "failed": "Nie udało się pobrać porad dotyczących rośliny."
+    "failed": "Nie udało się pobrać porad dotyczących rośliny.",
+    "rateLimited": "Porady dotyczące roślin cieszą się teraz dużym zainteresowaniem — spróbuj ponownie za kilka minut."
   },
   "plantDiagnosisService": {
     "noPlantDetected": "Nie udało się wyraźnie dostrzec rośliny na tym zdjęciu — spróbuj zrobić bliższe, dobrze oświetlone ujęcie.",
@@ -616,7 +617,8 @@
     "notSetUpYet": "Diagnoza roślin nie jest jeszcze skonfigurowana.",
     "premiumFeature": "Diagnoza roślin to funkcja Premium — przejdź na wyższy plan, aby uzyskać kontrolę zdrowia z AI.",
     "couldNotReach": "Nie udało się teraz połączyć z diagnozą roślin.",
-    "failed": "Diagnoza nie powiodła się."
+    "failed": "Diagnoza nie powiodła się.",
+    "rateLimited": "Diagnostyka roślin cieszy się teraz dużym zainteresowaniem — spróbuj ponownie za kilka minut."
   },
   "seedPlanService": {
     "noSpecificData": "Brak szczegółowych danych o siewie dla \"{{name}}\" — to ogólne wartości domyślne dla nasion. Sprawdź opakowanie i dostosuj w razie potrzeby."

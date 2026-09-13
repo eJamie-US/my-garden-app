@@ -620,6 +620,7 @@
     "premiumFeature": "Plant tips are a premium feature — upgrade to see propagation and care tips.",
     "notAPlant": "Couldn't recognize \"{{name}}\" as a plant.",
     "couldNotReach": "Couldn't reach plant tips right now.",
+    "rateLimited": "Plant tips are in high demand right now — try again in a few minutes.",
     "failed": "Plant tips failed."
   },
   "plantDiagnosisService": {
@@ -629,6 +630,7 @@
     "notSetUpYet": "Plant diagnosis isn’t set up yet.",
     "premiumFeature": "Plant diagnosis is a premium feature — upgrade for an AI health check.",
     "couldNotReach": "Couldn't reach plant diagnosis right now.",
+    "rateLimited": "Plant diagnosis is in high demand right now — try again in a few minutes.",
     "failed": "Diagnosis failed."
   },
   "seedPlanService": {

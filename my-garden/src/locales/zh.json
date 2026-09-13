@@ -607,7 +607,8 @@
     "premiumFeature": "植物养护建议是高级版功能 — 升级即可查看繁殖和养护建议。",
     "notAPlant": "无法将“{{name}}”识别为植物。",
     "couldNotReach": "目前无法获取植物养护建议。",
-    "failed": "获取植物养护建议失败。"
+    "failed": "获取植物养护建议失败。",
+    "rateLimited": "植物护理提示需求量很大 — 请几分钟后再试。"
   },
   "plantDiagnosisService": {
     "noPlantDetected": "未能在照片中清晰识别出植物 — 请尝试拍一张更近、光线更好的照片。",
@@ -616,7 +617,8 @@
     "notSetUpYet": "植物诊断功能尚未设置。",
     "premiumFeature": "植物诊断是高级版功能 — 升级即可获得 AI 健康检查。",
     "couldNotReach": "目前无法连接植物诊断服务。",
-    "failed": "诊断失败。"
+    "failed": "诊断失败。",
+    "rateLimited": "植物诊断需求量很大 — 请几分钟后再试。"
   },
   "seedPlanService": {
     "noSpecificData": "没有针对“{{name}}”的具体播种数据 — 以下为通用的育苗默认值。请查看种子包装并自行调整。"

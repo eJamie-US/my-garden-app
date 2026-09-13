@@ -607,7 +607,8 @@
     "premiumFeature": "Dicas de plantas são um recurso premium — faça upgrade para ver dicas de propagação e cuidados.",
     "notAPlant": "Não foi possível reconhecer \"{{name}}\" como uma planta.",
     "couldNotReach": "Não foi possível acessar as dicas de plantas agora.",
-    "failed": "Falha ao obter as dicas de plantas."
+    "failed": "Falha ao obter as dicas de plantas.",
+    "rateLimited": "As dicas de plantas estão com muita procura agora — tente novamente em alguns minutos."
   },
   "plantDiagnosisService": {
     "noPlantDetected": "Não conseguimos ver uma planta claramente nessa foto — tente uma foto mais próxima e bem iluminada.",
@@ -616,7 +617,8 @@
     "notSetUpYet": "O diagnóstico de plantas ainda não está configurado.",
     "premiumFeature": "O diagnóstico de plantas é um recurso premium — faça upgrade para uma checagem de saúde com IA.",
     "couldNotReach": "Não foi possível acessar o diagnóstico de plantas agora.",
-    "failed": "Falha no diagnóstico."
+    "failed": "Falha no diagnóstico.",
+    "rateLimited": "O diagnóstico de plantas está com muita procura agora — tente novamente em alguns minutos."
   },
   "seedPlanService": {
     "noSpecificData": "Não há dados específicos de semeadura para \"{{name}}\" — estes são valores padrão gerais. Confira o pacote e ajuste conforme necessário."

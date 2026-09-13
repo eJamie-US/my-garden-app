@@ -607,7 +607,8 @@
     "premiumFeature": "Les conseils sur les plantes sont une fonctionnalité premium — passez à Premium pour voir les conseils de multiplication et d'entretien.",
     "notAPlant": "Impossible de reconnaître « {{name}} » comme une plante.",
     "couldNotReach": "Impossible de contacter les conseils sur les plantes pour le moment.",
-    "failed": "Échec des conseils sur les plantes."
+    "failed": "Échec des conseils sur les plantes.",
+    "rateLimited": "Les conseils sur les plantes sont très demandés en ce moment — réessayez dans quelques minutes."
   },
   "plantDiagnosisService": {
     "noPlantDetected": "Impossible de voir clairement une plante sur cette photo — essayez une photo plus rapprochée et bien éclairée.",
@@ -616,7 +617,8 @@
     "notSetUpYet": "Le diagnostic des plantes n'est pas encore configuré.",
     "premiumFeature": "Le diagnostic des plantes est une fonctionnalité premium — passez à Premium pour un bilan de santé par IA.",
     "couldNotReach": "Impossible de contacter le diagnostic des plantes pour le moment.",
-    "failed": "Échec du diagnostic."
+    "failed": "Échec du diagnostic.",
+    "rateLimited": "Le diagnostic des plantes est très demandé en ce moment — réessayez dans quelques minutes."
   },
   "seedPlanService": {
     "noSpecificData": "Aucune donnée de semis spécifique pour « {{name}} » — ce sont des valeurs par défaut générales. Vérifiez le paquet et ajustez si nécessaire."
