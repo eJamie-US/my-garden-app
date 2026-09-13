@@ -15,6 +15,7 @@
 import { corsHeaders } from '../_shared/cors.ts';
 import { requireUser } from '../_shared/authUser.ts';
 import { requirePremium } from '../_shared/entitlement.ts';
+import { waitForMistralSlot } from '../_shared/mistralThrottle.ts';
 
 const AI_URL = 'https://api.mistral.ai/v1/chat/completions';
 // Pixtral is Mistral's vision-capable model — mistral-small-latest (used by
@@ -128,6 +129,13 @@ Deno.serve(async (req) => {
     // — translating them would silently break parsing for every non-English
     // locale, so they're called out by name to stay in English regardless.
     const languagePrompt = `\n\nRespond in ${language}, using natural, fluent, locale-appropriate gardening terminology for "label", "observation", and "remedy" in each finding. Leave "overallHealth" (healthy/stressed/unhealthy), "category", and "confidence" (low/medium/high) exactly as their English enum values regardless of language — those are read by code, not shown translated.`;
+
+    if (!(await waitForMistralSlot())) {
+      return new Response(JSON.stringify({ error: 'rate_limited' }), {
+        status: 429,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     const aiResponse = await fetch(AI_URL, {
       method: 'POST',

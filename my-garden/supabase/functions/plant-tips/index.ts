@@ -22,6 +22,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
 import { requireUser } from '../_shared/authUser.ts';
 import { requirePremium } from '../_shared/entitlement.ts';
+import { waitForMistralSlot } from '../_shared/mistralThrottle.ts';
 
 const AI_URL = 'https://api.mistral.ai/v1/chat/completions';
 const AI_MODEL = Deno.env.get('MISTRAL_MODEL') || 'mistral-small-latest';
@@ -196,6 +197,13 @@ Deno.serve(async (req) => {
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
+    }
+
+    if (!(await waitForMistralSlot())) {
+      return new Response(JSON.stringify({ error: 'rate_limited' }), {
+        status: 429,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const aiResponse = await fetch(AI_URL, {
