@@ -17,8 +17,11 @@ import { matchSeasonalTasks, type SeasonalTaskEntry } from '../utils/seasonalTas
 // dump a burst that size onto the shared queue in one instant; batching
 // keeps the number of requests in flight at any moment small and constant
 // regardless of how many species a yard has, so no individual lookup ends
-// up waiting anywhere near the throttle's own give-up cutoff.
-const SPECIES_BATCH_SIZE = 4;
+// up waiting anywhere near the throttle's own give-up cutoff. Sized against
+// the throttle's own 4s-per-slot spacing (mistralThrottle.ts, driven by
+// Mistral's 20k-tokens/minute ceiling, not just its request rate) so a
+// full batch's worst-case wait (3 × 4s = 12s) stays under that cutoff.
+const SPECIES_BATCH_SIZE = 3;
 
 export function useSeasonalTasks(plants: Plant[], garden: Yard | null, plan: Plan) {
   const [tipsBySpecies, setTipsBySpecies] = useState<Map<string, SeasonalTask[]>>(new Map());
