@@ -594,13 +594,21 @@ export function GardenCanvas({
               Small leaf accents echo the original artwork's leaf
               flourishes without trying to recreate their full 3D detail. */}
           <div className="relative flex translate-y-[18px] items-center sm:translate-y-[30px]">
+            {/* No filter/drop-shadow on these — same WebView compositing
+                issue as the h1's textShadow swap below, but here a shadow
+                isn't worth the risk: at this size it mostly blurred away
+                the vein-line detail and gradient shading, leaving a flat
+                blob rather than a leaf, which is exactly what showed up in
+                the installed Android app. Each leaf also gets its own
+                gradient def now instead of the two sharing one by
+                cross-referencing an id defined in the other's <svg> — a
+                reference some engines don't resolve reliably. */}
             <svg
               viewBox="0 0 24 24"
               className="absolute -left-3 -top-3 h-6 w-6 -rotate-[25deg] sm:-left-5 sm:-top-5 sm:h-9 sm:w-9"
-              style={{ filter: 'drop-shadow(0 2px 3px rgba(40, 25, 5, 0.5))' }}
             >
               <defs>
-                <linearGradient id="leafGold" x1="0" y1="0" x2="0" y2="1">
+                <linearGradient id="leafGoldTopLeft" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#fffbe0" />
                   <stop offset="45%" stopColor="#ffd966" />
                   <stop offset="100%" stopColor="#e0a530" />
@@ -608,7 +616,7 @@ export function GardenCanvas({
               </defs>
               <path
                 d="M12 2C12 2 3 7 3 14.5C3 19.2 7 22 12 22C17 22 21 19.2 21 14.5C21 7 12 2 12 2Z"
-                fill="url(#leafGold)"
+                fill="url(#leafGoldTopLeft)"
               />
               <path d="M12 4.5V20" stroke="rgba(160, 115, 20, 0.45)" strokeWidth="1" />
             </svg>
@@ -639,7 +647,16 @@ export function GardenCanvas({
                 WebkitBackgroundClip: 'text',
                 backgroundClip: 'text',
                 color: 'transparent',
-                filter: 'drop-shadow(0 3px 5px rgba(40, 25, 5, 0.55)) drop-shadow(0 1px 2px rgba(40, 25, 5, 0.4))',
+                // text-shadow instead of `filter: drop-shadow()` — the
+                // latter needs to composite a shadow against a background-
+                // clip:text gradient fill, which Android's WebView (the
+                // engine behind the installed TWA app) doesn't render
+                // reliably: confirmed live, it showed as muddy/dark instead
+                // of the intended bright gold gradient. text-shadow paints
+                // independently of the (transparent) text color, so it
+                // isn't subject to the same compositing failure, and reads
+                // the same visually for a plain drop shadow like this.
+                textShadow: '0 3px 5px rgba(40, 25, 5, 0.55), 0 1px 2px rgba(40, 25, 5, 0.4)',
               }}
             >
               My Garden
@@ -648,11 +665,17 @@ export function GardenCanvas({
             <svg
               viewBox="0 0 24 24"
               className="absolute -right-2 bottom-1 h-5 w-5 rotate-[20deg] sm:-right-3 sm:bottom-2 sm:h-7 sm:w-7"
-              style={{ filter: 'drop-shadow(0 2px 3px rgba(40, 25, 5, 0.5))' }}
             >
+              <defs>
+                <linearGradient id="leafGoldBottomRight" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#fffbe0" />
+                  <stop offset="45%" stopColor="#ffd966" />
+                  <stop offset="100%" stopColor="#e0a530" />
+                </linearGradient>
+              </defs>
               <path
                 d="M12 2C12 2 3 7 3 14.5C3 19.2 7 22 12 22C17 22 21 19.2 21 14.5C21 7 12 2 12 2Z"
-                fill="url(#leafGold)"
+                fill="url(#leafGoldBottomRight)"
               />
               <path d="M12 4.5V20" stroke="rgba(160, 115, 20, 0.45)" strokeWidth="1" />
             </svg>
