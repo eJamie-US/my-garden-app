@@ -9,6 +9,18 @@ export default defineConfig({
   server: {
     host: true,
   },
+  build: {
+    // Without this, a production crash report (e.g. from Sentry, or an
+    // ErrorBoundary email) only has minified names/positions — resolving
+    // one back to real source means manually downloading the exact deployed
+    // bundle and pattern-matching, the way the PlantForm.tsx crash had to be
+    // traced. Safe to publish alongside the JS: nothing secret is ever
+    // bundled client-side (VITE_-prefixed env vars like the Supabase anon
+    // key are already public/RLS-protected, same as they are in the
+    // minified JS itself), so this doesn't expose anything new — it just
+    // makes the existing code easier to read.
+    sourcemap: true,
+  },
   plugins: [
     react(),
     VitePWA({

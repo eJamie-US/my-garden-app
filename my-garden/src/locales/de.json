@@ -1,7 +1,9 @@
 {
   "common": {
     "cancel": "Abbrechen",
-    "saveError": "Das konnte nicht gespeichert werden"
+    "saveError": "Das konnte nicht gespeichert werden",
+    "undo": "Rückgängig",
+    "unnamedPlant": "Unbenannte Pflanze"
   },
   "accountMenu": {
     "planFree": "Kostenloser Plan",
@@ -34,7 +36,21 @@
     "noIcon": "Kein Symbol — stattdessen den Anfangsbuchstaben \"{{initial}}\" verwenden",
     "useIcon": "{{icon}} als Ihr Symbol verwenden",
     "save": "Profil speichern",
-    "saveError": "Ihr Profil konnte nicht gespeichert werden."
+    "saveError": "Ihr Profil konnte nicht gespeichert werden.",
+    "careHistoryRetention": "Verlauf erledigter Aufgaben aufbewahren für",
+    "retentionOptions": {
+      "1_day": "1 Tag",
+      "1_week": "1 Woche",
+      "1_month": "1 Monat",
+      "6_months": "6 Monate",
+      "1_year": "1 Jahr",
+      "forever": "Für immer"
+    },
+    "clearHistory": "Verlauf jetzt löschen",
+    "clearHistoryButton": "Löschen",
+    "clearHistoryConfirm": "Dadurch wird der Verlauf erledigter Aufgaben, der älter als {{period}} ist, endgültig gelöscht. Dies kann nicht rückgängig gemacht werden.",
+    "clearHistoryDone": "Verlauf gelöscht.",
+    "clearHistoryError": "Verlauf konnte nicht gelöscht werden."
   },
   "dueToday": {
     "title": "Heute fällig",
@@ -65,7 +81,10 @@
     "tabSeasonal": "Diesen Monat ({{count}})",
     "seasonalTitle": "Diesen Monat",
     "closeSeasonalTasks": "Aufgaben dieses Monats schließen",
-    "nothingSeasonal": "Diesen Monat gibt es nichts Saisonales zu melden."
+    "nothingSeasonal": "Diesen Monat gibt es nichts Saisonales zu melden.",
+    "completedToast": "{{title}} erledigt",
+    "completedAllToast_one": "{{count}} Aufgabe erledigt",
+    "completedAllToast_other": "{{count}} Aufgaben erledigt"
   },
   "careKind": {
     "water": "Gießen",
@@ -123,16 +142,20 @@
     "fullSun": "volle Sonne",
     "partialShade": "Halbschatten",
     "fullShade": "Vollschatten",
-    "spotRainedYearRound": "{{sun}}, ganzjährig Regen",
-    "spotDryYearRound": "{{sun}}, bleibt ganzjährig trocken",
-    "spotRainedSeasons": "{{sun}}, in {{count}} von 4 Jahreszeiten Regen",
-    "suggestion": "In der Nähe gibt es einen Platz, der den Ansprüchen dieser Pflanze an {{sunNeeds}} besser entspricht.",
+    "suggestion": "In der Nähe gibt es einen Platz, der besser zu den Bedürfnissen dieser Pflanze passt.",
     "keepSpotDismiss": "Meinen Platz behalten — diesen Vorschlag verwerfen",
     "yourSpot": "Ihr Platz",
     "useSpotTitle": "Platz {{number}} verwenden",
     "yourSpotSummary": "Ihr Platz: {{description}}.",
     "useSpotButton": "Platz {{number}} verwenden — {{description}}",
-    "keepSpot": "Meinen Platz behalten"
+    "keepSpot": "Meinen Platz behalten",
+    "rainedYearRound": "wird ganzjährig beregnet",
+    "dryYearRound": "bleibt ganzjährig trocken",
+    "rainedSeasons": "wird in {{count}} von 4 Jahreszeiten beregnet",
+    "windCalm": "meist windstill",
+    "windWindy": "oft windig",
+    "spotDescription": "{{sun}}, {{rain}}",
+    "spotDescriptionWithWind": "{{sun}}, {{rain}}, {{wind}}"
   },
   "gardenSpot": {
     "alreadyHere": "Hier befindet sich bereits etwas",
@@ -383,7 +406,9 @@
     "dragTip": "Tipp: Ziehen Sie die Markierung im Garten, um {{name}} zu verschieben — auch aus einer Stelle mit vielen anderen Pflanzen heraus.",
     "deleteConfirm": "{{name}} löschen? Dadurch werden auch ihre Fotos und ihr Pflegeplan gelöscht — das kann nicht rückgängig gemacht werden.",
     "delete": "Löschen",
-    "deletePlant": "Pflanze löschen"
+    "deletePlant": "Pflanze löschen",
+    "history": "Verlauf",
+    "addAName": "Namen hinzufügen"
   },
   "plantForm": {
     "sowDirect": "Direkt im Freien aussäen",
@@ -391,7 +416,6 @@
     "sowEither": "Direktsaat oder drinnen vorziehen",
     "couldNotGetSowingPlan": "Es konnte kein Aussaatplan abgerufen werden",
     "userNotAuthenticated": "Benutzer nicht authentifiziert",
-    "nameRequired": "Der Pflanzenname ist erforderlich",
     "noActiveYard": "Kein aktiver Garten, um diese Pflanze hinzuzufügen",
     "savingChanges": "Änderungen werden gespeichert…",
     "savingPlant": "Pflanze wird gespeichert…",
@@ -436,7 +460,14 @@
     "saving": "Wird gespeichert…",
     "saveChanges": "{{name}} speichern",
     "addPlant": "Pflanze hinzufügen",
-    "changes": "Änderungen"
+    "changes": "Änderungen",
+    "rainPreference": "Regenvorliebe",
+    "prefersDry": "Bevorzugt trockeneren Boden",
+    "rainNeutral": "Keine ausgeprägte Vorliebe",
+    "prefersWet": "Mag viel Regen",
+    "windTolerance": "Windverträglichkeit",
+    "windHardy": "Wind macht ihr nichts aus",
+    "windFragile": "Empfindlich gegenüber Wind"
   },
   "yardObstacles": {
     "edgeTop": "Oben",
@@ -577,7 +608,8 @@
     "premiumFeature": "Pflanzentipps sind eine Premium-Funktion — upgraden Sie, um Vermehrungs- und Pflegetipps zu sehen.",
     "notAPlant": "\"{{name}}\" konnte nicht als Pflanze erkannt werden.",
     "couldNotReach": "Pflanzentipps konnten gerade nicht erreicht werden.",
-    "failed": "Pflanzentipps sind fehlgeschlagen."
+    "failed": "Pflanzentipps sind fehlgeschlagen.",
+    "rateLimited": "Pflanzentipps sind gerade sehr gefragt — versuchen Sie es in ein paar Minuten erneut."
   },
   "plantDiagnosisService": {
     "noPlantDetected": "Auf diesem Foto konnte keine Pflanze klar erkannt werden — versuchen Sie eine näher aufgenommene, gut beleuchtete Aufnahme.",
@@ -586,9 +618,23 @@
     "notSetUpYet": "Die Pflanzendiagnose ist noch nicht eingerichtet.",
     "premiumFeature": "Die Pflanzendiagnose ist eine Premium-Funktion — upgraden Sie für einen KI-Gesundheitscheck.",
     "couldNotReach": "Die Pflanzendiagnose konnte gerade nicht erreicht werden.",
-    "failed": "Diagnose fehlgeschlagen."
+    "failed": "Diagnose fehlgeschlagen.",
+    "rateLimited": "Die Pflanzendiagnose ist gerade sehr gefragt — versuchen Sie es in ein paar Minuten erneut."
   },
   "seedPlanService": {
     "noSpecificData": "Keine spezifischen Aussaatdaten für \"{{name}}\" — dies sind allgemeine Standardwerte für die Samenanzucht. Prüfen Sie die Packung und passen Sie sie an."
+  },
+  "completeWithDate": {
+    "today": "Heute",
+    "yesterday": "Gestern",
+    "daysAgo": "vor {{count}} Tagen",
+    "chooseDate": "An einem anderen Tag als erledigt markieren"
+  },
+  "plantCareHistory": {
+    "loading": "Verlauf wird geladen…",
+    "loadError": "Pflegeverlauf konnte nicht geladen werden.",
+    "empty": "Noch keine erledigten Aufgaben.",
+    "undo": "Rückgängig",
+    "undoError": "Das konnte nicht rückgängig gemacht werden."
   }
 }

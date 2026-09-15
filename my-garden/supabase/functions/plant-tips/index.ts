@@ -22,6 +22,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
 import { requireUser } from '../_shared/authUser.ts';
 import { requirePremium } from '../_shared/entitlement.ts';
+import { waitForMistralSlot } from '../_shared/mistralThrottle.ts';
 
 const AI_URL = 'https://api.mistral.ai/v1/chat/completions';
 const AI_MODEL = Deno.env.get('MISTRAL_MODEL') || 'mistral-small-latest';
@@ -198,6 +199,13 @@ Deno.serve(async (req) => {
       );
     }
 
+    if (!(await waitForMistralSlot())) {
+      return new Response(JSON.stringify({ error: 'rate_limited' }), {
+        status: 429,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const aiResponse = await fetch(AI_URL, {
       method: 'POST',
       headers: {
@@ -219,6 +227,17 @@ Deno.serve(async (req) => {
     if (!aiResponse.ok) {
       const detail = await aiResponse.text();
       console.error('Mistral error', aiResponse.status, detail);
+      // Distinguished from a generic upstream failure — the shared Mistral
+      // key is deliberately rate-limited (see requirePremium's comment in
+      // ai-seed-plan), so this is an expected, recoverable condition, not a
+      // broken integration. The client shows "try again shortly" instead of
+      // a generic "couldn't reach" for this one.
+      if (aiResponse.status === 429) {
+        return new Response(JSON.stringify({ error: 'rate_limited' }), {
+          status: 429,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
       return new Response(JSON.stringify({ error: 'upstream_error' }), {
         status: 502,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -1,10 +1,15 @@
 // src/services/weather/climateWind.ts
-// The prevailing wind direction on rainy days, per season — real history
-// from Open-Meteo's archive (same provider as current conditions in
-// forecast.ts), not a forecast stretched to cover the whole year and not a
-// guess. This is what makes "year-round" rain-shelter reasoning in
-// bestPlacement.ts honest: a roof only actually matters if wind-driven rain
-// from that direction is something this location sees.
+// Per-season climate history from Open-Meteo's archive (same provider as
+// current conditions in forecast.ts), not a forecast stretched to cover the
+// whole year and not a guess:
+//   - the prevailing wind direction on rainy days, which is what makes
+//     "year-round" rain-shelter reasoning in bestPlacement.ts honest — a
+//     roof only actually matters if wind-driven rain from that direction is
+//     something this location sees.
+//   - average wind speed across ALL days (not just rainy ones), which lets
+//     bestPlacement.ts score general wind exposure for wind-fragile plants.
+// Both come from the same daily archive call — no extra request, no extra
+// caching logic, just one more field read out of the same response.
 
 import axios from 'axios';
 import type { Season } from '../../utils/sunExposure';
@@ -49,11 +54,20 @@ function cacheKey(lat: number, lon: number): string {
   return `${CACHE_PREFIX}${lat.toFixed(2)},${lon.toFixed(2)}`;
 }
 
-function readCache(lat: number, lon: number): Record<Season, number | null> | null {
+export interface SeasonalClimate {
+  /** Circular-mean wind direction on rainy days only — null where there's
+   *  no climatology to reason from (see the module header). */
+  rainWindDirection: number | null;
+  /** Mean wind speed (km/h) across every day in the season, rainy or not —
+   *  null under the same no-data conditions as rainWindDirection. */
+  avgWindSpeedKmh: number | null;
+}
+
+function readCache(lat: number, lon: number): Record<Season, SeasonalClimate> | null {
   try {
     const raw = localStorage.getItem(cacheKey(lat, lon));
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as { fetchedAt: number; data: Record<Season, number | null> };
+    const parsed = JSON.parse(raw) as { fetchedAt: number; data: Record<Season, SeasonalClimate> };
     if (Date.now() - parsed.fetchedAt > CACHE_TTL_MS) return null;
     return parsed.data;
   } catch {
@@ -61,7 +75,7 @@ function readCache(lat: number, lon: number): Record<Season, number | null> | nu
   }
 }
 
-function writeCache(lat: number, lon: number, data: Record<Season, number | null>): void {
+function writeCache(lat: number, lon: number, data: Record<Season, SeasonalClimate>): void {
   try {
     localStorage.setItem(cacheKey(lat, lon), JSON.stringify({ fetchedAt: Date.now(), data }));
   } catch {
@@ -74,20 +88,22 @@ interface ArchiveDaily {
   time?: string[];
   precipitation_sum?: number[];
   wind_direction_10m_dominant?: number[];
+  wind_speed_10m_mean?: number[];
 }
 
 /**
- * The prevailing wind direction on rainy days, per season, from actual
- * history at this location — cached locally for `CACHE_TTL_MS` since it's a
- * multi-year daily pull and climatology doesn't meaningfully change day to
- * day. A season with no rainy days in the sample (or a request failure)
- * comes back null for that season; callers should fall back to a
- * direction-agnostic rain check rather than guessing.
+ * Per-season climate history at this location — rainy-day wind direction
+ * (for rain-shelter reasoning) and average wind speed (for general wind
+ * exposure) — from one multi-year daily archive pull, cached locally for
+ * `CACHE_TTL_MS` since climatology doesn't meaningfully change day to day.
+ * A season with no rainy days in the sample (or a request failure) comes
+ * back with both fields null; callers should fall back to a direction/
+ * speed-agnostic check rather than guessing.
  */
-export async function getSeasonalRainWindDirections(
+export async function getSeasonalClimate(
   latitude: number,
   longitude: number,
-): Promise<Record<Season, number | null>> {
+): Promise<Record<Season, SeasonalClimate>> {
   const cached = readCache(latitude, longitude);
   if (cached) return cached;
 
@@ -102,7 +118,7 @@ export async function getSeasonalRainWindDirections(
       longitude,
       start_date: isoDate(start),
       end_date: isoDate(end),
-      daily: 'precipitation_sum,wind_direction_10m_dominant',
+      daily: 'precipitation_sum,wind_direction_10m_dominant,wind_speed_10m_mean',
       timezone: 'auto',
     },
     timeout: 20_000,
@@ -111,24 +127,39 @@ export async function getSeasonalRainWindDirections(
   const daily: ArchiveDaily = data?.daily ?? {};
   const dates = daily.time ?? [];
 
-  const bySeasonDirections: Record<Season, number[]> = {
+  const bySeasonRainyDirections: Record<Season, number[]> = {
+    spring: [], summer: [], fall: [], winter: [],
+  };
+  const bySeasonWindSpeeds: Record<Season, number[]> = {
     spring: [], summer: [], fall: [], winter: [],
   };
 
   dates.forEach((date, i) => {
+    const season = SEASON_BY_MONTH[Number(date.slice(5, 7))];
+    if (!season) return;
+
+    const speed = daily.wind_speed_10m_mean?.[i];
+    if (speed != null) bySeasonWindSpeeds[season].push(speed);
+
     const precip = daily.precipitation_sum?.[i] ?? 0;
     const direction = daily.wind_direction_10m_dominant?.[i];
     if (precip < RAIN_DAY_THRESHOLD_MM || direction == null) return;
-    const season = SEASON_BY_MONTH[Number(date.slice(5, 7))];
-    if (season) bySeasonDirections[season].push(direction);
+    bySeasonRainyDirections[season].push(direction);
   });
 
-  const result: Record<Season, number | null> = {
-    spring: circularMean(bySeasonDirections.spring),
-    summer: circularMean(bySeasonDirections.summer),
-    fall: circularMean(bySeasonDirections.fall),
-    winter: circularMean(bySeasonDirections.winter),
-  };
+  const average = (values: number[]): number | null =>
+    values.length ? values.reduce((sum, v) => sum + v, 0) / values.length : null;
+
+  const seasons: Season[] = ['spring', 'summer', 'fall', 'winter'];
+  const result = Object.fromEntries(
+    seasons.map((season) => [
+      season,
+      {
+        rainWindDirection: circularMean(bySeasonRainyDirections[season]),
+        avgWindSpeedKmh: average(bySeasonWindSpeeds[season]),
+      },
+    ]),
+  ) as Record<Season, SeasonalClimate>;
 
   writeCache(latitude, longitude, result);
   return result;

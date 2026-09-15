@@ -2,6 +2,8 @@
 
 import { supabase } from '../../lib/supabase';
 
+export type CareHistoryRetention = '1_day' | '1_week' | '1_month' | '6_months' | '1_year' | 'forever';
+
 export interface Profile {
   displayName?: string;
   /** A single emoji, picked from a small curated set — see ProfileSettings. */
@@ -9,6 +11,10 @@ export interface Profile {
   /** ISO 639-1 code, e.g. 'en', 'es'. Always set (defaults to 'en' at the
    *  DB level) — see src/i18n.ts's SUPPORTED_LOCALES for the current list. */
   locale?: string;
+  /** How long completed care-task history is kept before the daily purge
+   *  job (migration 031) deletes it. Always set (defaults to '1_week' at
+   *  the DB level). */
+  careHistoryRetention?: CareHistoryRetention;
 }
 
 export interface UserSettings {
@@ -26,6 +32,7 @@ interface UserSettingsRow {
   display_name: string | null;
   avatar_icon: string | null;
   locale: string;
+  care_history_retention: CareHistoryRetention;
   created_at: string;
   updated_at: string;
 }
@@ -38,6 +45,7 @@ function toSettings(row: UserSettingsRow): UserSettings {
       displayName: row.display_name ?? undefined,
       avatarIcon: row.avatar_icon ?? undefined,
       locale: row.locale,
+      careHistoryRetention: row.care_history_retention,
     },
   };
 }
@@ -66,6 +74,7 @@ export const userSettingsService = {
       avatar_icon: profile.avatarIcon ?? null,
     };
     if (profile.locale !== undefined) patch.locale = profile.locale;
+    if (profile.careHistoryRetention !== undefined) patch.care_history_retention = profile.careHistoryRetention;
 
     const { data, error } = await supabase
       .from('user_settings')

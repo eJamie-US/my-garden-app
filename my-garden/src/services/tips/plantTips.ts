@@ -43,6 +43,9 @@ export const plantTipsService = {
         if (funcStatus === 422) {
           return { status: 'not-a-plant', message: i18n.t('plantTipsService.notAPlant', { name }) };
         }
+        if (funcStatus === 429) {
+          return { status: 'error', message: i18n.t('plantTipsService.rateLimited') };
+        }
         console.error('plant-tips function unreachable', error);
         return { status: 'error', message: i18n.t('plantTipsService.couldNotReach') };
       }

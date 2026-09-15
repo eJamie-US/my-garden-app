@@ -1,7 +1,9 @@
 {
   "common": {
     "cancel": "Cancelar",
-    "saveError": "Não foi possível salvar isso"
+    "saveError": "Não foi possível salvar isso",
+    "undo": "Desfazer",
+    "unnamedPlant": "Planta sem nome"
   },
   "accountMenu": {
     "planFree": "Plano gratuito",
@@ -34,7 +36,21 @@
     "noIcon": "Sem ícone — usar a inicial \"{{initial}}\" em vez disso",
     "useIcon": "Usar {{icon}} como seu ícone",
     "save": "Salvar perfil",
-    "saveError": "Não foi possível salvar seu perfil."
+    "saveError": "Não foi possível salvar seu perfil.",
+    "careHistoryRetention": "Manter o histórico de tarefas concluídas por",
+    "retentionOptions": {
+      "1_day": "1 dia",
+      "1_week": "1 semana",
+      "1_month": "1 mês",
+      "6_months": "6 meses",
+      "1_year": "1 ano",
+      "forever": "Para sempre"
+    },
+    "clearHistory": "Limpar histórico agora",
+    "clearHistoryButton": "Limpar",
+    "clearHistoryConfirm": "Isso exclui permanentemente o histórico de tarefas concluídas anterior a {{period}}. Isso não pode ser desfeito.",
+    "clearHistoryDone": "Histórico limpo.",
+    "clearHistoryError": "Não foi possível limpar o histórico."
   },
   "dueToday": {
     "title": "Tarefas de hoje",
@@ -65,7 +81,10 @@
     "tabSeasonal": "Este mês ({{count}})",
     "seasonalTitle": "Este mês",
     "closeSeasonalTasks": "Fechar tarefas deste mês",
-    "nothingSeasonal": "Nada sazonal para destacar este mês."
+    "nothingSeasonal": "Nada sazonal para destacar este mês.",
+    "completedToast": "{{title}} concluída",
+    "completedAllToast_one": "{{count}} tarefa concluída",
+    "completedAllToast_other": "{{count}} tarefas concluídas"
   },
   "careKind": {
     "water": "Regar",
@@ -123,16 +142,20 @@
     "fullSun": "sol pleno",
     "partialShade": "sombra parcial",
     "fullShade": "sombra total",
-    "spotRainedYearRound": "{{sun}}, recebe chuva o ano todo",
-    "spotDryYearRound": "{{sun}}, permanece seco o ano todo",
-    "spotRainedSeasons": "{{sun}}, recebe chuva em {{count}} de 4 estações",
-    "suggestion": "Há um lugar próximo que atende melhor às necessidades de {{sunNeeds}} desta planta.",
+    "suggestion": "Há um lugar próximo que atende melhor às necessidades desta planta.",
     "keepSpotDismiss": "Manter meu lugar — dispensar esta sugestão",
     "yourSpot": "Seu lugar",
     "useSpotTitle": "Usar o lugar {{number}}",
     "yourSpotSummary": "Seu lugar: {{description}}.",
     "useSpotButton": "Usar o lugar {{number}} — {{description}}",
-    "keepSpot": "Manter meu lugar"
+    "keepSpot": "Manter meu lugar",
+    "rainedYearRound": "recebe chuva o ano todo",
+    "dryYearRound": "permanece seco o ano todo",
+    "rainedSeasons": "recebe chuva em {{count}} de 4 estações",
+    "windCalm": "geralmente calmo",
+    "windWindy": "frequentemente ventoso",
+    "spotDescription": "{{sun}}, {{rain}}",
+    "spotDescriptionWithWind": "{{sun}}, {{rain}}, {{wind}}"
   },
   "gardenSpot": {
     "alreadyHere": "Já existe algo aqui",
@@ -383,7 +406,9 @@
     "dragTip": "Dica: arraste o marcador no jardim para mover {{name}} — até para fora de um local lotado com outras plantas.",
     "deleteConfirm": "Excluir {{name}}? Isso também remove suas fotos e plano de cuidados — não pode ser desfeito.",
     "delete": "Excluir",
-    "deletePlant": "Excluir planta"
+    "deletePlant": "Excluir planta",
+    "history": "Histórico",
+    "addAName": "Adicionar um nome"
   },
   "plantForm": {
     "sowDirect": "Semear diretamente ao ar livre",
@@ -391,7 +416,6 @@
     "sowEither": "Semeadura direta ou começar em ambiente interno",
     "couldNotGetSowingPlan": "Não foi possível obter um plano de semeadura",
     "userNotAuthenticated": "Usuário não autenticado",
-    "nameRequired": "O nome da planta é obrigatório",
     "noActiveYard": "Nenhum jardim ativo para adicionar esta planta",
     "savingChanges": "Salvando alterações…",
     "savingPlant": "Salvando planta…",
@@ -436,7 +460,14 @@
     "saving": "Salvando…",
     "saveChanges": "Salvar {{name}}",
     "addPlant": "Adicionar planta",
-    "changes": "alterações"
+    "changes": "alterações",
+    "rainPreference": "Preferência de chuva",
+    "prefersDry": "Prefere solo mais seco",
+    "rainNeutral": "Sem preferência marcante",
+    "prefersWet": "Gosta de bastante chuva",
+    "windTolerance": "Tolerância ao vento",
+    "windHardy": "Não se incomoda com o vento",
+    "windFragile": "Delicada com o vento"
   },
   "yardObstacles": {
     "edgeTop": "Superior",
@@ -577,7 +608,8 @@
     "premiumFeature": "Dicas de plantas são um recurso premium — faça upgrade para ver dicas de propagação e cuidados.",
     "notAPlant": "Não foi possível reconhecer \"{{name}}\" como uma planta.",
     "couldNotReach": "Não foi possível acessar as dicas de plantas agora.",
-    "failed": "Falha ao obter as dicas de plantas."
+    "failed": "Falha ao obter as dicas de plantas.",
+    "rateLimited": "As dicas de plantas estão com muita procura agora — tente novamente em alguns minutos."
   },
   "plantDiagnosisService": {
     "noPlantDetected": "Não conseguimos ver uma planta claramente nessa foto — tente uma foto mais próxima e bem iluminada.",
@@ -586,9 +618,23 @@
     "notSetUpYet": "O diagnóstico de plantas ainda não está configurado.",
     "premiumFeature": "O diagnóstico de plantas é um recurso premium — faça upgrade para uma checagem de saúde com IA.",
     "couldNotReach": "Não foi possível acessar o diagnóstico de plantas agora.",
-    "failed": "Falha no diagnóstico."
+    "failed": "Falha no diagnóstico.",
+    "rateLimited": "O diagnóstico de plantas está com muita procura agora — tente novamente em alguns minutos."
   },
   "seedPlanService": {
     "noSpecificData": "Não há dados específicos de semeadura para \"{{name}}\" — estes são valores padrão gerais. Confira o pacote e ajuste conforme necessário."
+  },
+  "completeWithDate": {
+    "today": "Hoje",
+    "yesterday": "Ontem",
+    "daysAgo": "há {{count}} dias",
+    "chooseDate": "Marcar como feita em outro dia"
+  },
+  "plantCareHistory": {
+    "loading": "Carregando histórico…",
+    "loadError": "Não foi possível carregar o histórico de cuidados.",
+    "empty": "Ainda não há tarefas concluídas.",
+    "undo": "Desfazer",
+    "undoError": "Não foi possível desfazer isso."
   }
 }

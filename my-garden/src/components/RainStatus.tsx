@@ -11,6 +11,7 @@ import { CloudRain, Umbrella, X } from 'lucide-react';
 import type { Plant, WeatherData, Yard, YardObstacle } from '../types';
 import { computeRainShelter, describeRainShelter } from '../utils/rainShelter';
 import { obstacleTypeLabel } from '../utils/obstacleTypes';
+import { plantDisplayName } from '../utils/careDisplay';
 
 interface RainStatusProps {
   plants: Plant[];
@@ -102,7 +103,7 @@ export function RainStatus({ plants, obstacles, garden, weather, onOpenPlant }: 
                       >
                         <CloudRain size={15} className="mt-0.5 shrink-0 text-sky-600" />
                         <span className="min-w-0 flex-1">
-                          <span className="block text-sm font-semibold text-gray-900">{plant.name}</span>
+                          <span className="block text-sm font-semibold text-gray-900">{plantDisplayName(t, plant)}</span>
                           <span className="block text-xs text-gray-600">
                             {describeRainShelter(
                               t,
@@ -142,7 +143,7 @@ export function RainStatus({ plants, obstacles, garden, weather, onOpenPlant }: 
                       >
                         <Umbrella size={15} className="mt-0.5 shrink-0 text-emerald-600" />
                         <span className="min-w-0 flex-1">
-                          <span className="block text-sm font-semibold text-gray-900">{plant.name}</span>
+                          <span className="block text-sm font-semibold text-gray-900">{plantDisplayName(t, plant)}</span>
                           <span className="block text-xs text-gray-600">
                             {describeRainShelter(
                               t,

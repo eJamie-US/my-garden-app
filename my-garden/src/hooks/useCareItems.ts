@@ -2,6 +2,7 @@
 import { create } from 'zustand';
 import type { CareIngredient, CareItem, DraftCareItem, Plant, WeatherData, Yard, YardObstacle } from '../types';
 import { careItemsService } from '../services/supabase/careItems';
+import { careCompletionsService } from '../services/supabase/careCompletions';
 import { generateCareItems, nextDueFrom } from '../services/care/generateCareItems';
 import { computeRainShelter } from '../utils/rainShelter';
 
@@ -10,9 +11,13 @@ interface CareItemsState {
   loading: boolean;
   error: string | null;
   fetchForUser: (userId: string) => Promise<void>;
-  completeItem: (item: CareItem) => Promise<void>;
+  completeItem: (item: CareItem, when?: Date) => Promise<void>;
   /** Completes a batch in one go — e.g. "mark all water done" from a kind filter. */
   completeMany: (items: CareItem[]) => Promise<void>;
+  /** Restores the item to its state immediately before its most recent
+   *  completion, and removes that completion from the log — shared by the
+   *  post-complete toast and the plant's care-history "Undo" button. */
+  undoLastCompletion: (careItemId: string) => Promise<void>;
   refreshFromWeather: (
     plants: Plant[],
     weather: WeatherData | null | undefined,
@@ -82,9 +87,9 @@ export const useCareItems = create<CareItemsState>((set, get) => ({
     }
   },
 
-  completeItem: async (item: CareItem) => {
+  completeItem: async (item: CareItem, when?: Date) => {
     try {
-      const updated = await careItemsService.complete(item);
+      const updated = await careCompletionsService.complete(item.id, when);
       set({ items: get().items.map((i) => (i.id === item.id ? updated : i)) });
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Could not save that' });
@@ -97,7 +102,7 @@ export const useCareItems = create<CareItemsState>((set, get) => ({
   // completeItem, just batched for a "mark all done" action.
   completeMany: async (items: CareItem[]) => {
     if (!items.length) return;
-    const settled = await Promise.allSettled(items.map((item) => careItemsService.complete(item)));
+    const settled = await Promise.allSettled(items.map((item) => careCompletionsService.complete(item.id)));
     const updatedById = new Map<string, CareItem>();
     let failures = 0;
     settled.forEach((result, i) => {
@@ -117,6 +122,16 @@ export const useCareItems = create<CareItemsState>((set, get) => ({
           : `${failures} of ${items.length} didn't save — try again`;
       set({ error: message });
       throw new Error(message);
+    }
+  },
+
+  undoLastCompletion: async (careItemId: string) => {
+    try {
+      const updated = await careCompletionsService.undoLast(careItemId);
+      set({ items: get().items.map((i) => (i.id === careItemId ? updated : i)) });
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Could not undo that' });
+      throw err;
     }
   },
 

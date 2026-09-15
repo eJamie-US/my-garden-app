@@ -15,6 +15,7 @@
 import { corsHeaders } from '../_shared/cors.ts';
 import { requireUser } from '../_shared/authUser.ts';
 import { requirePremium } from '../_shared/entitlement.ts';
+import { waitForMistralSlot } from '../_shared/mistralThrottle.ts';
 
 const AI_URL = 'https://api.mistral.ai/v1/chat/completions';
 const AI_MODEL = Deno.env.get('MISTRAL_MODEL') || 'mistral-small-latest';
@@ -97,6 +98,13 @@ Deno.serve(async (req) => {
     // parsing, so it's called out by name to stay in English regardless
     // of the rest of the response's language.
     const languagePrompt = `\n\nRespond in ${language}: translate "steps" and "notes" (and "species"' common-name portion, if it includes one — keep any botanical/Latin name as-is) into natural, fluent, locale-appropriate gardening language. Leave the "method" field exactly as one of direct-sow/start-indoors/either in English regardless — it's read by code, not shown translated.`;
+
+    if (!(await waitForMistralSlot())) {
+      return new Response(JSON.stringify({ error: 'rate_limited' }), {
+        status: 429,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     const aiResponse = await fetch(AI_URL, {
       method: 'POST',

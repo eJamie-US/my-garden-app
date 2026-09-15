@@ -12,20 +12,23 @@ import type { TFunction } from 'i18next';
 import { Check, Home, Loader2, Move, Pencil, Plus, Sun, Trash2, Umbrella, X } from 'lucide-react';
 import type { CareItem, DraftCareItem, Plant, WeatherData, Yard, YardObstacle } from '../types';
 import { useCareItems } from '../hooks/useCareItems';
+import { useToast } from '../hooks/useToast';
 import { usePlants } from '../hooks/usePlants';
 import { careItemsService } from '../services/supabase/careItems';
 import { plantPhotosService } from '../services/supabase/plantPhotos';
 import { generateCareItems, describeFrequency } from '../services/care/generateCareItems';
-import { KIND_ICONS, daysUntil, dueLabel, dueBadgeClass, ingredientSummary } from '../utils/careDisplay';
+import { KIND_ICONS, daysUntil, dueLabel, dueBadgeClass, ingredientSummary, plantDisplayName } from '../utils/careDisplay';
 import { estimateSeasonalExposure, summarizeExposure, type Season } from '../utils/sunExposure';
 import { computeRainShelter, describeRainShelter } from '../utils/rainShelter';
 import { obstacleTypeLabel } from '../utils/obstacleTypes';
-import { evaluatePlacement } from '../utils/bestPlacement';
+import { evaluatePlacement, type SeasonalClimateBySeason } from '../utils/bestPlacement';
 import { CareItemsEditor } from './CareItemsEditor';
 import { BestPlacementPrompt } from './BestPlacementPrompt';
 import { PlantDiagnosisPanel } from './PlantDiagnosisPanel';
 import { PlantTipsPanel } from './PlantTipsPanel';
 import { PhotoTimeline } from './PhotoTimeline';
+import { PlantCareHistory } from './PlantCareHistory';
+import { CompleteWithDateMenu } from './CompleteWithDateMenu';
 import { PlantPhotoCapture, type PhotoCaptureValue } from './PlantPhotoCapture';
 
 function sunLabel(t: TFunction, req: NonNullable<Plant['sunRequirement']>): string {
@@ -56,9 +59,10 @@ interface PlantCareModalProps {
   /** Powers the sun/shade exposure estimate — omitted (or no garden set) hides that section. */
   garden?: Yard | null;
   obstacles?: YardObstacle[];
-  /** Real prevailing rain-wind direction per season, where known — powers
-   *  the year-round rain half of the best-placement suggestion below. */
-  seasonalRainWind?: Partial<Record<Season, number | null>> | null;
+  /** Real seasonal rain-wind direction/wind-speed climatology, where known
+   *  — powers the year-round rain/wind half of the best-placement
+   *  suggestion below. */
+  seasonalClimate?: SeasonalClimateBySeason | null;
   onClose: () => void;
   /** Fired after a new photo is saved, so the caller can refetch plants and
    *  pick up the new marker icon / current photo. */
@@ -83,7 +87,7 @@ export function PlantCareModal({
   weather,
   garden,
   obstacles = [],
-  seasonalRainWind,
+  seasonalClimate,
   onClose,
   onPhotoUploaded,
   onDeletePlant,
@@ -91,10 +95,13 @@ export function PlantCareModal({
   onMovePlant,
 }: PlantCareModalProps) {
   const { t } = useTranslation();
+  const displayName = plantDisplayName(t, plant);
   const allCareItems = useCareItems((s) => s.items);
   const careLoading = useCareItems((s) => s.loading);
   const completeItem = useCareItems((s) => s.completeItem);
+  const undoLastCompletion = useCareItems((s) => s.undoLastCompletion);
   const fetchCareItemsForUser = useCareItems((s) => s.fetchForUser);
+  const showToast = useToast((s) => s.show);
 
   const items = useMemo(
     () => allCareItems.filter((i) => i.plantId === plant.id).sort(byDueDate),
@@ -130,8 +137,18 @@ export function PlantCareModal({
   // just checked against its current spot instead of a freshly-tapped one.
   const placementEvaluation = useMemo(() => {
     if (plant.indoor || !garden) return null;
-    return evaluatePlacement(plant.location, plant.sunRequirement, obstacles, garden, seasonalRainWind, weather);
-  }, [plant.indoor, plant.location, plant.sunRequirement, obstacles, garden, seasonalRainWind, weather]);
+    return evaluatePlacement(
+      plant.location,
+      { sunRequirement: plant.sunRequirement, rainPreference: plant.rainPreference, windTolerance: plant.windTolerance },
+      obstacles,
+      garden,
+      seasonalClimate,
+      weather,
+    );
+  }, [
+    plant.indoor, plant.location, plant.sunRequirement, plant.rainPreference, plant.windTolerance,
+    obstacles, garden, seasonalClimate, weather,
+  ]);
 
   const [placementDismissed, setPlacementDismissed] = useState(false);
   const [moving, setMoving] = useState(false);
@@ -219,16 +236,33 @@ export function PlantCareModal({
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
 
-  const complete = async (item: CareItem) => {
+  const [careHistoryRefreshKey, setCareHistoryRefreshKey] = useState(0);
+
+  const complete = async (item: CareItem, when?: Date) => {
     setCompleting(item.id);
     setCompleteError('');
     try {
-      await completeItem(item);
+      await completeItem(item, when);
+      setCareHistoryRefreshKey((k) => k + 1);
+      showToast({
+        message: t('dueToday.completedToast', { title: item.title }),
+        actionLabel: t('common.undo'),
+        onAction: () => {
+          undoLastCompletion(item.id)
+            .then(() => setCareHistoryRefreshKey((k) => k + 1))
+            .catch((err) => setCompleteError(err instanceof Error ? err.message : t('plantCareModal.couldNotSave')));
+        },
+      });
     } catch (err) {
       setCompleteError(err instanceof Error ? err.message : t('plantCareModal.couldNotSave'));
     } finally {
       setCompleting(null);
     }
+  };
+
+  const handleUndoFromHistory = async (careItemId: string) => {
+    await undoLastCompletion(careItemId);
+    setCareHistoryRefreshKey((k) => k + 1);
   };
 
   const startEditing = () => {
@@ -342,7 +376,7 @@ export function PlantCareModal({
             {plant.photoUrl ? (
               <img
                 src={plant.photoUrl}
-                alt={plant.name}
+                alt={displayName}
                 className="h-10 w-10 shrink-0 rounded-full object-cover"
               />
             ) : (
@@ -351,7 +385,17 @@ export function PlantCareModal({
               </span>
             )}
             <div className="min-w-0">
-              <h3 className="truncate text-lg font-bold text-gray-900">{plant.name}</h3>
+              {!plant.name.trim() && onEditDetails ? (
+                <button
+                  type="button"
+                  onClick={() => onEditDetails(plant)}
+                  className="flex items-center gap-1 truncate text-lg font-bold text-emerald-700 hover:text-emerald-800 hover:underline"
+                >
+                  <Pencil size={14} className="shrink-0" /> {t('plantCareModal.addAName')}
+                </button>
+              ) : (
+                <h3 className="truncate text-lg font-bold text-gray-900">{displayName}</h3>
+              )}
               {(plant.commonName || plant.species) && (
                 <p className="truncate text-xs text-gray-500">
                   {[plant.commonName, plant.species].filter(Boolean).join(' · ')}
@@ -436,11 +480,19 @@ export function PlantCareModal({
 
               <PhotoTimeline
                 plantId={plant.id}
-                plantName={plant.name}
+                plantName={displayName}
                 currentPhotoUrl={plant.photoUrl}
                 onAddPhoto={() => setShowCapture(true)}
                 onPlantUpdated={onPhotoUploaded}
                 refreshKey={photoRefreshKey}
+              />
+
+              <div className="my-4 border-t border-gray-100" />
+              <h4 className="mb-2 text-sm font-semibold text-gray-800">{t('plantCareModal.history')}</h4>
+              <PlantCareHistory
+                plantId={plant.id}
+                refreshKey={careHistoryRefreshKey}
+                onUndo={handleUndoFromHistory}
               />
 
               {exposure && (
@@ -475,7 +527,6 @@ export function PlantCareModal({
                       <fieldset disabled={moving} className="disabled:opacity-60">
                         <BestPlacementPrompt
                           yardImageUrl={garden.imageUrl}
-                          sunRequirement={plant.sunRequirement ?? 'partial-shade'}
                           evaluation={placementEvaluation}
                           onUseSpot={useSuggestedSpot}
                           onDismiss={() => setPlacementDismissed(true)}
@@ -638,11 +689,11 @@ export function PlantCareModal({
                                 </span>
                               </span>
                             </span>
-                            <button
-                              type="button"
+                            <CompleteWithDateMenu
                               disabled={completing === item.id}
-                              onClick={() => complete(item)}
-                              className="flex shrink-0 items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-700 disabled:bg-gray-400"
+                              onComplete={(when) => complete(item, when)}
+                              wrapperClassName="shrink-0 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 has-[:disabled]:bg-gray-400"
+                              mainButtonClassName="flex items-center gap-1 rounded-l-md px-2.5 py-1 text-xs font-semibold"
                             >
                               {completing === item.id ? (
                                 <Loader2 size={12} className="animate-spin" />
@@ -650,7 +701,7 @@ export function PlantCareModal({
                                 <Check size={12} />
                               )}
                               {t('plantCareModal.done')}
-                            </button>
+                            </CompleteWithDateMenu>
                           </li>
                         );
                       })}
@@ -673,7 +724,7 @@ export function PlantCareModal({
         <div className="shrink-0 space-y-2 border-t p-3">
           <div className="flex items-center gap-1.5 text-xs text-gray-400">
             <Move size={12} />
-            {t('plantCareModal.dragTip', { name: plant.name })}
+            {t('plantCareModal.dragTip', { name: displayName })}
           </div>
 
           {deleteError && <p className="text-xs text-red-600">{deleteError}</p>}
@@ -682,7 +733,7 @@ export function PlantCareModal({
             (confirmingDelete ? (
               <div className="flex flex-wrap items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-2.5 py-2">
                 <span className="min-w-0 flex-1 text-xs font-semibold text-red-800">
-                  {t('plantCareModal.deleteConfirm', { name: plant.name })}
+                  {t('plantCareModal.deleteConfirm', { name: displayName })}
                 </span>
                 <button
                   type="button"

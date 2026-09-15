@@ -1,15 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useCareItems } from './useCareItems';
 import { careItemsService } from '../services/supabase/careItems';
+import { careCompletionsService } from '../services/supabase/careCompletions';
 import type { CareItem, Plant } from '../types';
 
 vi.mock('../services/supabase/careItems', () => ({
   careItemsService: {
-    complete: vi.fn(),
     updateCareItem: vi.fn(),
     deleteCareItem: vi.fn(),
     createMany: vi.fn(),
     getForUser: vi.fn(),
+  },
+}));
+
+vi.mock('../services/supabase/careCompletions', () => ({
+  careCompletionsService: {
+    complete: vi.fn(),
+    undoLast: vi.fn(),
   },
 }));
 
@@ -57,7 +64,7 @@ describe('useCareItems.completeItem', () => {
     const item = makeItem('c1');
     useCareItems.setState({ items: [item] });
     const updated = { ...item, nextDueDate: '2026-06-17', lastCompletedAt: '2026-06-10T00:00:00Z' };
-    vi.mocked(careItemsService.complete).mockResolvedValueOnce(updated);
+    vi.mocked(careCompletionsService.complete).mockResolvedValueOnce(updated);
 
     await useCareItems.getState().completeItem(item);
 
@@ -68,7 +75,7 @@ describe('useCareItems.completeItem', () => {
   it('sets an error and rethrows on failure', async () => {
     const item = makeItem('c1');
     useCareItems.setState({ items: [item] });
-    vi.mocked(careItemsService.complete).mockRejectedValueOnce(new Error('network down'));
+    vi.mocked(careCompletionsService.complete).mockRejectedValueOnce(new Error('network down'));
 
     await expect(useCareItems.getState().completeItem(item)).rejects.toThrow('network down');
     expect(useCareItems.getState().error).toBe('network down');
@@ -77,17 +84,41 @@ describe('useCareItems.completeItem', () => {
   });
 });
 
+describe('useCareItems.undoLastCompletion', () => {
+  it('replaces the item with the restored state from the service', async () => {
+    const item = makeItem('c1');
+    useCareItems.setState({ items: [item] });
+    const restored = { ...item, nextDueDate: '2026-06-03', lastCompletedAt: undefined };
+    vi.mocked(careCompletionsService.undoLast).mockResolvedValueOnce(restored);
+
+    await useCareItems.getState().undoLastCompletion('c1');
+
+    expect(useCareItems.getState().items).toEqual([restored]);
+    expect(useCareItems.getState().error).toBeNull();
+  });
+
+  it('sets an error and rethrows on failure', async () => {
+    const item = makeItem('c1');
+    useCareItems.setState({ items: [item] });
+    vi.mocked(careCompletionsService.undoLast).mockRejectedValueOnce(new Error('nothing to undo'));
+
+    await expect(useCareItems.getState().undoLastCompletion('c1')).rejects.toThrow('nothing to undo');
+    expect(useCareItems.getState().error).toBe('nothing to undo');
+  });
+});
+
 describe('useCareItems.completeMany', () => {
   it('does nothing for an empty list', async () => {
     await useCareItems.getState().completeMany([]);
-    expect(careItemsService.complete).not.toHaveBeenCalled();
+    expect(careCompletionsService.complete).not.toHaveBeenCalled();
   });
 
   it('updates every item when all completions succeed', async () => {
     const items = [makeItem('c1'), makeItem('c2'), makeItem('c3')];
+    const itemsById = new Map(items.map((i) => [i.id, i]));
     useCareItems.setState({ items });
-    vi.mocked(careItemsService.complete).mockImplementation(async (item) => ({
-      ...item,
+    vi.mocked(careCompletionsService.complete).mockImplementation(async (careItemId) => ({
+      ...itemsById.get(careItemId)!,
       nextDueDate: '2026-06-22',
     }));
 
@@ -100,10 +131,11 @@ describe('useCareItems.completeMany', () => {
 
   it('keeps the successes and reports a count when some completions fail', async () => {
     const items = [makeItem('c1'), makeItem('c2'), makeItem('c3')];
+    const itemsById = new Map(items.map((i) => [i.id, i]));
     useCareItems.setState({ items });
-    vi.mocked(careItemsService.complete).mockImplementation(async (item) => {
-      if (item.id === 'c2') throw new Error('boom');
-      return { ...item, nextDueDate: '2026-06-22' };
+    vi.mocked(careCompletionsService.complete).mockImplementation(async (careItemId) => {
+      if (careItemId === 'c2') throw new Error('boom');
+      return { ...itemsById.get(careItemId)!, nextDueDate: '2026-06-22' };
     });
 
     await expect(useCareItems.getState().completeMany(items)).rejects.toThrow(
@@ -121,7 +153,7 @@ describe('useCareItems.completeMany', () => {
   it('reports total failure distinctly and changes nothing when every completion fails', async () => {
     const items = [makeItem('c1'), makeItem('c2')];
     useCareItems.setState({ items });
-    vi.mocked(careItemsService.complete).mockRejectedValue(new Error('boom'));
+    vi.mocked(careCompletionsService.complete).mockRejectedValue(new Error('boom'));
 
     await expect(useCareItems.getState().completeMany(items)).rejects.toThrow(
       'Could not save any of those',

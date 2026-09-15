@@ -1,7 +1,9 @@
 {
   "common": {
     "cancel": "Anuluj",
-    "saveError": "Nie udało się tego zapisać"
+    "saveError": "Nie udało się tego zapisać",
+    "undo": "Cofnij",
+    "unnamedPlant": "Roślina bez nazwy"
   },
   "accountMenu": {
     "planFree": "Plan darmowy",
@@ -34,7 +36,21 @@
     "noIcon": "Brak ikony — użyj zamiast tego inicjału \"{{initial}}\"",
     "useIcon": "Użyj {{icon}} jako swojej ikony",
     "save": "Zapisz profil",
-    "saveError": "Nie udało się zapisać Twojego profilu."
+    "saveError": "Nie udało się zapisać Twojego profilu.",
+    "careHistoryRetention": "Przechowuj historię wykonanych zadań przez",
+    "retentionOptions": {
+      "1_day": "1 dzień",
+      "1_week": "1 tydzień",
+      "1_month": "1 miesiąc",
+      "6_months": "6 miesięcy",
+      "1_year": "1 rok",
+      "forever": "Zawsze"
+    },
+    "clearHistory": "Wyczyść historię teraz",
+    "clearHistoryButton": "Wyczyść",
+    "clearHistoryConfirm": "To trwale usunie historię wykonanych zadań starszą niż {{period}}. Tej czynności nie można cofnąć.",
+    "clearHistoryDone": "Historia wyczyszczona.",
+    "clearHistoryError": "Nie udało się wyczyścić historii."
   },
   "dueToday": {
     "title": "Dzisiejsze zadania",
@@ -65,7 +81,10 @@
     "tabSeasonal": "Ten miesiąc ({{count}})",
     "seasonalTitle": "Ten miesiąc",
     "closeSeasonalTasks": "Zamknij zadania tego miesiąca",
-    "nothingSeasonal": "Brak zadań sezonowych do wyróżnienia w tym miesiącu."
+    "nothingSeasonal": "Brak zadań sezonowych do wyróżnienia w tym miesiącu.",
+    "completedToast": "{{title}} wykonane",
+    "completedAllToast_one": "Wykonano {{count}} zadanie",
+    "completedAllToast_other": "Wykonano {{count}} zadań"
   },
   "careKind": {
     "water": "Podlewać",
@@ -123,16 +142,20 @@
     "fullSun": "pełne słońce",
     "partialShade": "półcień",
     "fullShade": "pełny cień",
-    "spotRainedYearRound": "{{sun}}, deszcz pada tu przez cały rok",
-    "spotDryYearRound": "{{sun}}, tu jest sucho przez cały rok",
-    "spotRainedSeasons": "{{sun}}, deszcz pada tu w {{count}} z 4 pór roku",
-    "suggestion": "W pobliżu jest miejsce, które lepiej odpowiada potrzebom tej rośliny w zakresie {{sunNeeds}}.",
+    "suggestion": "W pobliżu jest miejsce lepiej odpowiadające potrzebom tej rośliny.",
     "keepSpotDismiss": "Zachowaj moje miejsce — odrzuć tę sugestię",
     "yourSpot": "Twoje miejsce",
     "useSpotTitle": "Użyj miejsca {{number}}",
     "yourSpotSummary": "Twoje miejsce: {{description}}.",
     "useSpotButton": "Użyj miejsca {{number}} — {{description}}",
-    "keepSpot": "Zachowaj moje miejsce"
+    "keepSpot": "Zachowaj moje miejsce",
+    "rainedYearRound": "pada na nią przez cały rok",
+    "dryYearRound": "pozostaje sucho przez cały rok",
+    "rainedSeasons": "pada na nią przez {{count}} z 4 pór roku",
+    "windCalm": "zwykle spokojnie",
+    "windWindy": "często wietrznie",
+    "spotDescription": "{{sun}}, {{rain}}",
+    "spotDescriptionWithWind": "{{sun}}, {{rain}}, {{wind}}"
   },
   "gardenSpot": {
     "alreadyHere": "Coś tu już jest",
@@ -383,7 +406,9 @@
     "dragTip": "Wskazówka: przeciągnij znacznik na ogrodzie, aby przenieść {{name}} — nawet z zatłoczonego miejsca z innymi roślinami.",
     "deleteConfirm": "Usunąć {{name}}? To usunie też jej zdjęcia i plan pielęgnacji — nie da się tego cofnąć.",
     "delete": "Usuń",
-    "deletePlant": "Usuń roślinę"
+    "deletePlant": "Usuń roślinę",
+    "history": "Historia",
+    "addAName": "Dodaj nazwę"
   },
   "plantForm": {
     "sowDirect": "Siać bezpośrednio na zewnątrz",
@@ -391,7 +416,6 @@
     "sowEither": "Siew bezpośredni lub start w domu",
     "couldNotGetSowingPlan": "Nie udało się uzyskać planu siewu",
     "userNotAuthenticated": "Użytkownik niezalogowany",
-    "nameRequired": "Nazwa rośliny jest wymagana",
     "noActiveYard": "Brak aktywnego ogrodu, do którego można dodać tę roślinę",
     "savingChanges": "Zapisywanie zmian…",
     "savingPlant": "Zapisywanie rośliny…",
@@ -436,7 +460,14 @@
     "saving": "Zapisywanie…",
     "saveChanges": "Zapisz {{name}}",
     "addPlant": "Dodaj roślinę",
-    "changes": "zmiany"
+    "changes": "zmiany",
+    "rainPreference": "Preferencje dotyczące deszczu",
+    "prefersDry": "Preferuje bardziej suchą glebę",
+    "rainNeutral": "Brak wyraźnych preferencji",
+    "prefersWet": "Lubi dużo deszczu",
+    "windTolerance": "Tolerancja na wiatr",
+    "windHardy": "Wiatr jej nie przeszkadza",
+    "windFragile": "Delikatna na wietrze"
   },
   "yardObstacles": {
     "edgeTop": "Góra",
@@ -577,7 +608,8 @@
     "premiumFeature": "Porady dotyczące roślin to funkcja Premium — przejdź na wyższy plan, aby zobaczyć porady dotyczące rozmnażania i pielęgnacji.",
     "notAPlant": "Nie udało się rozpoznać \"{{name}}\" jako rośliny.",
     "couldNotReach": "Nie udało się teraz połączyć z poradami dotyczącymi roślin.",
-    "failed": "Nie udało się pobrać porad dotyczących rośliny."
+    "failed": "Nie udało się pobrać porad dotyczących rośliny.",
+    "rateLimited": "Porady dotyczące roślin cieszą się teraz dużym zainteresowaniem — spróbuj ponownie za kilka minut."
   },
   "plantDiagnosisService": {
     "noPlantDetected": "Nie udało się wyraźnie dostrzec rośliny na tym zdjęciu — spróbuj zrobić bliższe, dobrze oświetlone ujęcie.",
@@ -586,9 +618,23 @@
     "notSetUpYet": "Diagnoza roślin nie jest jeszcze skonfigurowana.",
     "premiumFeature": "Diagnoza roślin to funkcja Premium — przejdź na wyższy plan, aby uzyskać kontrolę zdrowia z AI.",
     "couldNotReach": "Nie udało się teraz połączyć z diagnozą roślin.",
-    "failed": "Diagnoza nie powiodła się."
+    "failed": "Diagnoza nie powiodła się.",
+    "rateLimited": "Diagnostyka roślin cieszy się teraz dużym zainteresowaniem — spróbuj ponownie za kilka minut."
   },
   "seedPlanService": {
     "noSpecificData": "Brak szczegółowych danych o siewie dla \"{{name}}\" — to ogólne wartości domyślne dla nasion. Sprawdź opakowanie i dostosuj w razie potrzeby."
+  },
+  "completeWithDate": {
+    "today": "Dziś",
+    "yesterday": "Wczoraj",
+    "daysAgo": "{{count}} dni temu",
+    "chooseDate": "Oznacz jako wykonane innego dnia"
+  },
+  "plantCareHistory": {
+    "loading": "Wczytywanie historii…",
+    "loadError": "Nie udało się wczytać historii pielęgnacji.",
+    "empty": "Brak jeszcze wykonanych zadań.",
+    "undo": "Cofnij",
+    "undoError": "Nie udało się tego cofnąć."
   }
 }

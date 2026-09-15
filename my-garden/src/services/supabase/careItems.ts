@@ -2,10 +2,9 @@
 
 import { supabase } from '../../lib/supabase';
 import type { CareItem, CareIngredient, DraftCareItem } from '../../types';
-import { nextDueFrom } from '../care/generateCareItems';
 import { today } from '../../utils/careDisplay';
 
-interface CareItemRow {
+export interface CareItemRow {
   id: string;
   plant_id: string;
   user_id: string;
@@ -22,7 +21,7 @@ interface CareItemRow {
   updated_at: string;
 }
 
-function toCareItem(row: CareItemRow): CareItem {
+export function toCareItem(row: CareItemRow): CareItem {
   return {
     id: row.id,
     plantId: row.plant_id,
@@ -123,14 +122,6 @@ export const careItemsService = {
 
     if (error) throw error;
     return toCareItem(data as CareItemRow);
-  },
-
-  /** Marks done and rolls next_due_date forward by the item's own frequency. */
-  async complete(item: CareItem, when: Date = new Date()): Promise<CareItem> {
-    return await careItemsService.updateCareItem(item.id, {
-      lastCompletedAt: when.toISOString(),
-      nextDueDate: nextDueFrom(item.frequency, when),
-    });
   },
 
   async deleteCareItem(id: string): Promise<void> {

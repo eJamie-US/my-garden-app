@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import { Snowflake, X } from 'lucide-react';
 import type { Plant, WeatherData } from '../types';
 import { nextFrost } from '../services/weather/forecast';
+import { plantDisplayName } from '../utils/careDisplay';
 
 interface FrostWarningProps {
   plants: Plant[];
@@ -92,7 +93,7 @@ export function FrostWarning({ plants, weather, onOpenPlant }: FrostWarningProps
                     key={plant.id}
                     className="flex items-center justify-between gap-2 rounded-lg border border-gray-200 p-2.5"
                   >
-                    <span className="text-sm font-semibold text-gray-900">{plant.name}</span>
+                    <span className="text-sm font-semibold text-gray-900">{plantDisplayName(t, plant)}</span>
                     {onOpenPlant && (
                       <button
                         type="button"

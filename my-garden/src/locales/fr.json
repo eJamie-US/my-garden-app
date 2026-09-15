@@ -1,7 +1,9 @@
 {
   "common": {
     "cancel": "Annuler",
-    "saveError": "Impossible d'enregistrer"
+    "saveError": "Impossible d'enregistrer",
+    "undo": "Annuler",
+    "unnamedPlant": "Plante sans nom"
   },
   "accountMenu": {
     "planFree": "Plan gratuit",
@@ -34,7 +36,21 @@
     "noIcon": "Pas d'icône — utiliser l'initiale « {{initial}} » à la place",
     "useIcon": "Utiliser {{icon}} comme icône",
     "save": "Enregistrer le profil",
-    "saveError": "Impossible d'enregistrer votre profil."
+    "saveError": "Impossible d'enregistrer votre profil.",
+    "careHistoryRetention": "Conserver l'historique des tâches terminées pendant",
+    "retentionOptions": {
+      "1_day": "1 jour",
+      "1_week": "1 semaine",
+      "1_month": "1 mois",
+      "6_months": "6 mois",
+      "1_year": "1 an",
+      "forever": "Toujours"
+    },
+    "clearHistory": "Effacer l'historique maintenant",
+    "clearHistoryButton": "Effacer",
+    "clearHistoryConfirm": "Cela supprime définitivement l'historique des tâches terminées antérieur à {{period}}. Cette action est irréversible.",
+    "clearHistoryDone": "Historique effacé.",
+    "clearHistoryError": "Impossible d'effacer l'historique."
   },
   "dueToday": {
     "title": "À faire aujourd'hui",
@@ -65,7 +81,10 @@
     "tabSeasonal": "Ce mois-ci ({{count}})",
     "seasonalTitle": "Ce mois-ci",
     "closeSeasonalTasks": "Fermer les tâches de ce mois-ci",
-    "nothingSeasonal": "Rien de saisonnier à signaler ce mois-ci."
+    "nothingSeasonal": "Rien de saisonnier à signaler ce mois-ci.",
+    "completedToast": "{{title}} terminée",
+    "completedAllToast_one": "{{count}} tâche terminée",
+    "completedAllToast_other": "{{count}} tâches terminées"
   },
   "careKind": {
     "water": "Arroser",
@@ -123,16 +142,20 @@
     "fullSun": "plein soleil",
     "partialShade": "mi-ombre",
     "fullShade": "ombre totale",
-    "spotRainedYearRound": "{{sun}}, exposé à la pluie toute l'année",
-    "spotDryYearRound": "{{sun}}, reste sec toute l'année",
-    "spotRainedSeasons": "{{sun}}, exposé à la pluie {{count}} saisons sur 4",
-    "suggestion": "Il y a un endroit à proximité mieux adapté aux besoins de {{sunNeeds}} de cette plante.",
+    "suggestion": "Il y a un endroit à proximité qui convient mieux aux besoins de cette plante.",
     "keepSpotDismiss": "Garder mon emplacement — ignorer cette suggestion",
     "yourSpot": "Votre emplacement",
     "useSpotTitle": "Utiliser l'emplacement {{number}}",
     "yourSpotSummary": "Votre emplacement : {{description}}.",
     "useSpotButton": "Utiliser l'emplacement {{number}} — {{description}}",
-    "keepSpot": "Garder mon emplacement"
+    "keepSpot": "Garder mon emplacement",
+    "rainedYearRound": "reçoit de la pluie toute l'année",
+    "dryYearRound": "reste sec toute l'année",
+    "rainedSeasons": "reçoit de la pluie {{count}} saisons sur 4",
+    "windCalm": "généralement calme",
+    "windWindy": "souvent venteux",
+    "spotDescription": "{{sun}}, {{rain}}",
+    "spotDescriptionWithWind": "{{sun}}, {{rain}}, {{wind}}"
   },
   "gardenSpot": {
     "alreadyHere": "Il y a déjà quelque chose ici",
@@ -383,7 +406,9 @@
     "dragTip": "Astuce : faites glisser son marqueur sur le jardin pour déplacer {{name}} — même hors d'un endroit encombré par d'autres plantes.",
     "deleteConfirm": "Supprimer {{name}} ? Cela supprime aussi ses photos et son plan d'entretien — irréversible.",
     "delete": "Supprimer",
-    "deletePlant": "Supprimer la plante"
+    "deletePlant": "Supprimer la plante",
+    "history": "Historique",
+    "addAName": "Ajouter un nom"
   },
   "plantForm": {
     "sowDirect": "Semer directement en extérieur",
@@ -391,7 +416,6 @@
     "sowEither": "Semis direct ou démarrage en intérieur",
     "couldNotGetSowingPlan": "Impossible d'obtenir un plan de semis",
     "userNotAuthenticated": "Utilisateur non authentifié",
-    "nameRequired": "Le nom de la plante est obligatoire",
     "noActiveYard": "Aucun jardin actif pour ajouter cette plante",
     "savingChanges": "Enregistrement des modifications…",
     "savingPlant": "Enregistrement de la plante…",
@@ -436,7 +460,14 @@
     "saving": "Enregistrement…",
     "saveChanges": "Enregistrer {{name}}",
     "addPlant": "Ajouter une plante",
-    "changes": "modifications"
+    "changes": "modifications",
+    "rainPreference": "Préférence de pluie",
+    "prefersDry": "Préfère un sol plus sec",
+    "rainNeutral": "Pas de préférence marquée",
+    "prefersWet": "Aime beaucoup de pluie",
+    "windTolerance": "Tolérance au vent",
+    "windHardy": "Le vent ne la dérange pas",
+    "windFragile": "Fragile au vent"
   },
   "yardObstacles": {
     "edgeTop": "Haut",
@@ -577,7 +608,8 @@
     "premiumFeature": "Les conseils sur les plantes sont une fonctionnalité premium — passez à Premium pour voir les conseils de multiplication et d'entretien.",
     "notAPlant": "Impossible de reconnaître « {{name}} » comme une plante.",
     "couldNotReach": "Impossible de contacter les conseils sur les plantes pour le moment.",
-    "failed": "Échec des conseils sur les plantes."
+    "failed": "Échec des conseils sur les plantes.",
+    "rateLimited": "Les conseils sur les plantes sont très demandés en ce moment — réessayez dans quelques minutes."
   },
   "plantDiagnosisService": {
     "noPlantDetected": "Impossible de voir clairement une plante sur cette photo — essayez une photo plus rapprochée et bien éclairée.",
@@ -586,9 +618,23 @@
     "notSetUpYet": "Le diagnostic des plantes n'est pas encore configuré.",
     "premiumFeature": "Le diagnostic des plantes est une fonctionnalité premium — passez à Premium pour un bilan de santé par IA.",
     "couldNotReach": "Impossible de contacter le diagnostic des plantes pour le moment.",
-    "failed": "Échec du diagnostic."
+    "failed": "Échec du diagnostic.",
+    "rateLimited": "Le diagnostic des plantes est très demandé en ce moment — réessayez dans quelques minutes."
   },
   "seedPlanService": {
     "noSpecificData": "Aucune donnée de semis spécifique pour « {{name}} » — ce sont des valeurs par défaut générales. Vérifiez le paquet et ajustez si nécessaire."
+  },
+  "completeWithDate": {
+    "today": "Aujourd'hui",
+    "yesterday": "Hier",
+    "daysAgo": "il y a {{count}} jours",
+    "chooseDate": "Marquer comme terminé un autre jour"
+  },
+  "plantCareHistory": {
+    "loading": "Chargement de l'historique…",
+    "loadError": "Impossible de charger l'historique d'entretien.",
+    "empty": "Aucune tâche terminée pour l'instant.",
+    "undo": "Annuler",
+    "undoError": "Impossible d'annuler cette action."
   }
 }

@@ -1,7 +1,9 @@
 {
   "common": {
     "cancel": "Cancel",
-    "saveError": "Could not save that"
+    "saveError": "Could not save that",
+    "undo": "Undo",
+    "unnamedPlant": "Unnamed plant"
   },
   "accountMenu": {
     "planFree": "Free plan",
@@ -34,7 +36,21 @@
     "noIcon": "No icon — use the initial \"{{initial}}\" instead",
     "useIcon": "Use {{icon}} as your icon",
     "save": "Save profile",
-    "saveError": "Could not save your profile."
+    "saveError": "Could not save your profile.",
+    "careHistoryRetention": "Keep completed task history for",
+    "retentionOptions": {
+      "1_day": "1 day",
+      "1_week": "1 week",
+      "1_month": "1 month",
+      "6_months": "6 months",
+      "1_year": "1 year",
+      "forever": "Forever"
+    },
+    "clearHistory": "Clear history now",
+    "clearHistoryButton": "Clear",
+    "clearHistoryConfirm": "This permanently deletes completed-task history older than {{period}}. This can't be undone.",
+    "clearHistoryDone": "History cleared.",
+    "clearHistoryError": "Could not clear history."
   },
   "dueToday": {
     "title": "Due today",
@@ -65,7 +81,23 @@
     "tabSeasonal": "This month ({{count}})",
     "seasonalTitle": "This month",
     "closeSeasonalTasks": "Close this month's tasks",
-    "nothingSeasonal": "Nothing seasonal to flag this month."
+    "nothingSeasonal": "Nothing seasonal to flag this month.",
+    "completedToast": "{{title}} completed",
+    "completedAllToast_one": "{{count}} task completed",
+    "completedAllToast_other": "{{count}} tasks completed"
+  },
+  "completeWithDate": {
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "daysAgo": "{{count}} days ago",
+    "chooseDate": "Mark done on a different day"
+  },
+  "plantCareHistory": {
+    "loading": "Loading history…",
+    "loadError": "Could not load care history.",
+    "empty": "No completed tasks yet.",
+    "undo": "Undo",
+    "undoError": "Could not undo that."
   },
   "careKind": {
     "water": "Water",
@@ -123,10 +155,14 @@
     "fullSun": "full sun",
     "partialShade": "partial shade",
     "fullShade": "full shade",
-    "spotRainedYearRound": "{{sun}}, rained on year-round",
-    "spotDryYearRound": "{{sun}}, stays dry year-round",
-    "spotRainedSeasons": "{{sun}}, rained on {{count}} of 4 seasons",
-    "suggestion": "There's a spot nearby that suits this plant's {{sunNeeds}} needs better.",
+    "rainedYearRound": "rained on year-round",
+    "dryYearRound": "stays dry year-round",
+    "rainedSeasons": "rained on {{count}} of 4 seasons",
+    "windCalm": "usually calm",
+    "windWindy": "often windy",
+    "spotDescription": "{{sun}}, {{rain}}",
+    "spotDescriptionWithWind": "{{sun}}, {{rain}}, {{wind}}",
+    "suggestion": "There's a spot nearby that suits this plant's needs better.",
     "keepSpotDismiss": "Keep my spot — dismiss this suggestion",
     "yourSpot": "Your spot",
     "useSpotTitle": "Use spot {{number}}",
@@ -360,9 +396,11 @@
     "indoor": "Indoor",
     "covered": "Covered",
     "editPlantDetails": "Edit plant details",
+    "addAName": "Add a name",
     "closeCareItems": "Close care items",
     "photos": "Photos",
     "savingPhoto": "Saving photo…",
+    "history": "History",
     "sunCheck": "Sun check",
     "sun": "☀️ Sun",
     "shade": "☁️ Shade",
@@ -391,7 +429,6 @@
     "sowEither": "Direct-sow or start indoors",
     "couldNotGetSowingPlan": "Could not get a sowing plan",
     "userNotAuthenticated": "User not authenticated",
-    "nameRequired": "Plant name is required",
     "noActiveYard": "No active yard to add this plant to",
     "savingChanges": "Saving changes…",
     "savingPlant": "Saving plant…",
@@ -405,7 +442,8 @@
     "redo": "Redo",
     "reIdentifyPhoto": "Re-identify with a new photo",
     "identifyPhoto": "Identify with a photo",
-    "plantName": "Plant Name *",
+    "plantName": "Plant Name",
+    "plantNameOptional": "(optional — add it now or later, care tips pick it up either way)",
     "plantNamePlaceholder": "e.g., Tomato Plant",
     "seedInsteadPrompt": "Starting from seed instead? Get a sowing plan",
     "getSowingPlanFor": "Get sowing plan for \"{{name}}\"",
@@ -426,6 +464,13 @@
     "fullSun": "Full sun",
     "partialShade": "Partial shade",
     "fullShade": "Full shade",
+    "rainPreference": "Rain preference",
+    "prefersDry": "Prefers drier soil",
+    "rainNeutral": "No strong preference",
+    "prefersWet": "Likes lots of rain",
+    "windTolerance": "Wind tolerance",
+    "windHardy": "Not fussy about wind",
+    "windFragile": "Delicate in wind",
     "indoorPlant": "Indoor plant (weather doesn't apply)",
     "plantedPotted": "Planted / potted",
     "hanging": "Hanging",
@@ -577,6 +622,7 @@
     "premiumFeature": "Plant tips are a premium feature — upgrade to see propagation and care tips.",
     "notAPlant": "Couldn't recognize \"{{name}}\" as a plant.",
     "couldNotReach": "Couldn't reach plant tips right now.",
+    "rateLimited": "Plant tips are in high demand right now — try again in a few minutes.",
     "failed": "Plant tips failed."
   },
   "plantDiagnosisService": {
@@ -586,6 +632,7 @@
     "notSetUpYet": "Plant diagnosis isn’t set up yet.",
     "premiumFeature": "Plant diagnosis is a premium feature — upgrade for an AI health check.",
     "couldNotReach": "Couldn't reach plant diagnosis right now.",
+    "rateLimited": "Plant diagnosis is in high demand right now — try again in a few minutes.",
     "failed": "Diagnosis failed."
   },
   "seedPlanService": {
