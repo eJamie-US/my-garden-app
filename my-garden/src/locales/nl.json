@@ -407,7 +407,8 @@
     "deleteConfirm": "{{name}} verwijderen? Dit verwijdert ook de foto's en het verzorgingsplan — kan niet ongedaan worden gemaakt.",
     "delete": "Verwijderen",
     "deletePlant": "Plant verwijderen",
-    "history": "Geschiedenis"
+    "history": "Geschiedenis",
+    "addAName": "Naam toevoegen"
   },
   "plantForm": {
     "sowDirect": "Rechtstreeks buiten zaaien",

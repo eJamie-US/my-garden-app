@@ -407,7 +407,8 @@
     "deleteConfirm": "Eliminare {{name}}? Questo rimuove anche le sue foto e il piano di cura — non può essere annullato.",
     "delete": "Elimina",
     "deletePlant": "Elimina pianta",
-    "history": "Cronologia"
+    "history": "Cronologia",
+    "addAName": "Aggiungi un nome"
   },
   "plantForm": {
     "sowDirect": "Semina direttamente all'aperto",

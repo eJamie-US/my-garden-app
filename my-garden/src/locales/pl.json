@@ -407,7 +407,8 @@
     "deleteConfirm": "Usunąć {{name}}? To usunie też jej zdjęcia i plan pielęgnacji — nie da się tego cofnąć.",
     "delete": "Usuń",
     "deletePlant": "Usuń roślinę",
-    "history": "Historia"
+    "history": "Historia",
+    "addAName": "Dodaj nazwę"
   },
   "plantForm": {
     "sowDirect": "Siać bezpośrednio na zewnątrz",

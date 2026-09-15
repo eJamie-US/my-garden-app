@@ -407,7 +407,8 @@
     "deleteConfirm": "{{name}} löschen? Dadurch werden auch ihre Fotos und ihr Pflegeplan gelöscht — das kann nicht rückgängig gemacht werden.",
     "delete": "Löschen",
     "deletePlant": "Pflanze löschen",
-    "history": "Verlauf"
+    "history": "Verlauf",
+    "addAName": "Namen hinzufügen"
   },
   "plantForm": {
     "sowDirect": "Direkt im Freien aussäen",

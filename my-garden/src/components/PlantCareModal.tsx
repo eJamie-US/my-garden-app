@@ -385,7 +385,17 @@ export function PlantCareModal({
               </span>
             )}
             <div className="min-w-0">
-              <h3 className="truncate text-lg font-bold text-gray-900">{displayName}</h3>
+              {!plant.name.trim() && onEditDetails ? (
+                <button
+                  type="button"
+                  onClick={() => onEditDetails(plant)}
+                  className="flex items-center gap-1 truncate text-lg font-bold text-emerald-700 hover:text-emerald-800 hover:underline"
+                >
+                  <Pencil size={14} className="shrink-0" /> {t('plantCareModal.addAName')}
+                </button>
+              ) : (
+                <h3 className="truncate text-lg font-bold text-gray-900">{displayName}</h3>
+              )}
               {(plant.commonName || plant.species) && (
                 <p className="truncate text-xs text-gray-500">
                   {[plant.commonName, plant.species].filter(Boolean).join(' · ')}

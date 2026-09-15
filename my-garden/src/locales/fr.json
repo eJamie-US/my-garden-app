@@ -407,7 +407,8 @@
     "deleteConfirm": "Supprimer {{name}} ? Cela supprime aussi ses photos et son plan d'entretien — irréversible.",
     "delete": "Supprimer",
     "deletePlant": "Supprimer la plante",
-    "history": "Historique"
+    "history": "Historique",
+    "addAName": "Ajouter un nom"
   },
   "plantForm": {
     "sowDirect": "Semer directement en extérieur",

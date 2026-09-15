@@ -407,7 +407,8 @@
     "deleteConfirm": "{{name}}을(를) 삭제할까요? 사진과 관리 계획도 함께 삭제되며, 되돌릴 수 없어요.",
     "delete": "삭제",
     "deletePlant": "식물 삭제",
-    "history": "기록"
+    "history": "기록",
+    "addAName": "이름 추가하기"
   },
   "plantForm": {
     "sowDirect": "야외에 직접 파종",

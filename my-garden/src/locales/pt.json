@@ -407,7 +407,8 @@
     "deleteConfirm": "Excluir {{name}}? Isso também remove suas fotos e plano de cuidados — não pode ser desfeito.",
     "delete": "Excluir",
     "deletePlant": "Excluir planta",
-    "history": "Histórico"
+    "history": "Histórico",
+    "addAName": "Adicionar um nome"
   },
   "plantForm": {
     "sowDirect": "Semear diretamente ao ar livre",

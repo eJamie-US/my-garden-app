@@ -407,7 +407,8 @@
     "deleteConfirm": "删除{{name}}？这也会删除它的照片和养护计划 — 无法撤销。",
     "delete": "删除",
     "deletePlant": "删除植物",
-    "history": "历史记录"
+    "history": "历史记录",
+    "addAName": "添加名称"
   },
   "plantForm": {
     "sowDirect": "直接露天播种",

@@ -407,7 +407,8 @@
     "deleteConfirm": "{{name}}を削除しますか? 写真やお手入れプランも一緒に削除されます — 元に戻せません。",
     "delete": "削除",
     "deletePlant": "植物を削除",
-    "history": "履歴"
+    "history": "履歴",
+    "addAName": "名前を追加"
   },
   "plantForm": {
     "sowDirect": "屋外に直まき",

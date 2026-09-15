@@ -407,7 +407,8 @@
     "deleteConfirm": "¿Eliminar {{name}}? Esto también elimina sus fotos y plan de cuidado — no se puede deshacer.",
     "delete": "Eliminar",
     "deletePlant": "Eliminar planta",
-    "history": "Historial"
+    "history": "Historial",
+    "addAName": "Añadir un nombre"
   },
   "plantForm": {
     "sowDirect": "Sembrar directamente al aire libre",
