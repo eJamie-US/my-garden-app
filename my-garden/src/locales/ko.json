@@ -2,7 +2,8 @@
   "common": {
     "cancel": "취소",
     "saveError": "저장하지 못했어요",
-    "undo": "실행 취소"
+    "undo": "실행 취소",
+    "unnamedPlant": "이름 없는 식물"
   },
   "accountMenu": {
     "planFree": "무료 플랜",
@@ -414,7 +415,6 @@
     "sowEither": "직접 파종 또는 실내 시작",
     "couldNotGetSowingPlan": "파종 계획을 가져오지 못했어요",
     "userNotAuthenticated": "사용자 인증이 되지 않았어요",
-    "nameRequired": "식물 이름은 필수예요",
     "noActiveYard": "이 식물을 추가할 활성 마당이 없어요",
     "savingChanges": "변경 사항 저장 중…",
     "savingPlant": "식물 저장 중…",

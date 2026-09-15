@@ -2,7 +2,8 @@
   "common": {
     "cancel": "Annuler",
     "saveError": "Impossible d'enregistrer",
-    "undo": "Annuler"
+    "undo": "Annuler",
+    "unnamedPlant": "Plante sans nom"
   },
   "accountMenu": {
     "planFree": "Plan gratuit",
@@ -414,7 +415,6 @@
     "sowEither": "Semis direct ou démarrage en intérieur",
     "couldNotGetSowingPlan": "Impossible d'obtenir un plan de semis",
     "userNotAuthenticated": "Utilisateur non authentifié",
-    "nameRequired": "Le nom de la plante est obligatoire",
     "noActiveYard": "Aucun jardin actif pour ajouter cette plante",
     "savingChanges": "Enregistrement des modifications…",
     "savingPlant": "Enregistrement de la plante…",

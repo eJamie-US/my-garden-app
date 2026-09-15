@@ -274,7 +274,6 @@ export const PlantForm = ({
 
     try {
       if (!user?.id) throw new Error(t('plantForm.userNotAuthenticated'));
-      if (!formData.name.trim()) throw new Error(t('plantForm.nameRequired'));
       if (!isEdit && !garden) throw new Error(t('plantForm.noActiveYard'));
 
       setProgressLabel(isEdit ? t('plantForm.savingChanges') : t('plantForm.savingPlant'));
@@ -429,7 +428,8 @@ export const PlantForm = ({
 
       <div>
         <label className="mb-1 block text-sm font-medium text-gray-700">
-          {t('plantForm.plantName')}
+          {t('plantForm.plantName')}{' '}
+          <span className="font-normal text-gray-400">{t('plantForm.plantNameOptional')}</span>
         </label>
         <input
           type="text"
@@ -438,7 +438,6 @@ export const PlantForm = ({
           onChange={handleInputChange}
           placeholder={t('plantForm.plantNamePlaceholder')}
           className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:ring-green-500"
-          required
         />
       </div>
 

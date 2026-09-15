@@ -2,7 +2,8 @@
   "common": {
     "cancel": "Abbrechen",
     "saveError": "Das konnte nicht gespeichert werden",
-    "undo": "Rückgängig"
+    "undo": "Rückgängig",
+    "unnamedPlant": "Unbenannte Pflanze"
   },
   "accountMenu": {
     "planFree": "Kostenloser Plan",
@@ -414,7 +415,6 @@
     "sowEither": "Direktsaat oder drinnen vorziehen",
     "couldNotGetSowingPlan": "Es konnte kein Aussaatplan abgerufen werden",
     "userNotAuthenticated": "Benutzer nicht authentifiziert",
-    "nameRequired": "Der Pflanzenname ist erforderlich",
     "noActiveYard": "Kein aktiver Garten, um diese Pflanze hinzuzufügen",
     "savingChanges": "Änderungen werden gespeichert…",
     "savingPlant": "Pflanze wird gespeichert…",

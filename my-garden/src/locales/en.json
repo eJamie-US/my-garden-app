@@ -2,7 +2,8 @@
   "common": {
     "cancel": "Cancel",
     "saveError": "Could not save that",
-    "undo": "Undo"
+    "undo": "Undo",
+    "unnamedPlant": "Unnamed plant"
   },
   "accountMenu": {
     "planFree": "Free plan",
@@ -427,7 +428,6 @@
     "sowEither": "Direct-sow or start indoors",
     "couldNotGetSowingPlan": "Could not get a sowing plan",
     "userNotAuthenticated": "User not authenticated",
-    "nameRequired": "Plant name is required",
     "noActiveYard": "No active yard to add this plant to",
     "savingChanges": "Saving changes…",
     "savingPlant": "Saving plant…",
@@ -441,7 +441,8 @@
     "redo": "Redo",
     "reIdentifyPhoto": "Re-identify with a new photo",
     "identifyPhoto": "Identify with a photo",
-    "plantName": "Plant Name *",
+    "plantName": "Plant Name",
+    "plantNameOptional": "(optional — add it now or later, care tips pick it up either way)",
     "plantNamePlaceholder": "e.g., Tomato Plant",
     "seedInsteadPrompt": "Starting from seed instead? Get a sowing plan",
     "getSowingPlanFor": "Get sowing plan for \"{{name}}\"",

@@ -2,7 +2,8 @@
   "common": {
     "cancel": "Cancelar",
     "saveError": "No se pudo guardar",
-    "undo": "Deshacer"
+    "undo": "Deshacer",
+    "unnamedPlant": "Planta sin nombre"
   },
   "accountMenu": {
     "planFree": "Plan gratuito",
@@ -414,7 +415,6 @@
     "sowEither": "Siembra directa o comenzar en interior",
     "couldNotGetSowingPlan": "No se pudo obtener un plan de siembra",
     "userNotAuthenticated": "Usuario no autenticado",
-    "nameRequired": "El nombre de la planta es obligatorio",
     "noActiveYard": "No hay un patio activo para agregar esta planta",
     "savingChanges": "Guardando cambios…",
     "savingPlant": "Guardando planta…",

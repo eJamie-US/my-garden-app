@@ -2,7 +2,8 @@
   "common": {
     "cancel": "Annulla",
     "saveError": "Impossibile salvare",
-    "undo": "Annulla"
+    "undo": "Annulla",
+    "unnamedPlant": "Pianta senza nome"
   },
   "accountMenu": {
     "planFree": "Piano gratuito",
@@ -414,7 +415,6 @@
     "sowEither": "Semina diretta o inizio in casa",
     "couldNotGetSowingPlan": "Impossibile ottenere un piano di semina",
     "userNotAuthenticated": "Utente non autenticato",
-    "nameRequired": "Il nome della pianta è obbligatorio",
     "noActiveYard": "Nessun giardino attivo a cui aggiungere questa pianta",
     "savingChanges": "Salvataggio modifiche…",
     "savingPlant": "Salvataggio pianta…",

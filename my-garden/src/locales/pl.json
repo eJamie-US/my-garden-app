@@ -2,7 +2,8 @@
   "common": {
     "cancel": "Anuluj",
     "saveError": "Nie udało się tego zapisać",
-    "undo": "Cofnij"
+    "undo": "Cofnij",
+    "unnamedPlant": "Roślina bez nazwy"
   },
   "accountMenu": {
     "planFree": "Plan darmowy",
@@ -414,7 +415,6 @@
     "sowEither": "Siew bezpośredni lub start w domu",
     "couldNotGetSowingPlan": "Nie udało się uzyskać planu siewu",
     "userNotAuthenticated": "Użytkownik niezalogowany",
-    "nameRequired": "Nazwa rośliny jest wymagana",
     "noActiveYard": "Brak aktywnego ogrodu, do którego można dodać tę roślinę",
     "savingChanges": "Zapisywanie zmian…",
     "savingPlant": "Zapisywanie rośliny…",

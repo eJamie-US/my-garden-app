@@ -2,7 +2,8 @@
   "common": {
     "cancel": "キャンセル",
     "saveError": "保存できませんでした",
-    "undo": "元に戻す"
+    "undo": "元に戻す",
+    "unnamedPlant": "名前未設定の植物"
   },
   "accountMenu": {
     "planFree": "無料プラン",
@@ -414,7 +415,6 @@
     "sowEither": "直まき、または室内で育苗",
     "couldNotGetSowingPlan": "種まきプランを取得できませんでした",
     "userNotAuthenticated": "ユーザーが認証されていません",
-    "nameRequired": "植物名を入力してください",
     "noActiveYard": "この植物を追加できる庭が選択されていません",
     "savingChanges": "変更を保存中…",
     "savingPlant": "植物を保存中…",

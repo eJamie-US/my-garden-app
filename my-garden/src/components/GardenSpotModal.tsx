@@ -5,6 +5,7 @@
 import { useTranslation } from 'react-i18next';
 import type { Plant } from '../types';
 import { X, Plus } from 'lucide-react';
+import { plantDisplayName } from '../utils/careDisplay';
 
 interface GardenSpotModalProps {
   /** Existing plant(s) already at (or very near) the clicked spot. */
@@ -63,7 +64,7 @@ export function GardenSpotModal({ plants, onSelectPlant, onAddNew, onClose }: Ga
                     )}
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-semibold text-gray-900">
-                        {plant.name}
+                        {plantDisplayName(t, plant)}
                       </span>
                       {(plant.commonName || plant.species) && (
                         <span className="block truncate text-xs text-gray-500">

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEven
 import { useTranslation } from 'react-i18next';
 import { Eye, EyeOff, Plus, X } from 'lucide-react';
 import type { CareItem, Plant, YardSection } from '../types';
-import { KIND_ICONS, daysUntil, dueLabel, ingredientSummary } from '../utils/careDisplay';
+import { KIND_ICONS, daysUntil, dueLabel, ingredientSummary, plantDisplayName } from '../utils/careDisplay';
 import { boxFromSection, sectionTransformStyle, toViewportPercent, toYardPercent, type Box } from '../utils/sectionView';
 
 type GardenCanvasProps = {
@@ -423,8 +423,8 @@ export function GardenCanvas({
       });
       setMoveError(
         err instanceof Error && err.message
-          ? t('gardenCanvas.moveFailedReason', { name: plant.name, reason: err.message })
-          : t('gardenCanvas.moveFailed', { name: plant.name }),
+          ? t('gardenCanvas.moveFailedReason', { name: plantDisplayName(t, plant), reason: err.message })
+          : t('gardenCanvas.moveFailed', { name: plantDisplayName(t, plant) }),
       );
     }
   }
@@ -882,7 +882,7 @@ export function GardenCanvas({
                 <div className="relative [--marker-r:10px] sm:[--marker-r:22px]">
                   <button
                     type="button"
-                    aria-label={t('gardenCanvas.markerAria', { name: plant.name })}
+                    aria-label={t('gardenCanvas.markerAria', { name: plantDisplayName(t, plant) })}
                     className={`flex h-5 w-5 touch-none select-none items-center justify-center rounded-full transition-transform sm:h-11 sm:w-11 ${
                       isDragging ? 'scale-125 cursor-grabbing' : 'cursor-grab hover:scale-125'
                     }`}
@@ -900,7 +900,7 @@ export function GardenCanvas({
                     {iconSrc ? (
                       <img
                         src={iconSrc}
-                        alt={plant.name}
+                        alt={plantDisplayName(t, plant)}
                         draggable={false}
                         className={`h-full w-full object-contain drop-shadow-md ${
                           isDragging ? 'drop-shadow-xl' : ''

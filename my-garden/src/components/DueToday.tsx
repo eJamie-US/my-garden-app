@@ -29,7 +29,7 @@ import { useCareItems } from '../hooks/useCareItems';
 import { useSeasonalTasks } from '../hooks/useSeasonalTasks';
 import { useToast } from '../hooks/useToast';
 import { describeFrequency } from '../services/care/generateCareItems';
-import { KIND_ICONS, kindLabel, ingredientSummary } from '../utils/careDisplay';
+import { KIND_ICONS, kindLabel, ingredientSummary, plantDisplayName } from '../utils/careDisplay';
 import { CareKindFilter } from './CareKindFilter';
 import { CompleteWithDateMenu } from './CompleteWithDateMenu';
 
@@ -79,7 +79,7 @@ export function DueToday({
   const [completingAll, setCompletingAll] = useState(false);
   const [localError, setLocalError] = useState('');
 
-  const plantNames = new Map(plants.map((p) => [p.id, p.name]));
+  const plantNames = new Map(plants.map((p) => [p.id, plantDisplayName(t, p)]));
 
   useEffect(() => {
     if (userId) void fetchForUser(userId);
@@ -319,7 +319,7 @@ export function DueToday({
                                 className={`shrink-0 text-gray-400 transition-transform ${isOpen ? '' : '-rotate-90'}`}
                               />
                               <span className="truncate text-sm font-semibold text-gray-900">
-                                {plantEntries[0].plantName}
+                                {plantEntries[0].plantName || t('common.unnamedPlant')}
                               </span>
                             </span>
                             <span className="shrink-0 rounded-full bg-violet-100 px-1.5 py-0.5 text-xs font-bold text-violet-800">

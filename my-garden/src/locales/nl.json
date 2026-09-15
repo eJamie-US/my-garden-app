@@ -2,7 +2,8 @@
   "common": {
     "cancel": "Annuleren",
     "saveError": "Kon dit niet opslaan",
-    "undo": "Ongedaan maken"
+    "undo": "Ongedaan maken",
+    "unnamedPlant": "Naamloze plant"
   },
   "accountMenu": {
     "planFree": "Gratis abonnement",
@@ -414,7 +415,6 @@
     "sowEither": "Rechtstreeks zaaien of binnen beginnen",
     "couldNotGetSowingPlan": "Kon geen zaaiplan ophalen",
     "userNotAuthenticated": "Gebruiker niet geauthenticeerd",
-    "nameRequired": "Plantnaam is verplicht",
     "noActiveYard": "Geen actieve tuin om deze plant aan toe te voegen",
     "savingChanges": "Wijzigingen opslaan…",
     "savingPlant": "Plant opslaan…",

@@ -2,7 +2,8 @@
   "common": {
     "cancel": "Cancelar",
     "saveError": "Não foi possível salvar isso",
-    "undo": "Desfazer"
+    "undo": "Desfazer",
+    "unnamedPlant": "Planta sem nome"
   },
   "accountMenu": {
     "planFree": "Plano gratuito",
@@ -414,7 +415,6 @@
     "sowEither": "Semeadura direta ou começar em ambiente interno",
     "couldNotGetSowingPlan": "Não foi possível obter um plano de semeadura",
     "userNotAuthenticated": "Usuário não autenticado",
-    "nameRequired": "O nome da planta é obrigatório",
     "noActiveYard": "Nenhum jardim ativo para adicionar esta planta",
     "savingChanges": "Salvando alterações…",
     "savingPlant": "Salvando planta…",

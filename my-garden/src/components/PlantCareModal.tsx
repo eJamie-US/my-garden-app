@@ -17,7 +17,7 @@ import { usePlants } from '../hooks/usePlants';
 import { careItemsService } from '../services/supabase/careItems';
 import { plantPhotosService } from '../services/supabase/plantPhotos';
 import { generateCareItems, describeFrequency } from '../services/care/generateCareItems';
-import { KIND_ICONS, daysUntil, dueLabel, dueBadgeClass, ingredientSummary } from '../utils/careDisplay';
+import { KIND_ICONS, daysUntil, dueLabel, dueBadgeClass, ingredientSummary, plantDisplayName } from '../utils/careDisplay';
 import { estimateSeasonalExposure, summarizeExposure, type Season } from '../utils/sunExposure';
 import { computeRainShelter, describeRainShelter } from '../utils/rainShelter';
 import { obstacleTypeLabel } from '../utils/obstacleTypes';
@@ -95,6 +95,7 @@ export function PlantCareModal({
   onMovePlant,
 }: PlantCareModalProps) {
   const { t } = useTranslation();
+  const displayName = plantDisplayName(t, plant);
   const allCareItems = useCareItems((s) => s.items);
   const careLoading = useCareItems((s) => s.loading);
   const completeItem = useCareItems((s) => s.completeItem);
@@ -375,7 +376,7 @@ export function PlantCareModal({
             {plant.photoUrl ? (
               <img
                 src={plant.photoUrl}
-                alt={plant.name}
+                alt={displayName}
                 className="h-10 w-10 shrink-0 rounded-full object-cover"
               />
             ) : (
@@ -384,7 +385,7 @@ export function PlantCareModal({
               </span>
             )}
             <div className="min-w-0">
-              <h3 className="truncate text-lg font-bold text-gray-900">{plant.name}</h3>
+              <h3 className="truncate text-lg font-bold text-gray-900">{displayName}</h3>
               {(plant.commonName || plant.species) && (
                 <p className="truncate text-xs text-gray-500">
                   {[plant.commonName, plant.species].filter(Boolean).join(' · ')}
@@ -469,7 +470,7 @@ export function PlantCareModal({
 
               <PhotoTimeline
                 plantId={plant.id}
-                plantName={plant.name}
+                plantName={displayName}
                 currentPhotoUrl={plant.photoUrl}
                 onAddPhoto={() => setShowCapture(true)}
                 onPlantUpdated={onPhotoUploaded}
@@ -713,7 +714,7 @@ export function PlantCareModal({
         <div className="shrink-0 space-y-2 border-t p-3">
           <div className="flex items-center gap-1.5 text-xs text-gray-400">
             <Move size={12} />
-            {t('plantCareModal.dragTip', { name: plant.name })}
+            {t('plantCareModal.dragTip', { name: displayName })}
           </div>
 
           {deleteError && <p className="text-xs text-red-600">{deleteError}</p>}
@@ -722,7 +723,7 @@ export function PlantCareModal({
             (confirmingDelete ? (
               <div className="flex flex-wrap items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-2.5 py-2">
                 <span className="min-w-0 flex-1 text-xs font-semibold text-red-800">
-                  {t('plantCareModal.deleteConfirm', { name: plant.name })}
+                  {t('plantCareModal.deleteConfirm', { name: displayName })}
                 </span>
                 <button
                   type="button"

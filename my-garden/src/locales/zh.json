@@ -2,7 +2,8 @@
   "common": {
     "cancel": "取消",
     "saveError": "无法保存",
-    "undo": "撤销"
+    "undo": "撤销",
+    "unnamedPlant": "未命名植物"
   },
   "accountMenu": {
     "planFree": "免费版",
@@ -414,7 +415,6 @@
     "sowEither": "可直接播种，也可先在室内育苗",
     "couldNotGetSowingPlan": "无法获取播种计划",
     "userNotAuthenticated": "用户未通过身份验证",
-    "nameRequired": "植物名称为必填项",
     "noActiveYard": "没有可添加此植物的活动庭院",
     "savingChanges": "正在保存更改…",
     "savingPlant": "正在保存植物…",

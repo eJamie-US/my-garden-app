@@ -4,7 +4,7 @@
 // agree on what "due" and "overdue" mean and look like.
 
 import type { TFunction } from 'i18next';
-import type { CareItem } from '../types';
+import type { CareItem, Plant } from '../types';
 
 export const KIND_ICONS: Record<CareItem['kind'], string> = {
   water: '💧', feed: '🌱', prune: '✂️', mulch: '🍂', protect: '🧣', inspect: '🔍', other: '📋',
@@ -14,6 +14,16 @@ export const KIND_ICONS: Record<CareItem['kind'], string> = {
  *  component/hook of its own to call it from. */
 export function kindLabel(t: TFunction, kind: CareItem['kind']): string {
   return t(`careKind.${kind}`);
+}
+
+/** The plant name field is optional (added a plant without naming it yet,
+ *  planning to fill it in once identified) — display spots use this instead
+ *  of `plant.name` directly so a blank name shows "Unnamed plant" rather
+ *  than an empty label. Matching logic (care-profile lookup, AI species
+ *  keys) reads `plant.name` directly instead, since those want to know
+ *  whether anything was actually specified, not a display fallback. */
+export function plantDisplayName(t: TFunction, plant: Pick<Plant, 'name'>): string {
+  return plant.name.trim() || t('common.unnamedPlant');
 }
 
 export const today = () => new Date().toISOString().slice(0, 10);
