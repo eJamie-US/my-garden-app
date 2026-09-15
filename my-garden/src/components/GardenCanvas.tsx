@@ -545,7 +545,7 @@ export function GardenCanvas({
   }
 
   return (
-    <main className="mt-4">
+    <main className="mt-1">
       {/* Garden banner. The background photo is clipped to the banner's own
           box so it can never bleed outside it; the title art sits in a
           separate, unclipped layer on top so it can spill over the top/
@@ -553,12 +553,17 @@ export function GardenCanvas({
           clipped and sits in a raised stacking context, so accountSlot's
           dropdown (which is taller than the 100px banner) can extend below
           it instead of being cut off. */}
-      {/* mb-8 guarantees clearance below the section's own 100px box for
-          the title's own spilling descenders (see below) — those overflow
-          the section unclipped, and without this margin they'd crowd or
-          visually merge into whatever renders right after (Due Today's
-          card) instead of resting on the page background as intended. */}
-      <section className="relative z-30 mx-auto mb-8 h-[100px] w-full max-w-[1600px]">
+      {/* mb-* guarantees clearance below the section's own 100px box for the
+          title's own spilling descenders (see below, translate-y-[18px]
+          sm:translate-y-[30px]) — those overflow the section unclipped, and
+          without this margin they'd crowd or visually merge into whatever
+          renders right after (Due Today's card) instead of resting on the
+          page background as intended. Sized per breakpoint to match how far
+          the title itself actually spills at that size — mb-5 (20px) clears
+          mobile's 18px offset with a couple px of margin; mb-8 (32px) is the
+          already-tested desktop value, left alone since its 30px offset
+          leaves less headroom to cut safely. */}
+      <section className="relative z-30 mx-auto mb-5 h-[100px] w-full max-w-[1600px] sm:mb-8">
         <div className="absolute inset-0 overflow-hidden">
           <img
             src="/garden-banner.jpg"
